@@ -1,0 +1,193 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "tanishapahal606@gmail.com" || 
+        request.auth.token.email == "tanishapahal606@gmal.com" ||
+        request.auth.token.email == "saransh1860@gmail.com"
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Helper shortcuts
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- ENTITY SCHEMA VALIDATORS ---
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+        data.uid == request.auth.uid &&
+        data.email is string && data.email.size() <= 200 &&
+        (!data.keys().contains('name') || (data.name is string && data.name.size() <= 100)) &&
+        (!data.keys().contains('phone') || (data.phone is string && data.phone.size() <= 30)) &&
+        (!data.keys().contains('address') || (data.address is string && data.address.size() <= 500)) &&
+        (!data.keys().contains('campusId') || (data.campusId is string && data.campusId.size() <= 128)) &&
+        (!data.keys().contains('rewardPoints') || (data.rewardPoints is number && data.rewardPoints >= 0)) &&
+        (!data.keys().contains('referralCode') || (data.referralCode is string && data.referralCode.size() <= 100)) &&
+        (!data.keys().contains('savedCelebrations') || (data.savedCelebrations is list && data.savedCelebrations.size() <= 50)) &&
+        (!data.keys().contains('wishlist') || (data.wishlist is list && data.wishlist.size() <= 100));
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'userId', 'items', 'total', 'status']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId == request.auth.uid &&
+        data.status is string && data.status.size() <= 50 &&
+        data.items is list && data.items.size() > 0 && data.items.size() <= 20 &&
+        data.total is number && data.total >= 0 &&
+        (!data.keys().contains('userEmail') || (data.userEmail is string && data.userEmail.size() <= 200)) &&
+        (!data.keys().contains('subtotal') || (data.subtotal is number && data.subtotal >= 0)) &&
+        (!data.keys().contains('deliveryCharges') || (data.deliveryCharges is number && data.deliveryCharges >= 0)) &&
+        (!data.keys().contains('discountApplied') || (data.discountApplied is number && data.discountApplied >= 0)) &&
+        (!data.keys().contains('paymentMode') || (data.paymentMode is string && data.paymentMode.size() <= 50)) &&
+        (!data.keys().contains('campusId') || (data.campusId is string && data.campusId.size() <= 128)) &&
+        (!data.keys().contains('deliveryInstructions') || (data.deliveryInstructions is string && data.deliveryInstructions.size() <= 500));
+    }
+
+    function isValidCampus(data) {
+      return data.keys().hasAll(['id', 'name', 'active']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() <= 200 &&
+        data.active is bool &&
+        (!data.keys().contains('location') || (data.location is string && data.location.size() <= 500));
+    }
+
+    function isValidCakeProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'price', 'category', 'image']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() <= 200 &&
+        data.price is number && data.price >= 0 &&
+        data.category is string && data.category.size() <= 100 &&
+        data.image is string && data.image.size() <= 2000000 &&
+        (!data.keys().contains('description') || (data.description is string && data.description.size() <= 2000)) &&
+        (!data.keys().contains('rating') || (data.rating is number)) &&
+        (!data.keys().contains('isEggless') || (data.isEggless is bool)) &&
+        (!data.keys().contains('isTrending') || (data.isTrending is bool)) &&
+        (!data.keys().contains('deliveryTime') || (data.deliveryTime is string && data.deliveryTime.size() <= 100)) &&
+        (!data.keys().contains('weights') || (data.weights is list && data.weights.size() <= 10)) &&
+        (!data.keys().contains('flavors') || (data.flavors is list && data.flavors.size() <= 20));
+    }
+
+    function isValidKioskProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'price', 'flavor', 'remainingStock', 'totalStock', 'image']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() <= 200 &&
+        data.price is number && data.price >= 0 &&
+        data.flavor is string && data.flavor.size() <= 100 &&
+        data.remainingStock is number && data.remainingStock >= 0 &&
+        data.totalStock is number && data.totalStock >= 0 &&
+        data.image is string && data.image.size() <= 2000000;
+    }
+
+    function isValidCakeImage(data) {
+      return data.keys().hasAll(['id', 'imageUrl', 'createdAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.imageUrl is string && data.imageUrl.size() <= 2000000 &&
+        (!data.keys().contains('cakeId') || (data.cakeId is string && data.cakeId.size() <= 128)) &&
+        (!data.keys().contains('name') || (data.name is string && data.name.size() <= 200)) &&
+        (!data.keys().contains('uploadedBy') || (data.uploadedBy is string && data.uploadedBy.size() <= 128));
+    }
+
+
+    // --- MATCH BLOCKS ---
+
+    // 1. Users profiles collection
+    match /users/{userId} {
+      allow get: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      // Deny blanket reads; users can only list their own profile
+      allow list: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUserProfile(incoming());
+      allow update: if (isAdmin() || (isSignedIn() && request.auth.uid == userId)) && 
+                     isValidUserProfile(incoming()) && 
+                     incoming().uid == existing().uid; // Ensure UID immutability
+      allow delete: if isAdmin();
+    }
+
+    // 2. Orders database collection
+    match /orders/{orderId} {
+      allow get: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      
+      allow create: if isAdmin() || (isSignedIn() && isValidId(orderId) && isValidOrder(incoming()) && incoming().userId == request.auth.uid);
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        existing().userId == request.auth.uid && 
+        isValidOrder(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().id == existing().id &&
+        // Placer can only cancel their order
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'deliveryInstructions'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 3. Campuses data collection
+    match /campuses/{campusId} {
+      allow read: if true; // Public list for store discovery
+      allow create, update: if isAdmin() && isValidId(campusId) && isValidCampus(incoming());
+      allow delete: if isAdmin() && isValidId(campusId);
+    }
+
+    // 4. Standard/delivery products data collection
+    match /products/{productId} {
+      allow read: if true; // Public catalog
+      allow create, update: if isAdmin() && isValidId(productId) && isValidCakeProduct(incoming());
+      allow delete: if isAdmin() && isValidId(productId);
+    }
+
+    // 5. Instant Pickup Kiosk stock details
+    match /kiosk_products/{kioskProductId} {
+      allow read: if true; // Public kiosk inventory
+      allow create: if isAdmin() && isValidId(kioskProductId) && isValidKioskProduct(incoming());
+      allow delete: if isAdmin() && isValidId(kioskProductId);
+      allow update: if (isAdmin() && isValidId(kioskProductId) && isValidKioskProduct(incoming())) || (
+        // Allow signed-in user to decrement stock by exactly 1 on purchase
+        isSignedIn() &&
+        isValidId(kioskProductId) &&
+        isValidKioskProduct(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().name == existing().name &&
+        incoming().price == existing().price &&
+        incoming().flavor == existing().flavor &&
+        incoming().totalStock == existing().totalStock &&
+        incoming().image == existing().image &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['remainingStock']) &&
+        incoming().remainingStock == existing().remainingStock - 1 &&
+        incoming().remainingStock >= 0
+      );
+    }
+
+    // 6. Cake images collection
+    match /cake_images/{cakeImageId} {
+      allow read: if true; // Public pictures of cakes catalog/gallery
+      allow create: if isSignedIn() && isValidId(cakeImageId) && isValidCakeImage(incoming()) && incoming().uploadedBy == request.auth.uid;
+      allow update: if isAdmin() && isValidId(cakeImageId) && isValidCakeImage(incoming());
+      allow delete: if isAdmin() && isValidId(cakeImageId);
+    }
+  }
+}
