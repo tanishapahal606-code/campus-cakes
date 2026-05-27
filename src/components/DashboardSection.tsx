@@ -101,6 +101,105 @@ export default function DashboardSection({
   const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'kiosk' | 'catalog' | 'campus'>('analytics');
   const [adminOrderFilter, setAdminOrderFilter] = useState<'all' | 'placed' | 'preparing' | 'delivery' | 'ready'>('all');
 
+  // Real-time dynamic business startup calculations
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Calculate today's revenue (sum total of orders placed today)
+  const todayOrders = orders.filter(o => o.timestamp && o.timestamp.startsWith(todayStr));
+  const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.total ?? 0), 0);
+
+  // Calculate yesterday's stats to show dynamic comparison trends
+  const yesterdaysDate = new Date();
+  yesterdaysDate.setDate(yesterdaysDate.getDate() - 1);
+  const yesterdayStr = yesterdaysDate.toISOString().split('T')[0];
+  const yesterdayOrders = orders.filter(o => o.timestamp && o.timestamp.startsWith(yesterdayStr));
+  const yesterdayRevenue = yesterdayOrders.reduce((sum, o) => sum + (o.total ?? 0), 0);
+
+  const revenueTrendPercent = yesterdayRevenue > 0
+    ? (((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100).toFixed(1)
+    : null;
+
+  // Active / Total Orders counts
+  const totalOrdersCount = orders.length;
+  const instantPickupCount = orders.filter(o => o.orderType === 'instant-pickup' || o.items?.some(i => i.isInstantKiosk)).length;
+  const preOrdersCount = orders.filter(o => o.orderType === 'pre-order' && !o.items?.some(i => i.isInstantKiosk)).length;
+
+  // Returning Customer Retention rates
+  const customersMap: Record<string, number> = {};
+  let anonymousCount = 0;
+  orders.forEach(o => {
+    const key = o.userId && o.userId !== 'anonymous-user'
+      ? o.userId
+      : (o.userEmail && o.userEmail !== 'unverified@campus-cakes.com'
+          ? o.userEmail
+          : (o.customerName || `anon-${anonymousCount++}`));
+    customersMap[key] = (customersMap[key] || 0) + 1;
+  });
+  const uniqueCustomers = Object.keys(customersMap).length;
+  const repeatCustomers = Object.values(customersMap).filter(count => count > 1).length;
+  const returningRate = uniqueCustomers > 0 
+    ? ((repeatCustomers / uniqueCustomers) * 100).toFixed(1)
+    : '0.0';
+
+  // Popular Flavor
+  const flavorCounts: Record<string, number> = {};
+  orders.forEach(o => {
+    o.items?.forEach(item => {
+      const flavorOption = item.customization?.flavor || item.name;
+      if (flavorOption) {
+        flavorCounts[flavorOption] = (flavorCounts[flavorOption] || 0) + item.quantity;
+      }
+    });
+  });
+  let popularFlavor = 'None yet';
+  let maxFlavorCount = 0;
+  Object.entries(flavorCounts).forEach(([flavor, count]) => {
+    if (count > maxFlavorCount) {
+      maxFlavorCount = count;
+      popularFlavor = flavor;
+    }
+  });
+
+  // Hourly Peak Orders indicator (live counts grouped dynamically)
+  const hourlyDistribution: Record<string, number> = {
+    '12 PM': 0, '2 PM': 0, '4 PM': 0, '6 PM': 0, '8 PM': 0, '10 PM': 0, '12 AM': 0
+  };
+  orders.forEach(o => {
+    if (!o.timestamp) return;
+    const hour = new Date(o.timestamp).getHours(); // 0-23
+    if (hour >= 11 && hour < 13) hourlyDistribution['12 PM']++;
+    else if (hour >= 13 && hour < 15) hourlyDistribution['2 PM']++;
+    else if (hour >= 15 && hour < 17) hourlyDistribution['4 PM']++;
+    else if (hour >= 17 && hour < 19) hourlyDistribution['6 PM']++;
+    else if (hour >= 19 && hour < 21) hourlyDistribution['8 PM']++;
+    else if (hour >= 21 && hour < 23) hourlyDistribution['10 PM']++;
+    else if (hour >= 23 || hour < 1) hourlyDistribution['12 AM']++;
+  });
+  const maxHourValue = Math.max(...Object.values(hourlyDistribution), 1);
+
+  // Segment yields
+  let totalItemsCount = 0;
+  let kioskItemsCount = 0;
+  let customItemsCount = 0;
+  let regularPreOrderCount = 0;
+
+  orders.forEach(o => {
+    o.items?.forEach(item => {
+      totalItemsCount += item.quantity;
+      if (o.orderType === 'instant-pickup' || item.isInstantKiosk) {
+        kioskItemsCount += item.quantity;
+      } else if (item.customization) {
+        customItemsCount += item.quantity;
+      } else {
+        regularPreOrderCount += item.quantity;
+      }
+    });
+  });
+
+  const kioskPct = totalItemsCount > 0 ? Math.round((kioskItemsCount / totalItemsCount) * 100) : 0;
+  const customPct = totalItemsCount > 0 ? Math.round((customItemsCount / totalItemsCount) * 100) : 0;
+  const preOrderPct = totalItemsCount > 0 ? Math.round((regularPreOrderCount / totalItemsCount) * 100) : 0;
+
   const handleAddCelebSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCelebName || !newCelebDate) return;
@@ -609,116 +708,124 @@ export default function DashboardSection({
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-white p-4 rounded-2xl border border-gray-150">
-                  <div className="flex justify-between items-center text-gray-400">
-                    <span className="text-[10px] font-bold uppercase">Today Revenue</span>
-                    <IndianRupee className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <p className="text-xl font-black text-gray-800 mt-1.5">₹14,850</p>
-                  <p className="text-[9px] text-green-600 mt-0.5 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3 text-green-600" /> +14.2% from last Wednesday
-                  </p>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-gray-150">
-                  <div className="flex justify-between items-center text-gray-400">
-                    <span className="text-[10px] font-bold uppercase">Total Orders</span>
-                    <ShoppingBag className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <p className="text-xl font-black text-gray-800 mt-1.5">{orders.length + 8} Active</p>
-                  <p className="text-[9px] text-purple-500 mt-0.5">3 instant / {orders.length + 5} pre-orders</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-gray-150">
-                  <div className="flex justify-between items-center text-gray-400">
-                    <span className="text-[10px] font-bold uppercase">Returning Rate</span>
-                    <Users className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <p className="text-xl font-black text-gray-800 mt-1.5">64.6%</p>
-                  <p className="text-[9px] text-gray-500 mt-0.5">Industry leading campus retention</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-gray-150">
-                  <div className="flex justify-between items-center text-gray-400">
-                    <span className="text-[10px] font-bold uppercase">Popular Flavor</span>
-                    <Clock className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <p className="text-xl font-black text-gray-800 mt-1.5">Truffle Dream</p>
-                  <p className="text-[9px] text-pink-600 font-bold mt-0.5">Peak hour: 6 PM - 8 PM</p>
-                </div>
-              </div>
-
-              {/* Graphical Custom charts simulating metrics */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                
-                {/* Simulated Peak Hours bar chart */}
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200">
-                  <h5 className="text-[11px] font-black text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-1">
-                    <BarChart2 className="w-3.5 h-3.5 text-purple-600" /> Hourly Peak Orders Indicator
-                  </h5>
-                  <div className="h-28 flex items-end justify-between p-2 pt-4 bg-white rounded-xl border border-gray-100">
-                    {[
-                      { h: '12 PM', val: 30 },
-                      { h: '2 PM', val: 40 },
-                      { h: '4 PM', val: 65 },
-                      { h: '6 PM', val: 95 },
-                      { h: '8 PM', val: 100 },
-                      { h: '10 PM', val: 80 },
-                      { h: '12 AM', val: 50 }
-                    ].map((item, id) => (
-                      <div key={id} className="flex-1 flex flex-col items-center">
-                        <div className="w-5 bg-purple-600 hover:bg-pink-500 transition-colors rounded-t-sm relative group" style={{ height: `${item.val * 0.6}px` }}>
-                          <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] font-bold p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                            {item.val}% Vol.
-                          </span>
-                        </div>
-                        <span className="text-[8px] text-gray-400 font-black mt-1">{item.h}</span>
+                      <div className="flex justify-between items-center text-gray-400">
+                        <span className="text-[10px] font-bold uppercase">Today Revenue</span>
+                        <IndianRupee className="w-4 h-4 text-purple-600" />
                       </div>
-                    ))}
+                      <p className="text-xl font-black text-gray-800 mt-1.5">₹{todayRevenue.toLocaleString('en-IN')}</p>
+                      <p className="text-[9px] mt-0.5 flex items-center gap-1">
+                        {revenueTrendPercent !== null ? (
+                          <>
+                            <TrendingUp className={`w-3 h-3 ${Number(revenueTrendPercent) >= 0 ? "text-green-600" : "text-red-500"}`} />
+                            <span className={Number(revenueTrendPercent) >= 0 ? "text-green-600 text-xs" : "text-red-500 text-xs"}>
+                              {Number(revenueTrendPercent) >= 0 ? `+${revenueTrendPercent}%` : `${revenueTrendPercent}%`} from yesterday
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-gray-500">First sales day of this week</span>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-gray-150">
+                      <div className="flex justify-between items-center text-gray-400">
+                        <span className="text-[10px] font-bold uppercase">Total Orders</span>
+                        <ShoppingBag className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <p className="text-xl font-black text-gray-800 mt-1.5">{totalOrdersCount} Total</p>
+                      <p className="text-[9px] text-purple-500 mt-0.5">
+                        {instantPickupCount} instant / {preOrdersCount} pre-ordered
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-gray-150">
+                      <div className="flex justify-between items-center text-gray-400">
+                        <span className="text-[10px] font-bold uppercase">Returning Rate</span>
+                        <Users className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <p className="text-xl font-black text-gray-800 mt-1.5">{returningRate}%</p>
+                      <p className="text-[9px] text-gray-500 mt-0.5">
+                        {uniqueCustomers > 0 ? `${repeatCustomers} repeat of ${uniqueCustomers} unique buyers` : 'Waiting for real buyers'}
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-gray-150">
+                      <div className="flex justify-between items-center text-gray-400 font-bold">
+                        <span className="text-[10px] uppercase">Popular Flavor</span>
+                        <Clock className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <p className="text-sm font-black text-gray-800 mt-1.5 truncate" title={popularFlavor}>{popularFlavor}</p>
+                      <p className="text-[9px] text-pink-600 font-bold mt-0.5">Based on ordered quantity</p>
+                    </div>
                   </div>
-                </div>
 
-                {/* Simulated Revenue Sources Pie Chart Representation */}
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 text-xs">
-                  <h5 className="text-[11px] font-black text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-purple-600" /> Order Segment Yields
-                  </h5>
-                  <div className="flex items-center justify-around bg-white p-3 rounded-xl border border-gray-100 h-28">
-                    {/* Interactive horizontal custom percent graph */}
-                    <div className="space-y-2.5 w-full">
-                      <div>
-                        <div className="flex justify-between items-center text-[10px] mb-1 text-gray-600">
-                          <span className="font-bold text-indigo-700">🎂 Birthday celebrations</span>
-                          <span className="font-extrabold text-gray-900">45%</span>
-                        </div>
-                        <div className="h-2 w-full bg-gray-100 rounded-full">
-                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: '45%' }} />
-                        </div>
+                  {/* Graphical Custom charts simulating metrics */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    
+                    {/* Simulated Peak Hours bar chart */}
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200">
+                      <h5 className="text-[11px] font-black text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-1">
+                        <BarChart2 className="w-3.5 h-3.5 text-purple-600" /> Hourly Peak Orders Indicator
+                      </h5>
+                      <div className="h-28 flex items-end justify-between p-2 pt-4 bg-white rounded-xl border border-gray-100">
+                        {Object.entries(hourlyDistribution).map(([h, count], id) => {
+                          const percentHeight = maxHourValue > 0 ? (count / maxHourValue) * 100 : 0;
+                          return (
+                            <div key={id} className="flex-1 flex flex-col items-center">
+                              <div className="w-5 bg-purple-600 hover:bg-pink-500 transition-colors rounded-t-sm relative group" style={{ height: `${Math.max(4, percentHeight * 0.6)}px` }}>
+                                <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] font-bold p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                  {count} order{count !== 1 ? 's' : ''} ({Math.round(percentHeight)}%)
+                                </span>
+                              </div>
+                              <span className="text-[8px] text-gray-400 font-black mt-1">{h}</span>
+                            </div>
+                          );
+                        })}
                       </div>
+                    </div>
 
-                      <div>
-                        <div className="flex justify-between items-center text-[10px] mb-1 text-gray-600">
-                          <span className="font-bold text-amber-700">⚡ Emergency Kiosk Run</span>
-                          <span className="font-extrabold text-gray-900">30%</span>
-                        </div>
-                        <div className="h-2 w-full bg-gray-100 rounded-full">
-                          <div className="h-full bg-amber-500 rounded-full" style={{ width: '30%' }} />
-                        </div>
-                      </div>
+                    {/* Simulated Revenue Sources Pie Chart Representation */}
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 text-xs">
+                      <h5 className="text-[11px] font-black text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-1">
+                        <TrendingUp className="w-3.5 h-3.5 text-purple-600" /> Order Segment Yields
+                      </h5>
+                      <div className="flex items-center justify-around bg-white p-3 rounded-xl border border-gray-100 h-28">
+                        {/* Interactive horizontal custom percent graph */}
+                        <div className="space-y-2.5 w-full">
+                          <div>
+                            <div className="flex justify-between items-center text-[10px] mb-1 text-gray-600">
+                              <span className="font-bold text-indigo-700">🎂 Custom celebration designs</span>
+                              <span className="font-extrabold text-gray-900">{customPct}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-gray-100 rounded-full">
+                              <div className="h-full bg-indigo-600 rounded-full transition-all duration-500" style={{ width: `${customPct}%` }} />
+                            </div>
+                          </div>
 
-                      <div>
-                        <div className="flex justify-between items-center text-[10px] mb-1 text-gray-600">
-                          <span className="font-bold text-pink-700">🎉 Midterms & Hostel Reliefe</span>
-                          <span className="font-extrabold text-gray-900">25%</span>
-                        </div>
-                        <div className="h-2 w-full bg-gray-100 rounded-full">
-                          <div className="h-full bg-pink-500 rounded-full" style={{ width: '25%' }} />
+                          <div>
+                            <div className="flex justify-between items-center text-[10px] mb-1 text-gray-600">
+                              <span className="font-bold text-amber-700">⚡ Emergency Kiosk slice orders</span>
+                              <span className="font-extrabold text-gray-900">{kioskPct}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-gray-100 rounded-full">
+                              <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${kioskPct}%` }} />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-center text-[10px] mb-1 text-gray-600">
+                              <span className="font-bold text-pink-700">🎉 Standard Dorm pre-orders</span>
+                              <span className="font-extrabold text-gray-900">{preOrderPct}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-gray-100 rounded-full">
+                              <div className="h-full bg-pink-500 rounded-full transition-all duration-500" style={{ width: `${preOrderPct}%` }} />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              </div>
               )}
 
               {/* Order Tracking Controller */}

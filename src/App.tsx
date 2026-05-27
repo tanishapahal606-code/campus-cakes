@@ -779,7 +779,7 @@ export default function App() {
       total,
       paymentMethod: walletUsed > 0 && total === 0 ? 'Campus Wallet' : (paymentMode === 'upi' ? `UPI (${upiIdInput})` + (walletUsed > 0 ? ` + Wallet (₹${walletUsed})` : '') : 'Credit Card' + (walletUsed > 0 ? ` + Wallet (₹${walletUsed})` : '')),
       pointsEarned: Math.round(subtotal),
-      date: 'May 20, 2026',
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       timestamp: new Date().toISOString()
     };
 
