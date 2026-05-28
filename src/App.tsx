@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  CAMPUSES, CATEGORIES, CAKE_PRODUCTS, STUDENT_TESTIMONIALS, FAQS, AI_RECOMMENDATION_TEMPLATES 
+  CAMPUSES, CATEGORIES, CAKE_PRODUCTS, FAQS, AI_RECOMMENDATION_TEMPLATES 
 } from './data';
 import { 
   Campus, CakeItem, KioskCake, CartItem, Order, UserProfile, SavedCelebration, FeedbackReview, OrderStatus 
@@ -409,7 +409,7 @@ export default function App() {
     localStorage.setItem('campus_cakes_active_orders', JSON.stringify(activeOrders));
   }, [activeOrders]);
 
-  const [reviews, setReviews] = useState<FeedbackReview[]>(STUDENT_TESTIMONIALS);
+  const [reviews, setReviews] = useState<FeedbackReview[]>([]);
 
   // Search, Filters & AI occasions
   const [selectedCategory, setSelectedCategory] = useState<string>('All Cakes');
@@ -845,7 +845,7 @@ export default function App() {
     const newRev: FeedbackReview = {
       id: 'rev-' + Date.now(),
       userName: studentUser.name,
-      userImage: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+      userImage: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(studentUser.name) + '&background=random',
       rating: submittingRating,
       comment: submittingComment,
       cakeName: selectedReviewCake,
@@ -1734,39 +1734,46 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {reviews.map((rev) => (
-                  <div key={rev.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between hover:border-red-100 transition-colors">
-                    <div>
-                      <div className="flex items-center gap-2.5 mb-3">
-                        <img src={rev.userImage} className="w-9 h-9 rounded-full object-cover border" referrerPolicy="no-referrer" />
-                        <div>
-                          <p className="font-extrabold text-xs text-gray-900 leading-none">{rev.userName}</p>
-                          <p className="text-[9px] text-gray-400 mt-1">{rev.date} • Verified Student Member</p>
+              {reviews.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  {reviews.map((rev) => (
+                    <div key={rev.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between hover:border-red-100 transition-colors">
+                      <div>
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <img src={rev.userImage} className="w-9 h-9 rounded-full object-cover border" referrerPolicy="no-referrer" />
+                          <div>
+                            <p className="font-extrabold text-xs text-gray-900 leading-none">{rev.userName}</p>
+                            <p className="text-[9px] text-gray-400 mt-1">{rev.date} • Verified Student Member</p>
+                          </div>
                         </div>
+
+                        {/* Rating Stars */}
+                        <div className="flex items-center gap-1 text-xs mb-2.5">
+                          <span className="flex items-[#24963F] font-bold text-[10px] bg-green-50 text-[#24963F] px-1.5 py-0.5 rounded mr-1">
+                            {rev.rating} ★ Rating
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">for {rev.cakeName}</span>
+                        </div>
+
+                        <p className="text-gray-600 text-xs leading-relaxed italic">
+                          "{rev.comment}"
+                        </p>
                       </div>
 
-                      {/* Rating Stars */}
-                      <div className="flex items-center gap-1 text-xs mb-2.5">
-                        <span className="flex items-[#24963F] font-bold text-[10px] bg-green-50 text-[#24963F] px-1.5 py-0.5 rounded mr-1">
-                          {rev.rating} ★ Rating
-                        </span>
-                        <span className="text-[10px] text-gray-400 font-bold">for {rev.cakeName}</span>
-                      </div>
-
-                      <p className="text-gray-600 text-xs leading-relaxed italic">
-                        "{rev.comment}"
-                      </p>
+                      {rev.image && (
+                        <div className="mt-4 rounded-xl overflow-hidden aspect-video relative border">
+                          <img src={rev.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        </div>
+                      )}
                     </div>
-
-                    {rev.image && (
-                      <div className="mt-4 rounded-xl overflow-hidden aspect-video relative border">
-                        <img src={rev.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-100 border-dashed rounded-3xl p-8 text-center mb-8">
+                  <p className="text-sm font-bold text-gray-800">No reviews yet!</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Be the first to share your Campus Cakes experience.</p>
+                </div>
+              )}
 
               {/* WRITE FEEDBACK FORM PANEL */}
               <div className="p-5 md:p-6 bg-white border border-gray-150 rounded-3xl max-w-xl mx-auto shadow-sm">
