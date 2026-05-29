@@ -71,6 +71,8 @@ export default function DashboardSection({
   const [newCakeCategory, setNewCakeCategory] = useState('Birthday Cakes');
   const [newCakeDesc, setNewCakeDesc] = useState('');
   const [newCakeImage, setNewCakeImage] = useState<string>('');
+  const [newCakeWeights, setNewCakeWeights] = useState<number[]>([0.5, 1.0, 1.5, 2.0]);
+  const [newCakeWeightPrices, setNewCakeWeightPrices] = useState<Record<number, number>>({});
 
   // Admin section: editing product state
   const [editingCakeId, setEditingCakeId] = useState<string | null>(null);
@@ -79,6 +81,8 @@ export default function DashboardSection({
   const [editingCakeCategory, setEditingCakeCategory] = useState('');
   const [editingCakeDesc, setEditingCakeDesc] = useState('');
   const [editingCakeImage, setEditingCakeImage] = useState('');
+  const [editingCakeWeights, setEditingCakeWeights] = useState<number[]>([]);
+  const [editingCakeWeightPrices, setEditingCakeWeightPrices] = useState<Record<number, number>>({});
 
   // Admin section: new kiosk product state
   const [newKioskName, setNewKioskName] = useState('');
@@ -227,13 +231,16 @@ export default function DashboardSection({
       isTrending: true,
       image: newCakeImage || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
       deliveryTime: '24 Hours',
-      weights: [0.5, 1.0, 1.5, 2.0],
+      weights: newCakeWeights.length > 0 ? newCakeWeights : [0.5, 1.0, 1.5, 2.0],
+      weightPrices: newCakeWeightPrices,
       flavors: ['Vanilla Cream', 'Dark Ganache Swirl'],
     });
     setNewCakeName('');
     setNewCakePrice('499');
     setNewCakeDesc('');
     setNewCakeImage('');
+    setNewCakeWeights([0.5, 1.0, 1.5, 2.0]);
+    setNewCakeWeightPrices({});
     alert('Artisan cake added to pre-order menu successfully!');
   };
 
@@ -329,7 +336,8 @@ export default function DashboardSection({
         isTrending: true,
         image: editingCakeImage || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
         deliveryTime: '24 Hours',
-        weights: [0.5, 1.0, 1.5, 2.0],
+        weights: editingCakeWeights.length > 0 ? [...editingCakeWeights].sort() : [0.5, 1.0, 1.5, 2.0],
+        weightPrices: editingCakeWeightPrices,
         flavors: ['Vanilla Cream', 'Dark Ganache Swirl'],
       });
       setEditingCakeId(null);
@@ -1362,6 +1370,7 @@ export default function DashboardSection({
                                   setEditingKioskFlavor(item.flavor);
                                   setEditingKioskStock(item.totalStock.toString());
                                   setEditingKioskImage(item.image);
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                                 className="p-1.5 bg-white text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg border border-gray-250 hover:border-purple-200 transition-colors active:scale-95"
                               >
@@ -1460,6 +1469,57 @@ export default function DashboardSection({
                             />
                           </div>
 
+                          <div className="sm:col-span-2 space-y-1">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase px-1">Available Weights (kg)</label>
+                            <div className="flex flex-wrap gap-2">
+                              {[0.5, 1.0, 1.5, 2.0, 3.0].map((w) => (
+                                <div key={w} className="flex flex-col gap-1">
+                                  <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-700 font-medium hover:bg-purple-50 transition-colors">
+                                    <input 
+                                      type="checkbox" 
+                                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-600 focus:ring-1 w-3.5 h-3.5"
+                                      checked={editingCakeWeights.includes(w)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setEditingCakeWeights(prev => [...prev, w].sort());
+                                        } else {
+                                          setEditingCakeWeights(prev => prev.filter(weight => weight !== w));
+                                          setEditingCakeWeightPrices(prev => {
+                                            const newPrices = { ...prev };
+                                            delete newPrices[w];
+                                            return newPrices;
+                                          });
+                                        }
+                                      }}
+                                    />
+                                    <span>{w} kg</span>
+                                  </label>
+                                  {editingCakeWeights.includes(w) && (
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="Price"
+                                      value={editingCakeWeightPrices[w] || ''}
+                                      onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        setEditingCakeWeightPrices(prev => {
+                                          if (isNaN(val) || val <= 0) {
+                                            const newPrices = { ...prev };
+                                            delete newPrices[w];
+                                            return newPrices;
+                                          }
+                                          return { ...prev, [w]: val };
+                                        });
+                                      }}
+                                      className="px-2 py-1 bg-white text-[10px] rounded border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-150 transition-colors w-16"
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {editingCakeWeights.length === 0 && <p className="text-[9px] text-red-500 mt-1 font-medium px-1">Please select at least one weight option.</p>}
+                          </div>
+
                           <div className="sm:col-span-2 bg-white rounded-xl border border-dashed border-purple-200 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-purple-700 uppercase">Artwork Override</label>
                             <input
@@ -1529,6 +1589,58 @@ export default function DashboardSection({
                               className="w-full px-3 py-2 bg-gray-50 text-xs rounded-xl border border-gray-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-100 transition-colors text-gray-800 font-medium"
                             />
                           </div>
+                          
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Available Weights (kg)</label>
+                            <div className="flex flex-wrap gap-2">
+                              {[0.5, 1.0, 1.5, 2.0, 3.0].map((w) => (
+                                <div key={w} className="flex flex-col gap-1">
+                                  <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+                                    <input 
+                                      type="checkbox" 
+                                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-600 focus:ring-1 w-3.5 h-3.5"
+                                      checked={newCakeWeights.includes(w)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setNewCakeWeights(prev => [...prev, w].sort());
+                                        } else {
+                                          setNewCakeWeights(prev => prev.filter(weight => weight !== w));
+                                          setNewCakeWeightPrices(prev => {
+                                            const newPrices = { ...prev };
+                                            delete newPrices[w];
+                                            return newPrices;
+                                          });
+                                        }
+                                      }}
+                                    />
+                                    <span>{w} kg</span>
+                                  </label>
+                                  {newCakeWeights.includes(w) && (
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="Price"
+                                      value={newCakeWeightPrices[w] || ''}
+                                      onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        setNewCakeWeightPrices(prev => {
+                                          if (isNaN(val) || val <= 0) {
+                                            const newPrices = { ...prev };
+                                            delete newPrices[w];
+                                            return newPrices;
+                                          }
+                                          return { ...prev, [w]: val };
+                                        });
+                                      }}
+                                      className="px-2 py-1 bg-gray-50 text-[10px] rounded border border-gray-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-100 transition-colors w-16"
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {newCakeWeights.length === 0 && <p className="text-[9px] text-red-500 mt-1 font-medium">Please select at least one weight option.</p>}
+                          </div>
+
                           <div className="sm:col-span-2 bg-gray-50 rounded-xl border border-dashed border-gray-300 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-gray-500 uppercase">Featured Artwork</label>
                             <input
@@ -1586,6 +1698,9 @@ export default function DashboardSection({
                                 setEditingCakeCategory(item.category);
                                 setEditingCakeDesc(item.description);
                                 setEditingCakeImage(item.image);
+                                setEditingCakeWeights(item.weights || []);
+                                setEditingCakeWeightPrices(item.weightPrices || {});
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
                               }}
                               className="px-2.5 py-1.5 bg-white text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg border border-gray-250 hover:border-purple-200 transition-colors text-[10px] font-bold flex items-center gap-1 active:scale-95"
                             >

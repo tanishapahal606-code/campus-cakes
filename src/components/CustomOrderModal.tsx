@@ -39,7 +39,12 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart }: CustomO
 
   // Recalculate price when weight scales
   useEffect(() => {
-    // Standard weight factor: 0.5kg is baseline. 1.0kg is 1.8x baseline. 1.5kg is 2.5x baseline, etc.
+    if (cake.weightPrices && cake.weightPrices[selectedWeight] !== undefined) {
+      setCalculatedPrice(cake.weightPrices[selectedWeight]);
+      return;
+    }
+
+    // Fallback standard weight factor: 0.5kg is baseline. 1.0kg is 1.8x baseline. 1.5kg is 2.5x baseline, etc.
     let factor = 1.0;
     if (selectedWeight === 1.0) factor = 1.8;
     else if (selectedWeight === 1.5) factor = 2.5;
@@ -48,7 +53,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart }: CustomO
     else if (selectedWeight === 0.3) factor = 0.85; // bento sizes
     
     setCalculatedPrice(cake.price * factor);
-  }, [selectedWeight, cake.price]);
+  }, [selectedWeight, cake.price, cake.weightPrices]);
 
   // SMART ORDER RULES CHECKER
   useEffect(() => {
@@ -167,40 +172,16 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart }: CustomO
                     key={w}
                     type="button"
                     onClick={() => setSelectedWeight(w)}
-                    className={`p-3 rounded-2xl font-bold text-xs border text-center transition-all ${
+                    className={`p-2 rounded-2xl font-bold text-xs border text-center transition-all flex flex-col items-center justify-center gap-0.5 ${
                       active
                         ? 'bg-pink-600 border-pink-600 text-white'
                         : 'bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    {w} kg
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Flavor options section */}
-          <div>
-            <label className="block text-xs font-black text-gray-800 uppercase tracking-widest mb-2.5">
-              2. Select Premium Flavor Layer
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {cake.flavors.map((flavor) => {
-                const active = selectedFlavor === flavor;
-                return (
-                  <button
-                    key={flavor}
-                    type="button"
-                    onClick={() => setSelectedFlavor(flavor)}
-                    className={`p-3 rounded-2xl border text-left text-xs transition-all relative ${
-                      active
-                        ? 'bg-pink-50 border-pink-400 text-pink-700 font-bold'
-                        : 'bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {active && <span className="absolute right-2 top-2 w-1.5 h-1.5 bg-pink-600 rounded-full animate-ping" />}
-                    <p className="truncate pr-4">{flavor}</p>
+                    <span>{w} kg</span>
+                    <span className={`text-[9px] font-medium ${active ? 'text-pink-100' : 'text-gray-500'}`}>
+                      ₹{cake.weightPrices && cake.weightPrices[w] !== undefined ? cake.weightPrices[w] : Math.round(cake.price * (w === 1.0 ? 1.8 : w === 1.5 ? 2.5 : w === 2.0 ? 3.2 : w === 3.0 ? 4.5 : w === 0.3 ? 0.85 : 1.0))}
+                    </span>
                   </button>
                 );
               })}
@@ -211,7 +192,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart }: CustomO
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="block text-xs font-black text-gray-800 uppercase tracking-widest">
-                3. Custom Text On Buttercream (Max 24 letters)
+                2. Custom Text On Buttercream (Max 24 letters)
               </label>
               <span className={`text-[10px] font-bold ${message.length > 20 ? 'text-red-600 animate-pulse' : 'text-gray-400'}`}>
                 {message.length}/24 chars
@@ -229,20 +210,6 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart }: CustomO
                 placeholder="e.g. Happy Birthday Kriti! 🎓"
                 className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500"
               />
-            </div>
-            
-            {/* Live typographic simulator visual mockup */}
-            <div className="mt-3 p-3 bg-amber-50/30 border border-amber-100/50 rounded-2xl flex items-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-pink-100/80 border-2 border-pink-200 flex-shrink-0 flex items-center justify-center relative shadow-sm">
-                <div className="absolute inset-2 rounded-full border border-pink-300/40 border-dashed" />
-                <span className="text-[7px] text-pink-600 font-bold tracking-tight text-center px-1 line-clamp-2 leading-none uppercase select-none">
-                  {message || "Yum"}
-                </span>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-amber-900 leading-none">Frosting Simulator Live</p>
-                <p className="text-[9px] text-gray-500 mt-1">Our chefs lay down your letters using sweet food-safe organic gel piping bag.</p>
-              </div>
             </div>
           </div>
 
@@ -304,7 +271,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart }: CustomO
           {/* Addons section */}
           <div>
             <label className="block text-xs font-black text-gray-800 uppercase tracking-widest mb-2">
-              4. Event Conveniences (Free Add-ons!)
+              3. Event Conveniences (Free Add-ons!)
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -349,7 +316,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart }: CustomO
           <div className="border-t border-dashed border-gray-200 pt-5 space-y-4">
             <div className="flex justify-between items-center">
               <label className="block text-xs font-black text-gray-800 uppercase tracking-widest flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-pink-600" /> 5. Select Campus Delivery Slot
+                <Calendar className="w-3.5 h-3.5 text-pink-600" /> 4. Select Campus Delivery Slot
               </label>
               <span className="text-[10px] font-bold text-pink-600 uppercase">24h rule active</span>
             </div>

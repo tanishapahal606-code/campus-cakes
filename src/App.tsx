@@ -742,11 +742,6 @@ export default function App() {
     setCart(prev => prev.filter(c => c.id !== cartId));
   };
 
-  const hasCupcakesInCart = cart.some(item => {
-    const cake = activeProducts.find(p => p.id === item.cakeId);
-    return cake?.category === 'Cupcakes';
-  });
-
   // Checkout submission action
   const handleCompletePayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -757,7 +752,7 @@ export default function App() {
     const deliveryFee = 20; // standard delivery surcharge
     const surchargeTotal = 50;
     
-    const effectiveRedeemPoints = redeemPoints && hasCupcakesInCart;
+    const effectiveRedeemPoints = redeemPoints;
     const pointsDiscount = effectiveRedeemPoints ? (studentUser.rewardPoints || 0) : 0;
     const totalBeforeWallet = Math.max(0, subtotal + surchargeTotal - pointsDiscount);
     const walletUsed = useWallet ? Math.min((studentUser.walletBalance || 0), totalBeforeWallet) : 0;
@@ -778,7 +773,7 @@ export default function App() {
       deliveryFee,
       total,
       paymentMethod: walletUsed > 0 && total === 0 ? 'Campus Wallet' : (paymentMode === 'upi' ? `UPI (${upiIdInput})` + (walletUsed > 0 ? ` + Wallet (₹${walletUsed})` : '') : 'Credit Card' + (walletUsed > 0 ? ` + Wallet (₹${walletUsed})` : '')),
-      pointsEarned: Math.round(subtotal),
+      pointsEarned: Math.floor(subtotal / 10),
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       timestamp: new Date().toISOString()
     };
@@ -813,7 +808,7 @@ export default function App() {
     }
     
     // Award loyalty points to user profile and deduct spent points & wallet balance
-    const updatedPoints = studentUser.rewardPoints - Math.floor(pointsDeducted) + Math.round(subtotal);
+    const updatedPoints = studentUser.rewardPoints - Math.floor(pointsDeducted) + Math.floor(subtotal / 10);
     const updatedWallet = Math.max(0, (studentUser.walletBalance ?? 0) - walletUsed);
     
     const updatedUser = {
@@ -1875,104 +1870,121 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      <footer className="relative bg-zinc-950 text-zinc-300 mt-20 border-t border-zinc-800">
+      <footer className="relative bg-[#0A0A0A] text-zinc-300 mt-20 border-t border-zinc-800/50 overflow-hidden">
         {/* Decorative Top Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-red-500 via-[#E23744] to-amber-500" />
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-500 via-[#E23744] to-amber-500" />
         
-        <div className="max-w-7xl mx-auto px-6 md:px-12 py-16 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-8">
+        {/* Subtle Background Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-[#E23744]/10 blur-[100px] pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto px-6 md:px-12 py-20 grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 relative z-10">
           
           {/* Brand Column */}
-          <div className="md:col-span-4 space-y-6">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E23744] to-red-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-red-950/40">
+          <div className="md:col-span-5 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E23744] to-rose-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-red-900/30">
                 CC
               </div>
-              <span className="font-extrabold text-lg tracking-tight text-white flex items-center gap-1">
+              <span className="font-extrabold text-2xl tracking-tight text-white flex items-center gap-1">
                 campus <span className="text-[#E23744]">cakes</span>
               </span>
             </div>
-            <p className="text-sm text-zinc-400 leading-relaxed font-normal max-w-sm">
-              Delivering handcrafted premium cakes, customized celebrations, and gourmet treats straight to your campus address—from canteens to dorm rooms.
+            <p className="text-sm text-zinc-400 leading-relaxed font-medium max-w-sm">
+              Your college campus, sweetened. Delivering handcrafted premium cakes, customized celebrations, and gourmet treats straight to your dorm room, library, or canteen.
             </p>
-            <div className="pt-2 flex items-center gap-3">
-              <div className="flex items-center gap-1 text-[11px] font-semibold text-zinc-400 w-fit shrink-0 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900/80 border border-zinc-800 rounded-full px-3.5 py-1.5 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
                 Freshly Baked Daily
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-semibold text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900/80 border border-zinc-800 rounded-full px-3.5 py-1.5 shadow-sm">
                 🚀 Room Service Active
               </div>
             </div>
           </div>
 
           {/* College Network Column */}
-          <div className="md:col-span-3 space-y-4">
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#E23744]" />
-              <h5 className="font-bold text-xs uppercase tracking-widest text-zinc-100">Live Campus Network</h5>
-            </div>
-            <ul className="text-xs text-zinc-400 space-y-3 font-medium">
-              <li className="flex items-center gap-2 hover:text-white transition-colors">
-                <span className="text-emerald-500">●</span> ABC University <span className="text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-400 border border-zinc-800">Cafe</span>
+          <div className="md:col-span-3 space-y-5">
+            <h5 className="font-bold text-sm uppercase tracking-widest text-white flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-[#E23744]" />
+              Live Campus Network
+            </h5>
+            <ul className="text-sm text-zinc-400 space-y-3.5 font-medium">
+              <li className="flex items-center gap-2.5 hover:text-white transition-colors group cursor-pointer">
+                <span className="text-emerald-500 text-[8px] group-hover:scale-150 transition-transform">●</span> 
+                ABC University 
+                <span className="text-[9px] font-bold bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 border border-zinc-700">Cafe</span>
               </li>
-              <li className="flex items-center gap-2 hover:text-white transition-colors">
-                <span className="text-emerald-500">●</span> XYZ College of Chemistry <span className="text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-400 border border-zinc-800">Cafe</span>
+              <li className="flex items-center gap-2.5 hover:text-white transition-colors group cursor-pointer">
+                <span className="text-emerald-500 text-[8px] group-hover:scale-150 transition-transform">●</span> 
+                XYZ College 
+                <span className="text-[9px] font-bold bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 border border-zinc-700">Cafe</span>
               </li>
-              <li className="flex items-center gap-2 hover:text-white transition-colors">
-                <span className="text-emerald-500">●</span> PQR Business Inst. <span className="text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-400 border border-zinc-800">Hub</span>
+              <li className="flex items-center gap-2.5 hover:text-white transition-colors group cursor-pointer">
+                <span className="text-emerald-500 text-[8px] group-hover:scale-150 transition-transform">●</span> 
+                PQR Business Inst. 
+                <span className="text-[9px] font-bold bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 border border-zinc-700">Hub</span>
               </li>
-              <li className="pt-1">
+              <li className="pt-2">
                 <button 
                   onClick={() => alert('Campus suggestion form loaded soon! Tell us your university canteens details.')}
-                  className="text-[#E23744] hover:text-red-400 font-bold transition-colors inline-flex items-center gap-1 hover:underline cursor-pointer"
+                  className="text-[#E23744] hover:text-red-400 font-bold transition-colors inline-flex items-center gap-1 hover:underline cursor-pointer group"
                 >
-                  ⚡ Vote For Your Campus ! 
+                  ⚡ Vote For Your Campus
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </li>
             </ul>
           </div>
 
-          {/* Operations Column */}
-          <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              <h5 className="font-bold text-xs uppercase tracking-widest text-zinc-100">Operations</h5>
-            </div>
-            <ul className="text-xs text-zinc-400 space-y-3 font-medium">
-              <li className="space-y-0.5">
-                <span className="text-[10px] text-zinc-500 block uppercase font-semibold">Delivery & Pickup</span>
-                <span className="text-white">10:00 AM – 10:00 PM</span>
-              </li>
-              <li className="space-y-0.5">
-                <span className="text-[10px] text-zinc-500 block uppercase font-semibold">Dorm HQ Hub</span>
-                <span className="text-white">Student Block C, Booth #3</span>
-              </li>
-              <li className="pt-1">
+          {/* Operations & Support Column */}
+          <div className="md:col-span-4 space-y-5">
+            <h5 className="font-bold text-sm uppercase tracking-widest text-white flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-amber-500" />
+              Operations & Support
+            </h5>
+            <div className="text-sm text-zinc-400 space-y-4 font-medium">
+              <div className="flex items-start gap-3">
+                <Clock className="w-4 h-4 text-zinc-500 mt-0.5" />
+                <div>
+                  <span className="text-zinc-200 block">Delivery & Pickup Hours</span>
+                  <span className="text-zinc-500 text-xs">Mon-Sun: 10:00 AM – 10:00 PM</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <MapPin className="w-4 h-4 text-zinc-500 mt-0.5" />
+                <div>
+                  <span className="text-zinc-200 block">Dorm HQ Hub</span>
+                  <span className="text-zinc-500 text-xs">Student Block C, Booth #3</span>
+                </div>
+              </div>
+              <div className="pt-3">
                 <a 
                   href="https://wa.me/15557236902" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-[#128C7E] hover:bg-[#075E54] hover:scale-[1.02] text-white font-extrabold text-[11px] px-3 py-1.5 rounded-xl transition-all shadow-md cursor-pointer"
+                  className="inline-flex w-full sm:w-auto items-center justify-center gap-2 bg-zinc-900 border border-[#128C7E]/30 hover:border-[#128C7E] hover:bg-[#128C7E]/10 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer group"
                 >
-                  <Phone className="w-3.5 h-3.5" />
-                  WhatsApp Support
+                  <Phone className="w-4 h-4 text-[#128C7E] group-hover:scale-110 transition-transform" />
+                  Chat on WhatsApp Support
                 </a>
-              </li>
-            </ul>
+              </div>
+            </div>
           </div>
 
         </div>
 
         {/* Premium Bottom Bar */}
-        <div className="bg-zinc-950 border-t border-zinc-900/80 px-6 md:px-12 py-8 text-center text-xs text-zinc-500">
+        <div className="bg-black/50 border-t border-zinc-900 px-6 md:px-12 py-6 text-center text-xs text-zinc-500">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4">
-            <p className="text-[11px] leading-relaxed max-w-2xl text-left text-zinc-500 md:max-w-xl">
-              © 2026 Campus Cakes Inc. Operated in partnership with college student committees. Baked fresh, handled on-campus, and hand-delivered securely with supreme hygiene standards.
+            <p className="text-xs leading-relaxed max-w-2xl text-left text-zinc-500 md:max-w-xl font-medium">
+              © {new Date().getFullYear()} Campus Cakes Inc. Operated in partnership with college student committees. 
+              Baked fresh, handled on-campus, and hand-delivered securely.
             </p>
-            <div className="flex flex-wrap gap-4 text-[11px] text-zinc-400 font-semibold justify-end">
+            <div className="flex flex-wrap gap-5 text-xs text-zinc-500 font-medium justify-end">
               <button onClick={() => alert('Campus Cakes startup operational terms simulation')} className="hover:text-white transition-colors duration-200">Terms of Service</button>
-              <span className="text-zinc-700 select-none">•</span>
-              <button onClick={() => alert('Student privacy security rules simulation')} className="hover:text-white transition-colors duration-200">Dorm Protection & Privacy</button>
+              <button onClick={() => alert('Student privacy security rules simulation')} className="hover:text-white transition-colors duration-200">Dorm Privacy</button>
+              <button onClick={() => alert('Refund policy simulation')} className="hover:text-white transition-colors duration-200">Refund Policy</button>
             </div>
           </div>
         </div>
@@ -2115,7 +2127,7 @@ export default function App() {
                   {/* Loyalty XP points projection */}
                   <div className="p-2.5 bg-yellow-100 text-yellow-905 font-bold rounded-xl text-[10px] text-center flex items-center justify-center gap-1">
                     <span className="animate-spin text-amber-600">★</span> 
-                    You earns +{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0))} XP student loyalty points!
+                    You earn +{Math.floor(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) / 10)} XP student loyalty points!
                   </div>
 
                   <button
@@ -2292,25 +2304,22 @@ export default function App() {
                     <div>
                       <h4 className="text-xs font-bold text-gray-900">Campus XP Points</h4>
                       <p className="text-[10px] text-gray-600">Balance: {studentUser.rewardPoints} XP (₹{studentUser.rewardPoints})</p>
-                      {!hasCupcakesInCart && (
-                        <p className="text-[9px] text-red-500 font-bold mt-0.5">Only applicable on Cupcakes!</p>
-                      )}
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setRedeemPoints(!redeemPoints)}
-                    disabled={studentUser.rewardPoints <= 0 || !hasCupcakesInCart}
+                    disabled={studentUser.rewardPoints <= 0}
                     className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-250 focus:outline-none ${
-                        redeemPoints && hasCupcakesInCart ? 'bg-amber-500' : 'bg-gray-300'
-                    } ${(studentUser.rewardPoints <= 0 || !hasCupcakesInCart) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        redeemPoints ? 'bg-amber-500' : 'bg-gray-300'
+                    } ${(studentUser.rewardPoints <= 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
-                        redeemPoints && hasCupcakesInCart ? 'translate-x-5' : 'translate-x-0'
+                        redeemPoints ? 'translate-x-5' : 'translate-x-0'
                     }`} />
                   </button>
                 </div>
-                {redeemPoints && hasCupcakesInCart && <p className="text-[10px] text-amber-600 font-bold">XP points applied to offset the total!</p>}
+                {redeemPoints && <p className="text-[10px] text-amber-600 font-bold">XP points applied to offset the total!</p>}
               </div>
 
               {/* Wallet Balance Application */}
@@ -2340,7 +2349,7 @@ export default function App() {
                 </div>
                 {useWallet && (studentUser.walletBalance ?? 0) > 0 && (
                   <p className="text-[10px] text-emerald-600 font-bold">
-                    Deducting ₹{Math.min(studentUser.walletBalance ?? 0, Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - ((redeemPoints && hasCupcakesInCart) ? studentUser.rewardPoints : 0)))} from your wallet!
+                    Deducting ₹{Math.min(studentUser.walletBalance ?? 0, Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0)))} from your wallet!
                   </p>
                 )}
               </div>
@@ -2349,13 +2358,13 @@ export default function App() {
               <div className="border-t border-dashed pt-3 text-xs flex justify-between font-extrabold text-gray-800 items-end">
                 <span>Amount to Pay</span>
                 <div className="text-right">
-                  {((redeemPoints && hasCupcakesInCart) || (useWallet && (studentUser.walletBalance ?? 0) > 0)) && (
+                  {((redeemPoints) || (useWallet && (studentUser.walletBalance ?? 0) > 0)) && (
                     <span className="text-[10px] text-gray-400 line-through mr-2 font-mono">
                       ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)}
                     </span>
                   )}
                   <span className="text-pink-600 font-mono text-sm">
-                    ₹{Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - ((redeemPoints && hasCupcakesInCart) ? studentUser.rewardPoints : 0) - (useWallet ? Math.min(studentUser.walletBalance ?? 0, Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - ((redeemPoints && hasCupcakesInCart) ? studentUser.rewardPoints : 0))) : 0))}
+                    ₹{Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0) - (useWallet ? Math.min(studentUser.walletBalance ?? 0, Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0))) : 0))}
                   </span>
                 </div>
               </div>

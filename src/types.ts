@@ -22,6 +22,7 @@ export interface CakeItem {
   image: string;
   deliveryTime: string;
   weights: number[]; // e.g. [0.5, 1, 1.5, 2]
+  weightPrices?: Record<number, number>; // Maps weight to its specific price
   flavors: string[];
 }
 
