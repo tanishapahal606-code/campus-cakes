@@ -16,6 +16,7 @@ import CampusSelector from './components/CampusSelector';
 import KioskSection from './components/KioskSection';
 import CustomOrderModal from './components/CustomOrderModal';
 import DashboardSection from './components/DashboardSection';
+import { DarkModeToggle } from './components/DarkModeToggle';
 
 // Lucide React Icons
 import { 
@@ -925,7 +926,7 @@ export default function App() {
           <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#E23744] via-red-500 to-rose-600 flex items-center justify-center text-white shadow-2xl shadow-red-500/20 mb-6 animate-pulse">
             <span className="text-2xl font-black font-display tracking-tight">CC</span>
           </div>
-          <h2 className="text-xl font-black font-display text-gray-900 tracking-tight">Campus Cakes Hub</h2>
+          <h2 className="text-xl font-black font-display text-gray-900 dark:text-white tracking-tight">Campus Cakes Hub</h2>
           <p className="text-xs text-gray-400 font-bold tracking-wide mt-2">Checking your student dispatch credentials...</p>
           <div className="mt-6 flex items-center justify-center">
             <div className="w-6 h-6 border-3 border-[#E23744] border-t-transparent rounded-full animate-spin"></div>
@@ -944,7 +945,7 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative max-w-md w-full bg-white rounded-[40px] border border-gray-150 shadow-2xl shadow-red-500/5 p-8 md:p-10 text-center"
+          className="relative max-w-md w-full bg-white dark:bg-[#120709] rounded-[40px] border border-gray-150 dark:border-[#291316] shadow-2xl shadow-red-500/5 p-8 md:p-10 text-center"
         >
           {/* Logo Brand Accent */}
           <div className="flex justify-center mb-6">
@@ -953,12 +954,12 @@ export default function App() {
             </div>
           </div>
 
-          <h1 className="text-3xl font-black font-display text-gray-900 tracking-tight leading-tight italic text-transparent bg-clip-text bg-gradient-to-r from-[#E23744] to-red-650">
+          <h1 className="text-3xl font-black font-display text-gray-900 dark:text-white tracking-tight leading-tight italic text-transparent bg-clip-text bg-gradient-to-r from-[#E23744] to-red-650">
             campus cakes
           </h1>
           <p className="text-[10px] font-black tracking-widest text-[#E23744] uppercase mt-1">Dorm Sweet Dispatch</p>
 
-          <p className="text-sm text-gray-500 mt-4 mb-8 leading-relaxed">
+          <p className="text-sm text-gray-500 dark:text-[#a1a1aa] mt-4 mb-8 leading-relaxed">
             Verify your student account to access next-day guaranteed dorm birthday delivery, custom theme pre-orders, and our instant live kiosk inventory tracking.
           </p>
 
@@ -967,7 +968,7 @@ export default function App() {
             <button
               id="google-signin-btn"
               onClick={handleGoogleSignIn}
-              className="w-full h-12 flex items-center justify-center bg-white hover:bg-gray-50 text-gray-700 font-bold text-sm px-6 rounded-2xl border-2 border-gray-100 shadow-sm hover:shadow-md active:scale-98 transition-all duration-200 cursor-pointer"
+              className="w-full h-12 flex items-center justify-center bg-white dark:bg-[#120709] hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80 text-gray-700 dark:text-[#e4e4e7] font-bold text-sm px-6 rounded-2xl border-2 border-gray-100 dark:border-[#291316] shadow-sm dark:shadow-none hover:shadow-md dark:shadow-none active:scale-98 transition-all duration-200 cursor-pointer"
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -980,7 +981,7 @@ export default function App() {
             <p className="text-[10px] text-gray-400 font-medium font-mono">Only student organization Google credentials are supported.</p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-center gap-4 text-[11px] text-gray-400 font-bold">
+          <div className="mt-8 pt-6 border-t border-gray-100 dark:border-[#291316] flex items-center justify-center gap-4 text-[11px] text-gray-400 font-bold">
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-[#E23744]" /> Firebase Verified
             </span>
@@ -1014,7 +1015,7 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative max-w-lg w-full bg-white rounded-[40px] border border-gray-150 shadow-2xl shadow-red-500/5 p-6 md:p-8"
+          className="relative max-w-lg w-full bg-white dark:bg-[#120709] rounded-[40px] border border-gray-150 dark:border-[#291316] shadow-2xl shadow-red-500/5 p-6 md:p-8"
         >
           {/* Header Brand */}
           <div className="flex items-center justify-between border-b pb-4 mb-6">
@@ -1023,14 +1024,14 @@ export default function App() {
                 CC
               </div>
               <div>
-                <h4 className="font-black text-xs text-gray-900 leading-none">Campus Cakes</h4>
+                <h4 className="font-black text-xs text-gray-900 dark:text-white leading-none">Campus Cakes</h4>
                 <p className="text-[9px] text-[#E23744] font-black mt-0.5">Welcome, {firebaseUser.displayName?.split(' ')[0] || 'Friend'}</p>
               </div>
             </div>
             
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-xl border transition-all text-[10px] font-bold cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-red-50 hover:dark:bg-red-500/10 text-gray-500 dark:text-[#a1a1aa] hover:text-red-600 rounded-xl border transition-all text-[10px] font-bold cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" /> Sign Out
             </button>
@@ -1039,13 +1040,13 @@ export default function App() {
           {tempSelectedCampus ? (
             <div className="space-y-5 animate-fadeIn">
               <div className="text-center mb-1">
-                <div className="mx-auto w-12 h-12 bg-red-50 text-[#E23744] flex items-center justify-center rounded-2xl mb-3 shadow-inner">
+                <div className="mx-auto w-12 h-12 bg-red-50 dark:bg-red-500/10 text-[#E23744] flex items-center justify-center rounded-2xl mb-3 shadow-inner">
                   <MapPin className="w-6 h-6 animate-bounce" />
                 </div>
-                <h2 className="text-xl md:text-2xl font-black font-display text-gray-900 tracking-tight">
+                <h2 className="text-xl md:text-2xl font-black font-display text-gray-900 dark:text-white tracking-tight">
                   Delivery Details at {tempSelectedCampus.name}
                 </h2>
-                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                <p className="text-xs text-gray-500 dark:text-[#a1a1aa] mt-1.5 leading-relaxed">
                   Enter your hostel address so our student delivery partners find you instantly!
                 </p>
               </div>
@@ -1069,7 +1070,7 @@ export default function App() {
                   <input
                     name="hostelBlock"
                     placeholder="e.g. Vindhyachal Hostel, Block C"
-                    className="w-full text-xs p-3 border border-gray-200 hover:border-gray-350 rounded-xl outline-none focus:border-[#E23744] focus:ring-1 focus:ring-red-100 placeholder-gray-400 font-medium transition-all"
+                    className="w-full text-xs p-3 border border-gray-200 dark:border-[#3c1a1e] hover:border-gray-350 rounded-xl outline-none focus:border-[#E23744] focus:ring-1 focus:ring-red-100 placeholder-gray-400 font-medium transition-all"
                     required
                   />
                 </div>
@@ -1081,7 +1082,7 @@ export default function App() {
                   <input
                     name="roomNo"
                     placeholder="e.g. Room No. 204, Flat 12B"
-                    className="w-full text-xs p-3 border border-gray-200 hover:border-gray-355 rounded-xl outline-none focus:border-[#E23744] focus:ring-1 focus:ring-red-100 placeholder-gray-400 font-medium transition-all"
+                    className="w-full text-xs p-3 border border-gray-200 dark:border-[#3c1a1e] hover:border-gray-355 rounded-xl outline-none focus:border-[#E23744] focus:ring-1 focus:ring-red-100 placeholder-gray-400 font-medium transition-all"
                     required
                   />
                 </div>
@@ -1094,7 +1095,7 @@ export default function App() {
                     name="instructions"
                     placeholder="e.g. Leave with security guard at gate, call when arrived at entrance door, or meet at common room stairs."
                     rows={2}
-                    className="w-full text-xs p-3 border border-gray-200 hover:border-gray-360 rounded-xl outline-none focus:border-[#E23744] focus:ring-1 focus:ring-red-100 placeholder-gray-400 font-medium transition-all resize-none"
+                    className="w-full text-xs p-3 border border-gray-200 dark:border-[#3c1a1e] hover:border-gray-360 rounded-xl outline-none focus:border-[#E23744] focus:ring-1 focus:ring-red-100 placeholder-gray-400 font-medium transition-all resize-none"
                   />
                 </div>
 
@@ -1102,7 +1103,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setTempSelectedCampus(null)}
-                    className="flex-1 py-3 px-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold border border-gray-200 rounded-xl text-xs transition-colors cursor-pointer select-none text-center"
+                    className="flex-1 py-3 px-4 bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-gray-100 hover:dark:bg-[#1a0d0f] text-gray-600 dark:text-[#d4d4d8] font-bold border border-gray-200 dark:border-[#3c1a1e] rounded-xl text-xs transition-colors cursor-pointer select-none text-center"
                   >
                     Change Campus
                   </button>
@@ -1117,10 +1118,10 @@ export default function App() {
             </div>
           ) : (
             <>
-              <h2 className="text-xl md:text-2xl font-black font-display text-gray-900 tracking-tight text-center">
+              <h2 className="text-xl md:text-2xl font-black font-display text-gray-900 dark:text-white tracking-tight text-center">
                 Where is your dorm or lab?
               </h2>
-              <p className="text-xs text-gray-500 text-center mt-1 mb-6 leading-relaxed">
+              <p className="text-xs text-gray-500 dark:text-[#a1a1aa] text-center mt-1 mb-6 leading-relaxed">
                 Select the active university startup hub below to update current catalogs and live kiosk menus.
               </p>
 
@@ -1130,20 +1131,20 @@ export default function App() {
                 {activeCampuses.map((campus) => (
                   <div
                     key={campus.id}
-                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-gray-50 hover:bg-gradient-to-r hover:from-red-50/5 hover:to-white hover:border-red-300 border-2 border-gray-100 text-left transition-all duration-300 transform hover:-translate-y-0.5 group shadow-sm active:scale-[0.99]"
+                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-gradient-to-r hover:from-red-50/5 hover:to-white hover:border-red-300 border-2 border-gray-100 dark:border-[#291316] text-left transition-all duration-300 transform hover:-translate-y-0.5 group shadow-sm dark:shadow-none active:scale-[0.99]"
                   >
                     <div 
                       className="flex items-start gap-3.5 flex-1 cursor-pointer"
                       onClick={() => handleSelectCampus(campus)}
                     >
-                      <div className="p-2.5 bg-white rounded-xl text-gray-400 group-hover:text-[#E23744] group-hover:bg-red-50 transition-colors border border-gray-150">
+                      <div className="p-2.5 bg-white dark:bg-[#120709] rounded-xl text-gray-400 group-hover:text-[#E23744] group-hover:bg-red-50 hover:dark:bg-red-500/10 transition-colors border border-gray-150 dark:border-[#291316]">
                         <GraduationCap className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-extrabold text-sm text-gray-800 leading-tight group-hover:text-red-900">
+                        <h4 className="font-extrabold text-sm text-gray-800 dark:text-[#fafafa] leading-tight group-hover:text-red-900">
                           {campus.name}
                         </h4>
-                        <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
+                        <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] mt-1 flex items-center gap-1">
                           <MapPin className="w-3 h-3 text-[#E23744]" /> {campus.location}
                         </p>
                       </div>
@@ -1152,14 +1153,14 @@ export default function App() {
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => handleSelectCampus(campus)}
-                        className="flex items-center gap-1 text-[#E23744] text-[10px] font-bold uppercase tracking-wider bg-red-50 px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        className="flex items-center gap-1 text-[#E23744] text-[10px] font-bold uppercase tracking-wider bg-red-50 dark:bg-red-500/10 px-2.5 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                       >
                         Enter Hub <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                       {isAdmin && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteCampus(campus.id); }}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors cursor-pointer"
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 hover:dark:bg-red-500/10 rounded-full transition-colors cursor-pointer"
                           title="Delete Campus (Admin Only)"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1181,13 +1182,13 @@ export default function App() {
                          const bypassCampus: Campus = { id: 'admin-bypass', name: 'Admin Control Center', location: 'Virtual', active: true };
                          handleSelectCampus(bypassCampus);
                        }}
-                       className="w-full flex items-center justify-center p-3 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors text-xs font-bold border border-purple-200"
+                       className="w-full flex items-center justify-center p-3 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-700 hover:bg-purple-100 transition-colors text-xs font-bold border border-purple-200"
                     >
                       <ShieldCheck className="w-4 h-4 mr-2" /> Bypass to Admin Dashboard
                     </button>
                     
-                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                      <h6 className="text-[10px] font-bold text-gray-500 uppercase mb-2">Emergency Add Hub</h6>
+                    <div className="bg-white dark:bg-[#120709] p-4 rounded-xl border border-gray-200 dark:border-[#3c1a1e] shadow-sm dark:shadow-none">
+                      <h6 className="text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase mb-2">Emergency Add Hub</h6>
                       <form 
                         onSubmit={async (e) => {
                           e.preventDefault();
@@ -1213,8 +1214,8 @@ export default function App() {
                         }}
                         className="space-y-2"
                       >
-                        <input name="name" placeholder="Campus Name" className="w-full text-xs p-2.5 border border-gray-200 rounded-lg outline-none focus:border-red-400" required />
-                        <input name="location" placeholder="Location Details" className="w-full text-xs p-2.5 border border-gray-200 rounded-lg outline-none focus:border-red-400" required />
+                        <input name="name" placeholder="Campus Name" className="w-full text-xs p-2.5 border border-gray-200 dark:border-[#3c1a1e] rounded-lg outline-none focus:border-red-400" required />
+                        <input name="location" placeholder="Location Details" className="w-full text-xs p-2.5 border border-gray-200 dark:border-[#3c1a1e] rounded-lg outline-none focus:border-red-400" required />
                         <button type="submit" className="w-full bg-gray-900 hover:bg-black text-white text-[10px] font-bold p-2.5 rounded-lg transition-colors cursor-pointer">
                           Provision Campus
                         </button>
@@ -1229,10 +1230,10 @@ export default function App() {
       </div>
     );
   }  return (
-    <div className="min-h-screen bg-neutral-50/60 text-gray-800 font-sans selection:bg-red-100 selection:text-[#E23744]">
+    <div className="min-h-screen bg-neutral-50/60 text-gray-800 dark:text-[#fafafa] font-sans selection:bg-red-100 selection:text-[#E23744]">
       
       {/* APP HEADER */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-150 px-4 md:px-8 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-white dark:bg-[#120709]/95 backdrop-blur-md border-b border-gray-150 dark:border-[#291316] px-4 md:px-8 py-3 flex items-center justify-between">
         
         {/* Brand Logo and Title in classical Zomato lowercase italic bold layout */}
         <div className="flex items-center gap-1.5">
@@ -1242,19 +1243,19 @@ export default function App() {
           >
             campus cakes
           </div>
-          <span className="text-[8px] bg-red-50 text-[#E23744] ring-1 ring-red-100 px-1.5 py-0.5 rounded-md font-extrabold uppercase uppercase tracking-wide hidden sm:inline-block">Dorm Dispatch</span>
+          <span className="text-[8px] bg-red-50 dark:bg-red-500/10 text-[#E23744] ring-1 ring-red-100 px-1.5 py-0.5 rounded-md font-extrabold uppercase uppercase tracking-wide hidden sm:inline-block">Dorm Dispatch</span>
         </div>
 
         {/* Combined Location + Dish Search Bar (Like Classic Zomato) */}
-        <div className="hidden md:flex items-center bg-white border border-gray-200 rounded-2xl px-3 py-1.5 shadow-sm max-w-xl flex-1 mx-6 h-11">
+        <div className="hidden md:flex items-center bg-white dark:bg-[#120709] border border-gray-200 dark:border-[#3c1a1e] rounded-2xl px-3 py-1.5 shadow-sm dark:shadow-none max-w-xl flex-1 mx-6 h-11">
           {/* Location Picker display */}
-          <div className="flex items-center gap-1.5 text-gray-700 text-xs font-bold max-w-[180px] truncate">
+          <div className="flex items-center gap-1.5 text-gray-700 dark:text-[#e4e4e7] text-xs font-bold max-w-[180px] truncate">
             <MapPin className="w-4 h-4 text-[#E23744] flex-shrink-0" />
             <span>{selectedCampus.name.split('(')[0]}</span>
           </div>
           
           {/* Central Divider */}
-          <div className="w-[1px] h-5 bg-gray-200 mx-3"></div>
+          <div className="w-[1px] h-5 bg-gray-200 dark:bg-[#1a0d0f] mx-3"></div>
           
           {/* Culinary and flavour input search */}
           <div className="flex items-center flex-1 gap-2">
@@ -1275,6 +1276,8 @@ export default function App() {
         {/* Global Controls Side */}
         <div className="flex items-center gap-2.5">
           
+          <DarkModeToggle />
+
           {/* Advanced Campus choosing dropdown */}
           <CampusSelector 
             selectedCampus={selectedCampus}
@@ -1286,12 +1289,12 @@ export default function App() {
           <button
             id="global-cart-anchor"
             onClick={() => setIsCartOpen(true)}
-            className="relative p-2.5 bg-gray-50 hover:bg-red-50 rounded-2xl border text-gray-700 hover:text-[#E23744] transition-all duration-300 cursor-pointer"
+            className="relative p-2.5 bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-red-50 hover:dark:bg-red-500/10 rounded-2xl border text-gray-700 dark:text-[#e4e4e7] hover:text-[#E23744] transition-all duration-300 cursor-pointer"
           >
             <ShoppingBag className="w-5 h-5" />
             
             {cart.length > 0 && (
-              <span className="absolute -top-1 -right-1 block w-5 h-5 rounded-full bg-[#E23744] text-[9px] font-black text-white text-center leading-5 shadow-md">
+              <span className="absolute -top-1 -right-1 block w-5 h-5 rounded-full bg-[#E23744] text-[9px] font-black text-white text-center leading-5 shadow-md dark:shadow-none">
                 {cart.reduce((sum, item) => sum + item.quantity, 0)}
               </span>
             )}
@@ -1301,17 +1304,17 @@ export default function App() {
           <button
             onClick={handleSignOut}
             title="Sign Out"
-            className="p-2.5 bg-gray-50 hover:bg-red-50 text-gray-550 hover:text-[#E23744] rounded-2xl border transition-all duration-300 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+            className="p-2.5 bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-red-50 hover:dark:bg-red-500/10 text-gray-550 hover:text-[#E23744] rounded-2xl border transition-all duration-300 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
           >
-            <LogOut className="w-4 h-4 text-gray-500 hover:text-[#E23744]" />
+            <LogOut className="w-4 h-4 text-gray-500 dark:text-[#a1a1aa] hover:text-[#E23744]" />
             <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
       </header>
 
       {/* MOBILE COMBINED SEARCH BAR (Rendered on phones for high fidelity) */}
-      <div className="block md:hidden px-4 pt-3.5 pb-2 bg-white border-b border-gray-100">
-        <div className="flex items-center bg-gray-50 border border-gray-150 rounded-xl px-3 py-2 flex-1 h-10 shadow-inner">
+      <div className="block md:hidden px-4 pt-3.5 pb-2 bg-white dark:bg-[#120709] border-b border-gray-100 dark:border-[#291316]">
+        <div className="flex items-center bg-gray-50 dark:bg-[#1a0d0f]/80 border border-gray-150 dark:border-[#291316] rounded-xl px-3 py-2 flex-1 h-10 shadow-inner">
           <Search className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
           <input
             type="text"
@@ -1327,7 +1330,7 @@ export default function App() {
       </div>
 
       {/* TRIPLE TAB NAVIGATION SELECTOR (ZOMATO STYLE HOME TABS) */}
-      <div className="bg-white border-b border-gray-150">
+      <div className="bg-white dark:bg-[#120709] border-b border-gray-150 dark:border-[#291316]">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex gap-6 md:gap-12 overflow-x-auto scrollbar-none">
           
           {/* Tab 1: Delivery */}
@@ -1336,10 +1339,10 @@ export default function App() {
             className={`pb-3.5 pt-4 text-sm md:text-base font-bold flex items-center gap-3 border-b-3 transition-all cursor-pointer relative select-none ${
               activeZomatoTab === 'delivery'
                 ? 'border-[#E23744] text-[#E23744] font-black'
-                : 'border-transparent text-gray-400 hover:text-gray-700'
+                : 'border-transparent text-gray-400 hover:text-gray-700 hover:dark:text-[#e4e4e7]'
             }`}
           >
-            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'delivery' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 text-gray-400'}`}>
+            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'delivery' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 dark:bg-[#1a0d0f] text-gray-400'}`}>
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div className="text-left font-display">
@@ -1354,10 +1357,10 @@ export default function App() {
             className={`pb-3.5 pt-4 text-sm md:text-base font-bold flex items-center gap-3 border-b-3 transition-all cursor-pointer relative select-none ${
               activeZomatoTab === 'kiosk'
                 ? 'border-[#E23744] text-[#E23744] font-black'
-                : 'border-transparent text-gray-400 hover:text-gray-700'
+                : 'border-transparent text-gray-400 hover:text-gray-700 hover:dark:text-[#e4e4e7]'
             }`}
           >
-            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'kiosk' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 text-gray-400'}`}>
+            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'kiosk' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 dark:bg-[#1a0d0f] text-gray-400'}`}>
               <Zap className="w-4 h-4 animate-pulse" />
             </div>
             <div className="text-left font-display">
@@ -1372,10 +1375,10 @@ export default function App() {
             className={`pb-3.5 pt-4 text-sm md:text-base font-bold flex items-center gap-3 border-b-3 transition-all cursor-pointer relative select-none ${
               activeZomatoTab === 'portal'
                 ? 'border-[#E23744] text-[#E23744] font-black'
-                : 'border-transparent text-gray-400 hover:text-gray-700'
+                : 'border-transparent text-gray-400 hover:text-gray-700 hover:dark:text-[#e4e4e7]'
             }`}
           >
-            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'portal' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 text-gray-400'}`}>
+            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'portal' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 dark:bg-[#1a0d0f] text-gray-400'}`}>
               <User className="w-4 h-4" />
             </div>
             <div className="text-left font-display">
@@ -1398,17 +1401,14 @@ export default function App() {
               {/* Filter Row Title */}
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-black font-display text-gray-950 tracking-tight">
+                  <h2 className="text-xl md:text-2xl font-black font-display text-gray-950 dark:text-white tracking-tight">
                     Order for Tomorrow at {selectedCampus.name.split(' ')[0]}
                   </h2>
-                  <p className="text-gray-400 text-xs mt-0.5 font-medium">
-                    Order 24 hours in advance. Include special candles, written notes, and customize toppings.
-                  </p>
                 </div>
               </div>
 
               {/* VERTICAL FILTER CONTROLS */}
-              <div className="bg-white rounded-2xl p-4 md:p-5 border border-gray-150 shadow-sm mb-6 space-y-5">
+              <div className="bg-white dark:bg-[#120709] rounded-2xl p-4 md:p-5 border border-gray-150 dark:border-[#291316] shadow-sm dark:shadow-none mb-6 space-y-5">
                 
                 {/* Occasion / Celebration Filters */}
                 <div className="flex flex-col gap-2.5">
@@ -1421,8 +1421,8 @@ export default function App() {
                       onClick={() => handleSelectOccasion(null)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                         activeOccasionId === null
-                          ? 'bg-[#E23744] text-white shadow-sm'
-                          : 'bg-gray-100 hover:bg-gray-200/80 text-gray-600'
+                          ? 'bg-[#E23744] text-white shadow-sm dark:shadow-none'
+                          : 'bg-gray-100 dark:bg-[#1a0d0f] hover:bg-gray-200 hover:dark:bg-[#2a1316] text-gray-600 dark:text-[#d4d4d8]'
                       }`}
                     >
                       All Celebrations
@@ -1436,8 +1436,8 @@ export default function App() {
                           onClick={() => handleSelectOccasion(active ? null : item.occasionId)}
                           className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                             active
-                              ? 'bg-amber-500 text-indigo-950 shadow-sm font-black'
-                              : 'bg-gray-100/80 hover:bg-gray-200/80 text-gray-600'
+                              ? 'bg-amber-500 text-indigo-950 shadow-sm dark:shadow-none font-black'
+                              : 'bg-gray-100 dark:bg-[#1a0d0f]/80 hover:bg-gray-200 hover:dark:bg-[#2a1316] text-gray-600 dark:text-[#d4d4d8]'
                           }`}
                         >
                           {item.title}
@@ -1447,7 +1447,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="w-full h-[1px] bg-gray-100"></div>
+                <div className="w-full h-[1px] bg-gray-100 dark:bg-[#1a0d0f]"></div>
 
                 {/* Category Filters */}
                 <div className="flex flex-col gap-2.5">
@@ -1464,8 +1464,8 @@ export default function App() {
                           onClick={() => setSelectedCategory(category)}
                           className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                             active
-                              ? 'bg-[#E23744] text-white shadow-sm'
-                              : 'bg-gray-100 hover:bg-gray-200/80 text-gray-600'
+                              ? 'bg-[#E23744] text-white shadow-sm dark:shadow-none'
+                              : 'bg-gray-100 dark:bg-[#1a0d0f] hover:bg-gray-200 hover:dark:bg-[#2a1316] text-gray-600 dark:text-[#d4d4d8]'
                           }`}
                         >
                           {category}
@@ -1475,12 +1475,12 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="w-full h-[1px] bg-gray-100"></div>
+                <div className="w-full h-[1px] bg-gray-100 dark:bg-[#1a0d0f]"></div>
 
                 {/* Bottom Config Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   {/* Pricing limitation slider */}
-                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-200 text-xs w-full sm:w-auto">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-xs w-full sm:w-auto">
                     <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400" />
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Max Budget:</span>
                     <input
@@ -1492,7 +1492,7 @@ export default function App() {
                       onChange={(e) => setPriceRange(parseInt(e.target.value))}
                       className="w-full sm:w-32 accent-[#E23744] cursor-pointer"
                     />
-                    <span className="font-extrabold text-gray-800">₹{priceRange}</span>
+                    <span className="font-extrabold text-gray-800 dark:text-[#fafafa]">₹{priceRange}</span>
                   </div>
 
                   {/* Pure eggless toggler */}
@@ -1505,7 +1505,7 @@ export default function App() {
                         isEgglessOnly ? 'bg-green-600' : 'bg-gray-300'
                       }`}
                     >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
+                      <div className={`w-5 h-5 rounded-full bg-white dark:bg-[#120709] shadow-sm dark:shadow-none transform transition-transform duration-200 ${
                         isEgglessOnly ? 'translate-x-5' : 'translate-x-0'
                       }`} />
                     </button>
@@ -1530,8 +1530,8 @@ export default function App() {
                           <div className="flex items-center gap-1.5">
                             <span className="font-extrabold text-[#E23744] text-[9px] tracking-wide uppercase">★ Campus Intel Advisor</span>
                           </div>
-                          <p className="font-extrabold text-gray-900">{t.tagline}</p>
-                          <p className="text-gray-600 leading-relaxed font-semibold">{t.counsel}</p>
+                          <p className="font-extrabold text-gray-900 dark:text-white">{t.tagline}</p>
+                          <p className="text-gray-600 dark:text-[#d4d4d8] leading-relaxed font-semibold">{t.counsel}</p>
                         </div>
                       ))}
                     </div>
@@ -1540,9 +1540,9 @@ export default function App() {
 
               {/* GRID OF PRODUCT CARDS IN HIGH FIDELITY ZOMATO STYLE */}
               {filteredProducts.length === 0 ? (
-                <div className="p-12 text-center bg-white rounded-3xl border border-gray-100 max-w-xl mx-auto space-y-3 shadow-inner">
+                <div className="p-12 text-center bg-white dark:bg-[#120709] rounded-3xl border border-gray-100 dark:border-[#291316] max-w-xl mx-auto space-y-3 shadow-inner">
                   <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
-                  <p className="font-black text-sm text-gray-900">No Cakes Match Your Filters</p>
+                  <p className="font-black text-sm text-gray-900 dark:text-white">No Cakes Match Your Filters</p>
                   <p className="text-xs text-gray-400 leading-relaxed font-semibold">
                     Try raising your budget limit to ₹1500, clearing eggless checks, or returning to the master categories filter shelf!
                   </p>
@@ -1556,7 +1556,7 @@ export default function App() {
                       setTrendingOnly(false);
                       handleSelectOccasion(null);
                     }}
-                    className="px-4 py-2 bg-red-50 text-[#E23744] font-black text-xs rounded-xl"
+                    className="px-4 py-2 bg-red-50 dark:bg-red-500/10 text-[#E23744] font-black text-xs rounded-xl"
                   >
                     Reset Culinary Filters
                   </button>
@@ -1569,7 +1569,7 @@ export default function App() {
                       <motion.div
                         key={cake.id}
                         layoutId={`card-layout-${cake.id}`}
-                        className="bg-white rounded-[24px] border border-transparent overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col justify-between p-3.5 hover:border-gray-100"
+                        className="bg-white dark:bg-[#120709] rounded-[24px] border border-transparent overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col justify-between p-3.5 hover:border-gray-100 hover:dark:border-[#291316]"
                       >
                         {/* Progressive Card aspect-ratio and Zoom hover */}
                         <div className="relative aspect-[4/3] rounded-[18px] overflow-hidden bg-neutral-100">
@@ -1583,12 +1583,12 @@ export default function App() {
                           {/* Instant pick elements & labels */}
                           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                             {cake.isEggless && (
-                              <span className="text-[9px] font-black uppercase text-white bg-green-600 px-2 py-0.5 rounded-md flex items-center gap-0.5 shadow-sm">
-                                <span className="w-1 h-1 rounded-full bg-white animate-pulse" /> EGGLESS
+                              <span className="text-[9px] font-black uppercase text-white bg-green-600 px-2 py-0.5 rounded-md flex items-center gap-0.5 shadow-sm dark:shadow-none">
+                                <span className="w-1 h-1 rounded-full bg-white dark:bg-[#120709] animate-pulse" /> EGGLESS
                               </span>
                             )}
                             {cake.isTrending && (
-                              <span className="text-[9px] font-black uppercase text-white bg-[#E23744] px-2 py-0.5 rounded-md shadow-sm">
+                              <span className="text-[9px] font-black uppercase text-white bg-[#E23744] px-2 py-0.5 rounded-md shadow-sm dark:shadow-none">
                                 TRENDING
                               </span>
                             )}
@@ -1598,13 +1598,13 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleToggleWishlist(cake.id)}
-                            className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white text-gray-400 hover:text-[#E23744] transition-colors shadow-sm"
+                            className="absolute top-3 right-3 p-2 rounded-full bg-white dark:bg-[#120709]/90 hover:bg-white hover:dark:bg-[#120709] text-gray-400 hover:text-[#E23744] transition-colors shadow-sm dark:shadow-none"
                           >
                             <Heart className={`w-4 h-4 ${inWishlist ? 'fill-[#E23744] text-[#E23744]' : ''}`} />
                           </button>
 
                           {/* Prep-delivery tag */}
-                          <div className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-md text-white rounded-md px-2 py-0.5 text-[9px] font-bold flex items-center gap-1 shadow-sm">
+                          <div className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-md text-white rounded-md px-2 py-0.5 text-[9px] font-bold flex items-center gap-1 shadow-sm dark:shadow-none">
                             <Clock className="w-3 h-3 text-red-405" /> prep & dispatch: {cake.deliveryTime}
                           </div>
                         </div>
@@ -1613,12 +1613,12 @@ export default function App() {
                         <div className="pt-3.5 flex-1 flex flex-col justify-between">
                           <div>
                             <div className="flex justify-between items-start gap-3">
-                              <h3 className="font-extrabold text-sm md:text-base text-gray-900 group-hover:text-[#E23744] transition-colors leading-tight truncate">
+                              <h3 className="font-extrabold text-sm md:text-base text-gray-900 dark:text-white group-hover:text-[#E23744] transition-colors leading-tight truncate">
                                 {cake.name}
                               </h3>
                               
                               {/* ZOMATO TRADEMARK GREEN RATING BADGE VALUE (e.g. 4.9 ★) */}
-                              <span className="flex items-center gap-0.5 text-[#24963F] font-black text-xs leading-none bg-emerald-50 px-1.5 py-1 rounded-md flex-shrink-0">
+                              <span className="flex items-center gap-0.5 text-[#24963F] font-black text-xs leading-none bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-1 rounded-md flex-shrink-0">
                                 {cake.rating} ★
                               </span>
                             </div>
@@ -1627,22 +1627,22 @@ export default function App() {
                               {cake.category}
                             </p>
 
-                            <p className="text-gray-500 text-xs leading-relaxed line-clamp-2">
+                            <p className="text-gray-500 dark:text-[#a1a1aa] text-xs leading-relaxed line-clamp-2">
                               {cake.description}
                             </p>
                           </div>
 
                           {/* Price Tag & Custom Button row */}
-                          <div className="border-t border-gray-100 mt-4 pt-3.5 flex items-center justify-between">
+                          <div className="border-t border-gray-100 dark:border-[#291316] mt-4 pt-3.5 flex items-center justify-between">
                             <div>
                               <p className="text-[9px] text-gray-400 font-bold uppercase leading-none">Starting from</p>
-                              <p className="text-sm font-black text-gray-950 mt-1">₹{cake.price} <span className="text-[10px] text-gray-400 font-medium">for one</span></p>
+                              <p className="text-sm font-black text-gray-950 dark:text-white mt-1">₹{cake.price} <span className="text-[10px] text-gray-400 font-medium">for one</span></p>
                             </div>
 
                             <button
                               type="button"
                               onClick={() => setActiveCustomizingCake(cake)}
-                              className="px-4 py-2 bg-red-50 hover:bg-[#E23744] text-[#E23744] hover:text-white font-extrabold text-xs rounded-xl transition-all duration-205 cursor-pointer shadow-sm active:scale-95"
+                              className="px-4 py-2 bg-red-50 dark:bg-red-500/10 hover:bg-[#E23744] text-[#E23744] hover:text-white font-extrabold text-xs rounded-xl transition-all duration-205 cursor-pointer shadow-sm dark:shadow-none active:scale-95"
                             >
                               Add & Customise
                             </button>
@@ -1721,7 +1721,7 @@ export default function App() {
             <section className="scroll-mt-12">
               <div className="text-center max-w-xl mx-auto mb-8">
                 <span className="text-[#E23744] font-bold uppercase tracking-widest text-xs">Community Feedback</span>
-                <h2 className="text-2xl md:text-3xl font-black font-display text-gray-950 tracking-tight mt-1">
+                <h2 className="text-2xl md:text-3xl font-black font-display text-gray-950 dark:text-white tracking-tight mt-1">
                   Verified Student Notes
                 </h2>
                 <p className="text-gray-400 text-xs mt-1.5 leading-relaxed font-semibold">
@@ -1732,12 +1732,12 @@ export default function App() {
               {reviews.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   {reviews.map((rev) => (
-                    <div key={rev.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between hover:border-red-100 transition-colors">
+                    <div key={rev.id} className="bg-white dark:bg-[#120709] rounded-3xl p-5 border border-gray-100 dark:border-[#291316] shadow-sm dark:shadow-none flex flex-col justify-between hover:border-red-100 transition-colors">
                       <div>
                         <div className="flex items-center gap-2.5 mb-3">
                           <img src={rev.userImage} className="w-9 h-9 rounded-full object-cover border" referrerPolicy="no-referrer" />
                           <div>
-                            <p className="font-extrabold text-xs text-gray-900 leading-none">{rev.userName}</p>
+                            <p className="font-extrabold text-xs text-gray-900 dark:text-white leading-none">{rev.userName}</p>
                             <p className="text-[9px] text-gray-400 mt-1">{rev.date} • Verified Student Member</p>
                           </div>
                         </div>
@@ -1750,7 +1750,7 @@ export default function App() {
                           <span className="text-[10px] text-gray-400 font-bold">for {rev.cakeName}</span>
                         </div>
 
-                        <p className="text-gray-600 text-xs leading-relaxed italic">
+                        <p className="text-gray-600 dark:text-[#d4d4d8] text-xs leading-relaxed italic">
                           "{rev.comment}"
                         </p>
                       </div>
@@ -1764,20 +1764,20 @@ export default function App() {
                   ))}
                 </div>
               ) : (
-                <div className="bg-gray-50 border border-gray-100 border-dashed rounded-3xl p-8 text-center mb-8">
-                  <p className="text-sm font-bold text-gray-800">No reviews yet!</p>
-                  <p className="text-[10px] text-gray-500 mt-1">Be the first to share your Campus Cakes experience.</p>
+                <div className="bg-gray-50 dark:bg-[#1a0d0f]/80 border border-gray-100 dark:border-[#291316] border-dashed dark:border-[#3c1a1e] rounded-3xl p-8 text-center mb-8">
+                  <p className="text-sm font-bold text-gray-800 dark:text-[#fafafa]">No reviews yet!</p>
+                  <p className="text-[10px] text-gray-500 dark:text-[#a1a1aa] mt-1">Be the first to share your Campus Cakes experience.</p>
                 </div>
               )}
 
               {/* WRITE FEEDBACK FORM PANEL */}
-              <div className="p-5 md:p-6 bg-white border border-gray-150 rounded-3xl max-w-xl mx-auto shadow-sm">
+              <div className="p-5 md:p-6 bg-white dark:bg-[#120709] border border-gray-150 dark:border-[#291316] rounded-3xl max-w-xl mx-auto shadow-sm dark:shadow-none">
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="p-2 bg-red-50 text-[#E23744] rounded-xl flex-shrink-0">
+                  <span className="p-2 bg-red-50 dark:bg-red-500/10 text-[#E23744] rounded-xl flex-shrink-0">
                     <MessageSquare className="w-4 h-4" />
                   </span>
                   <div>
-                    <h4 className="font-black text-xs text-gray-800 uppercase tracking-widest pl-1 leading-none">Post a Review Note</h4>
+                    <h4 className="font-black text-xs text-gray-800 dark:text-[#fafafa] uppercase tracking-widest pl-1 leading-none">Post a Review Note</h4>
                     <span className="text-[10px] text-gray-400 mt-1 block">Help underclassmen discover the absolute best items on campus</span>
                   </div>
                 </div>
@@ -1787,7 +1787,7 @@ export default function App() {
                     <select
                       value={selectedReviewCake}
                       onChange={(e) => setSelectedReviewCake(e.target.value)}
-                      className="px-3 py-2 bg-gray-50 border border-gray-150 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#E23744]"
+                      className="px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 border border-gray-150 dark:border-[#291316] rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#E23744]"
                     >
                       {activeProducts.map(p => (
                         <option key={p.id} value={p.name}>{p.name.substring(0, 24)}...</option>
@@ -1798,7 +1798,7 @@ export default function App() {
                     <select
                       value={submittingRating}
                       onChange={(e) => setSubmittingRating(parseInt(e.target.value))}
-                      className="px-3 py-2 bg-gray-50 border border-gray-150 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#E23744]"
+                      className="px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 border border-gray-150 dark:border-[#291316] rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#E23744]"
                     >
                       <option value="5">★★★★★ Excellent (5/5)</option>
                       <option value="4">★★★★ Tasty (4/5)</option>
@@ -1811,13 +1811,13 @@ export default function App() {
                     value={submittingComment}
                     onChange={(e) => setSubmittingComment(e.target.value)}
                     rows={2}
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-150 text-xs rounded-xl focus:outline-none focus:ring-1 focus:ring-[#E23744]"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 border border-gray-150 dark:border-[#291316] text-xs rounded-xl focus:outline-none focus:ring-1 focus:ring-[#E23744]"
                     required
                   />
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-[#E23744] hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md transition-colors"
+                    className="w-full py-2.5 bg-[#E23744] hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md dark:shadow-none transition-colors"
                   >
                     Publish Verified Experience Note
                   </button>
@@ -1829,7 +1829,7 @@ export default function App() {
             <section className="scroll-mt-12">
               <div className="text-center max-w-xl mx-auto mb-8">
                 <span className="text-[#E23744] font-bold uppercase tracking-widest text-xs">Student Help Desk</span>
-                <h2 className="text-2xl md:text-3xl font-black font-display text-gray-950 tracking-tight mt-1">
+                <h2 className="text-2xl md:text-3xl font-black font-display text-gray-950 dark:text-white tracking-tight mt-1">
                   Curious Campus FAQs
                 </h2>
                 <p className="text-gray-400 text-xs mt-1 font-semibold">
@@ -1843,18 +1843,18 @@ export default function App() {
                   return (
                     <div 
                       key={idx} 
-                      className="bg-white rounded-2xl border border-gray-150 overflow-hidden shadow-sm transition-all"
+                      className="bg-white dark:bg-[#120709] rounded-2xl border border-gray-150 dark:border-[#291316] overflow-hidden shadow-sm dark:shadow-none transition-all"
                     >
                       <button
                         type="button"
                         onClick={() => setOpenFaqIdx(isOpen ? null : idx)}
-                        className="w-full p-4 text-left font-bold text-xs md:text-sm text-gray-800 flex justify-between items-center bg-gray-50/50 hover:bg-gray-50 transition-colors focus:outline-none"
+                        className="w-full p-4 text-left font-bold text-xs md:text-sm text-gray-800 dark:text-[#fafafa] flex justify-between items-center bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80 transition-colors focus:outline-none"
                       >
                         <span>{faq.q}</span>
                         <span className="text-[#E23744] text-lg leading-none">{isOpen ? '−' : '+'}</span>
                       </button>
                       {isOpen && (
-                        <div className="p-4 border-t border-gray-100 text-xs leading-relaxed text-gray-500 bg-white font-medium">
+                        <div className="p-4 border-t border-gray-100 dark:border-[#291316] text-xs leading-relaxed text-gray-500 dark:text-[#a1a1aa] bg-white dark:bg-[#120709] font-medium">
                           {faq.a}
                         </div>
                       )}
@@ -1893,11 +1893,11 @@ export default function App() {
               Your college campus, sweetened. Delivering handcrafted premium cakes, customized celebrations, and gourmet treats straight to your dorm room, library, or canteen.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900/80 border border-zinc-800 rounded-full px-3.5 py-1.5 shadow-sm">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900/80 border border-zinc-800 rounded-full px-3.5 py-1.5 shadow-sm dark:shadow-none">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
                 Freshly Baked Daily
               </div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900/80 border border-zinc-800 rounded-full px-3.5 py-1.5 shadow-sm">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900/80 border border-zinc-800 rounded-full px-3.5 py-1.5 shadow-sm dark:shadow-none">
                 🚀 Room Service Active
               </div>
             </div>
@@ -2005,22 +2005,22 @@ export default function App() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-sm md:max-w-md bg-white z-50 shadow-2xl flex flex-col justify-between"
+              className="fixed right-0 top-0 bottom-0 w-full max-w-sm md:max-w-md bg-white dark:bg-[#120709] z-50 shadow-2xl flex flex-col justify-between"
             >
               {/* Drawer header */}
-              <div className="p-4 bg-pink-50 border-b flex justify-between items-center">
+              <div className="p-4 bg-pink-50 dark:bg-pink-500/10 border-b flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 bg-pink-600 text-white rounded-lg">
                     <ShoppingBag className="w-4 h-4" />
                   </span>
                   <div>
-                    <h3 className="font-black text-sm text-gray-900 leading-none">Your Campus Cart</h3>
-                    <p className="text-[10px] text-gray-500 mt-1">Ready for {selectedCampus.name}</p>
+                    <h3 className="font-black text-sm text-gray-900 dark:text-white leading-none">Your Campus Cart</h3>
+                    <p className="text-[10px] text-gray-500 dark:text-[#a1a1aa] mt-1">Ready for {selectedCampus.name}</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsCartOpen(false)}
-                  className="p-1 hover:bg-gray-200 rounded-lg text-gray-500"
+                  className="p-1 hover:bg-gray-200 hover:dark:bg-[#291316] rounded-lg text-gray-500 dark:text-[#a1a1aa]"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2049,7 +2049,7 @@ export default function App() {
                     {cart.map((item) => (
                       <div 
                         key={item.id} 
-                        className="p-3 rounded-2xl border border-gray-100/90 hover:border-gray-200 bg-gray-50/50 flex gap-3 h-auto relative"
+                        className="p-3 rounded-2xl border border-gray-100 dark:border-[#291316]/90 hover:border-gray-200 hover:dark:border-[#3c1a1e] bg-gray-50 dark:bg-[#1a0d0f]/80 flex gap-3 h-auto relative"
                       >
                         <img src={item.image} className="w-14 h-14 rounded-xl object-cover border" referrerPolicy="no-referrer" />
                         
@@ -2060,17 +2060,17 @@ export default function App() {
                             {item.isInstantKiosk ? '⚡ Kiosk emergency' : '🗓️ Scheduled pre-order'}
                           </span>
 
-                          <h4 className="font-extrabold text-xs text-gray-900 truncate">{item.name}</h4>
+                          <h4 className="font-extrabold text-xs text-gray-900 dark:text-white truncate">{item.name}</h4>
                           
                           {item.customization && (
-                            <div className="mt-1 space-y-0.5 text-[9px] text-gray-500">
-                              <p>✓ Msg: <strong className="text-pink-600 animate-pulse">"{item.customization.messageOnCake}"</strong></p>
+                            <div className="mt-1 space-y-0.5 text-[9px] text-gray-500 dark:text-[#a1a1aa]">
+                              <p>✓ Msg: <strong className="text-pink-600 dark:text-pink-400 animate-pulse">"{item.customization.messageOnCake}"</strong></p>
                               <p>✓ Weight: {item.customization.weight} kg • {item.customization.flavor}</p>
                               <p>✓ Slot: {item.customization.pickupTime}</p>
                             </div>
                           )}
 
-                          <div className="mt-2 text-xs font-black text-gray-900">
+                          <div className="mt-2 text-xs font-black text-gray-900 dark:text-white">
                             ₹{item.price}
                           </div>
                         </div>
@@ -2100,25 +2100,25 @@ export default function App() {
 
               {/* Drawer footer calculation */}
               {cart.length > 0 && (
-                <div className="p-4 bg-gray-50 border-t border-gray-100 space-y-3">
-                  <div className="space-y-1.5 text-xs text-gray-600">
+                <div className="p-4 bg-gray-50 dark:bg-[#1a0d0f]/80 border-t border-gray-100 dark:border-[#291316] space-y-3">
+                  <div className="space-y-1.5 text-xs text-gray-600 dark:text-[#d4d4d8]">
                     <div className="flex justify-between">
                       <span>Cakes Subtotal</span>
-                      <span className="font-bold text-gray-900 font-mono">
+                      <span className="font-bold text-gray-900 dark:text-white font-mono">
                         ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0))}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Campus Packaging & Box</span>
-                      <span className="font-bold text-gray-900 font-mono">₹20</span>
+                      <span className="font-bold text-gray-900 dark:text-white font-mono">₹20</span>
                     </div>
                     <div className="flex justify-between">
                       <span>GST & State Food Tax</span>
-                      <span className="font-bold text-gray-900 font-mono">₹30</span>
+                      <span className="font-bold text-gray-900 dark:text-white font-mono">₹30</span>
                     </div>
-                    <div className="flex justify-between border-t border-dashed pt-2 text-sm text-gray-900 font-extrabold">
+                    <div className="flex justify-between border-t border-dashed dark:border-[#3c1a1e] pt-2 text-sm text-gray-900 dark:text-white font-extrabold">
                       <span>Grand Total Charges</span>
-                      <span className="text-pink-600 font-mono text-base font-black">
+                      <span className="text-pink-600 dark:text-pink-400 font-mono text-base font-black">
                         ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)}
                       </span>
                     </div>
@@ -2155,20 +2155,20 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-3xl overflow-hidden border border-gray-100 max-w-md w-full p-6 shadow-2xl relative z-50 space-y-4"
+            className="bg-white dark:bg-[#120709] rounded-3xl overflow-hidden border border-gray-100 dark:border-[#291316] max-w-md w-full p-6 shadow-2xl relative z-50 space-y-4"
           >
             {/* Header */}
             <div className="flex justify-between items-center pb-2 border-b">
               <div className="flex items-center gap-1.5">
-                <CreditCard className="w-5 h-5 text-pink-600" />
-                <h3 className="font-black text-base text-gray-900">University Payment Gate</h3>
+                <CreditCard className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+                <h3 className="font-black text-base text-gray-900 dark:text-white">University Payment Gate</h3>
               </div>
-              <button onClick={() => setIsCheckoutOpen(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setIsCheckoutOpen(false)} className="p-1 hover:bg-gray-100 hover:dark:bg-[#1a0d0f] rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-[11px] text-gray-500 leading-normal">
+            <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] leading-normal">
               Campus Cakes manages secure terminal simulations. Pick your transaction mode to dispatch orders into our active bakery queue.
             </p>
 
@@ -2180,7 +2180,7 @@ export default function App() {
                 
                 {/* UPI Option */}
                 <label className={`w-full p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
-                  paymentMode === 'upi' ? 'bg-pink-50/50 border-pink-400' : 'bg-gray-50 border-gray-100'
+                  paymentMode === 'upi' ? 'bg-pink-50 dark:bg-pink-500/10/50 border-pink-400' : 'bg-gray-50 dark:bg-[#1a0d0f]/80 border-gray-100 dark:border-[#291316]'
                 }`}>
                   <div className="flex items-center gap-2">
                     <input
@@ -2191,14 +2191,14 @@ export default function App() {
                       onChange={() => setPaymentMode('upi')}
                       className="accent-pink-600"
                     />
-                    <span className="font-bold text-gray-800">Scan & Pay (GPay / PhonePe UPI)</span>
+                    <span className="font-bold text-gray-800 dark:text-[#fafafa]">Scan & Pay (GPay / PhonePe UPI)</span>
                   </div>
-                  <span className="text-[9px] font-black uppercase text-pink-600 bg-pink-100 px-1.5 py-0.5 rounded">Fastest</span>
+                  <span className="text-[9px] font-black uppercase text-pink-600 dark:text-pink-400 bg-pink-100 px-1.5 py-0.5 rounded">Fastest</span>
                 </label>
 
                 {/* Credit Card Option */}
                 <label className={`w-full p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
-                  paymentMode === 'card' ? 'bg-pink-50/50 border-pink-400' : 'bg-gray-50 border-gray-100'
+                  paymentMode === 'card' ? 'bg-pink-50 dark:bg-pink-500/10/50 border-pink-400' : 'bg-gray-50 dark:bg-[#1a0d0f]/80 border-gray-100 dark:border-[#291316]'
                 }`}>
                   <div className="flex items-center gap-2">
                     <input
@@ -2209,13 +2209,13 @@ export default function App() {
                       onChange={() => setPaymentMode('card')}
                       className="accent-pink-600"
                     />
-                    <span className="font-bold text-gray-800">Credit / Debit Card</span>
+                    <span className="font-bold text-gray-800 dark:text-[#fafafa]">Credit / Debit Card</span>
                   </div>
                 </label>
 
                 {/* Cash on Pickup Option */}
                 <label className={`w-full p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
-                  paymentMode === 'cash' ? 'bg-pink-50/50 border-pink-400' : 'bg-gray-50 border-gray-100'
+                  paymentMode === 'cash' ? 'bg-pink-50 dark:bg-pink-500/10/50 border-pink-400' : 'bg-gray-50 dark:bg-[#1a0d0f]/80 border-gray-100 dark:border-[#291316]'
                 }`}>
                   <div className="flex items-center gap-2">
                     <input
@@ -2226,17 +2226,17 @@ export default function App() {
                       onChange={() => setPaymentMode('cash')}
                       className="accent-pink-600"
                     />
-                    <span className="font-bold text-gray-800">Cash on Pickup (Canteen Stalls)</span>
+                    <span className="font-bold text-gray-800 dark:text-[#fafafa]">Cash on Pickup (Canteen Stalls)</span>
                   </div>
                 </label>
               </div>
 
               {/* UPI fields details */}
               {paymentMode === 'upi' && (
-                <div className="p-3 bg-gray-50 rounded-2xl space-y-2.5">
+                <div className="p-3 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl space-y-2.5">
                   <div className="flex items-center gap-3">
                     {/* Simulated dynamic dummy QR code */}
-                    <div className="w-14 h-14 bg-white border border-gray-200 rounded-lg p-1 flex-shrink-0 flex items-center justify-center">
+                    <div className="w-14 h-14 bg-white dark:bg-[#120709] border border-gray-200 dark:border-[#3c1a1e] rounded-lg p-1 flex-shrink-0 flex items-center justify-center">
                       <div className="grid grid-cols-4 gap-0.5 w-full h-full opacity-60">
                         {Array.from({ length: 16 }).map((_, i) => (
                           <div key={i} className={`rounded-sm ${(i * 7) % 3 === 0 ? 'bg-black' : 'bg-transparent'}`} />
@@ -2244,7 +2244,7 @@ export default function App() {
                       </div>
                     </div>
                     <div>
-                      <p className="font-bold text-[11px] leading-tight text-gray-800">Quick Scan QR Terminal</p>
+                      <p className="font-bold text-[11px] leading-tight text-gray-800 dark:text-[#fafafa]">Quick Scan QR Terminal</p>
                       <p className="text-[9px] text-gray-400 mt-0.5">Applet generates mock UPI addresses instantly.</p>
                     </div>
                   </div>
@@ -2254,7 +2254,7 @@ export default function App() {
                       type="text"
                       value={upiIdInput}
                       onChange={(e) => setUpiIdInput(e.target.value)}
-                      className="w-full mt-1 p-2 bg-white border rounded-xl text-xs font-semibold focus:outline-none"
+                      className="w-full mt-1 p-2 bg-white dark:bg-[#120709] border rounded-xl text-xs font-semibold focus:outline-none"
                     />
                   </div>
                 </div>
@@ -2262,14 +2262,14 @@ export default function App() {
 
               {/* CARD fields details */}
               {paymentMode === 'card' && (
-                <div className="p-3 bg-gray-50 rounded-2xl space-y-2.5">
+                <div className="p-3 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl space-y-2.5">
                   <div>
                     <span className="text-[9px] font-bold text-gray-400 uppercase">16 digit Card Number</span>
                     <input
                       type="text"
                       value={cardNumber}
                       onChange={(e) => setCardNumber(e.target.value)}
-                      className="w-full mt-1 p-2 bg-white border rounded-xl text-xs font-semibold focus:outline-none"
+                      className="w-full mt-1 p-2 bg-white dark:bg-[#120709] border rounded-xl text-xs font-semibold focus:outline-none"
                     />
                   </div>
 
@@ -2279,7 +2279,7 @@ export default function App() {
                       <input
                         type="text"
                         placeholder="08/29"
-                        className="w-full mt-1 p-2 bg-white border rounded-xl text-xs font-semibold focus:outline-none"
+                        className="w-full mt-1 p-2 bg-white dark:bg-[#120709] border rounded-xl text-xs font-semibold focus:outline-none"
                       />
                     </div>
                     <div>
@@ -2287,7 +2287,7 @@ export default function App() {
                       <input
                         type="password"
                         placeholder="***"
-                        className="w-full mt-1 p-2 bg-white border rounded-xl text-xs font-semibold focus:outline-none"
+                        className="w-full mt-1 p-2 bg-white dark:bg-[#120709] border rounded-xl text-xs font-semibold focus:outline-none"
                       />
                     </div>
                   </div>
@@ -2302,8 +2302,8 @@ export default function App() {
                       <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-gray-900">Campus XP Points</h4>
-                      <p className="text-[10px] text-gray-600">Balance: {studentUser.rewardPoints} XP (₹{studentUser.rewardPoints})</p>
+                      <h4 className="text-xs font-bold text-gray-900 dark:text-white">Campus XP Points</h4>
+                      <p className="text-[10px] text-gray-600 dark:text-[#d4d4d8]">Balance: {studentUser.rewardPoints} XP (₹{studentUser.rewardPoints})</p>
                     </div>
                   </div>
                   <button
@@ -2314,7 +2314,7 @@ export default function App() {
                         redeemPoints ? 'bg-amber-500' : 'bg-gray-300'
                     } ${(studentUser.rewardPoints <= 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
+                    <div className={`w-5 h-5 rounded-full bg-white dark:bg-[#120709] shadow-sm dark:shadow-none transform transition-transform duration-200 ${
                         redeemPoints ? 'translate-x-5' : 'translate-x-0'
                     }`} />
                   </button>
@@ -2324,14 +2324,14 @@ export default function App() {
 
               {/* Wallet Balance Application */}
               <div className="space-y-1.5 pb-2">
-                <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-200 bg-emerald-50">
+                <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600">
                       <Wallet className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-gray-900">Campus Wallet</h4>
-                      <p className="text-[10px] text-gray-600">Available: ₹{studentUser.walletBalance ?? 0}</p>
+                      <h4 className="text-xs font-bold text-gray-900 dark:text-white">Campus Wallet</h4>
+                      <p className="text-[10px] text-gray-600 dark:text-[#d4d4d8]">Available: ₹{studentUser.walletBalance ?? 0}</p>
                     </div>
                   </div>
                   <button
@@ -2342,7 +2342,7 @@ export default function App() {
                         useWallet && (studentUser.walletBalance ?? 0) > 0 ? 'bg-emerald-500' : 'bg-gray-300'
                     } ${(studentUser.walletBalance ?? 0) <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
+                    <div className={`w-5 h-5 rounded-full bg-white dark:bg-[#120709] shadow-sm dark:shadow-none transform transition-transform duration-200 ${
                         useWallet && (studentUser.walletBalance ?? 0) > 0 ? 'translate-x-5' : 'translate-x-0'
                     }`} />
                   </button>
@@ -2355,7 +2355,7 @@ export default function App() {
               </div>
 
               {/* Segment calculations totals */}
-              <div className="border-t border-dashed pt-3 text-xs flex justify-between font-extrabold text-gray-800 items-end">
+              <div className="border-t border-dashed dark:border-[#3c1a1e] pt-3 text-xs flex justify-between font-extrabold text-gray-800 dark:text-[#fafafa] items-end">
                 <span>Amount to Pay</span>
                 <div className="text-right">
                   {((redeemPoints) || (useWallet && (studentUser.walletBalance ?? 0) > 0)) && (
@@ -2363,7 +2363,7 @@ export default function App() {
                       ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)}
                     </span>
                   )}
-                  <span className="text-pink-600 font-mono text-sm">
+                  <span className="text-pink-600 dark:text-pink-400 font-mono text-sm">
                     ₹{Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0) - (useWallet ? Math.min(studentUser.walletBalance ?? 0, Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0))) : 0))}
                   </span>
                 </div>
@@ -2374,13 +2374,13 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsCheckoutOpen(false)}
-                  className="py-2.5 bg-white border hover:bg-gray-50 rounded-xl font-bold"
+                  className="py-2.5 bg-white dark:bg-[#120709] border hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80 rounded-xl font-bold"
                 >
                   Go Back
                 </button>
                 <button
                   type="submit"
-                  className="py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl shadow-md transition-colors"
+                  className="py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl shadow-md dark:shadow-none transition-colors"
                 >
                   Authorize Simulation
                 </button>
@@ -2401,35 +2401,35 @@ export default function App() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full text-center relative z-50 space-y-4 shadow-2xl border"
+              className="bg-white dark:bg-[#120709] rounded-3xl p-6 md:p-8 max-w-sm w-full text-center relative z-50 space-y-4 shadow-2xl border"
             >
-              <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto shadow-md">
+              <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto shadow-md dark:shadow-none">
                 <Check className="w-8 h-8 stroke-[3]" />
               </div>
 
               <div className="space-y-1">
                 <p className="text-[10px] uppercase font-black tracking-wider text-green-600">Dispach Confirmed!</p>
-                <h3 className="font-black text-xl text-gray-900">Your Cake is Booked!</h3>
+                <h3 className="font-black text-xl text-gray-900 dark:text-white">Your Cake is Booked!</h3>
                 <p className="text-xs font-extrabold text-gray-400">Order Number: #{newOrderId}</p>
               </div>
 
-              <p className="text-xs text-gray-500 leading-normal">
+              <p className="text-xs text-gray-500 dark:text-[#a1a1aa] leading-normal">
                 Congratulations! We have routed details to our premium baking kitchen team. You can tracking real-time delivery state updates in the <strong>Student Hub Active Orders</strong> panel right now!
               </p>
 
               {/* Stepper visual preview inside success modal */}
-              <div className="p-3.5 bg-neutral-50 rounded-2xl text-[10px] font-bold text-gray-600 text-left space-y-2 border">
+              <div className="p-3.5 bg-neutral-50 rounded-2xl text-[10px] font-bold text-gray-600 dark:text-[#d4d4d8] text-left space-y-2 border">
                 <p className="text-[9px] text-gray-400 uppercase tracking-wide">Timelines Status Stage: Placed</p>
                 <div className="flex items-center gap-1">
                   <span className="w-2.5 h-2.5 bg-green-500 rounded-full" />
-                  <span className="text-gray-900">1. Order placed successfully</span>
+                  <span className="text-gray-900 dark:text-white">1. Order placed successfully</span>
                 </div>
                 <div className="flex items-center gap-1 text-gray-400">
-                  <span className="w-2.5 h-2.5 bg-gray-200 rounded-full" />
+                  <span className="w-2.5 h-2.5 bg-gray-200 dark:bg-[#1a0d0f] rounded-full" />
                   <span>2. Bakery preparing chef layers</span>
                 </div>
                 <div className="flex items-center gap-1 text-gray-400">
-                  <span className="w-2.5 h-2.5 bg-gray-200 rounded-full" />
+                  <span className="w-2.5 h-2.5 bg-gray-200 dark:bg-[#1a0d0f] rounded-full" />
                   <span>3. Out for college delivery</span>
                 </div>
               </div>
