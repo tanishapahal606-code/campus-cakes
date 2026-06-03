@@ -9,9 +9,10 @@ import {
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Wallet
+  Truck, Phone, Mail, Wallet, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { downloadReceiptFile } from '../lib/receipt';
 
 interface DashboardSectionProps {
   user: UserProfile;
@@ -525,22 +526,32 @@ export default function DashboardSection({
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-gray-100 dark:border-[#291316]">
-                            <div>
-                              <p className="text-[10px] text-gray-400 text-right">Points Earned</p>
-                              <p className="text-xs font-bold text-pink-600 dark:text-pink-400 text-right">+{order.pointsEarned} XP</p>
+                          <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-t-0 pt-3 md:pt-0 border-gray-100 dark:border-[#291316] flex-wrap md:flex-nowrap">
+                            <div className="text-right">
+                              <p className="text-[10px] text-gray-400">Points Earned</p>
+                              <p className="text-xs font-bold text-pink-600 dark:text-pink-400">+{order.pointsEarned} XP</p>
                             </div>
-                            <div>
-                              <p className="text-[10px] text-gray-400 text-right">Total Charges</p>
-                              <p className="text-sm font-black text-gray-900 dark:text-white text-right">₹{Math.round(order.total)}</p>
+                            <div className="text-right">
+                              <p className="text-[10px] text-gray-400">Total Charges</p>
+                              <p className="text-sm font-black text-gray-900 dark:text-white">₹{Math.round(order.total)}</p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => onRepeatOrder(order.id)}
-                              className="px-3.5 py-2 bg-pink-50 dark:bg-pink-500/10 hover:bg-pink-100 rounded-xl text-pink-700 font-black text-[11px] transition-colors flex items-center gap-1"
-                            >
-                              <RefreshCw className="w-3 h-3" /> Quick Repeat
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => downloadReceiptFile(order, user.name)}
+                                className="px-3 py-2 bg-neutral-100 hover:bg-neutral-200 dark:bg-[#1a0e10] hover:dark:bg-[#251214] text-gray-800 dark:text-neutral-200 border border-neutral-200/80 dark:border-[#3c1a1e] rounded-xl font-black text-[11px] transition-colors flex items-center gap-1 cursor-pointer"
+                                title="Download Official Receipt"
+                              >
+                                <Download className="w-3.5 h-3.5" /> Receipt
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onRepeatOrder(order.id)}
+                                className="px-3 py-2 bg-pink-50 dark:bg-pink-500/10 hover:bg-pink-100 rounded-xl text-pink-700 font-black text-[11px] transition-colors flex items-center gap-1"
+                              >
+                                <RefreshCw className="w-3 h-3" /> Quick Repeat
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1115,6 +1126,15 @@ export default function DashboardSection({
 
                                 {/* Step Promotion Buttons */}
                                 <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => downloadReceiptFile(or, or.customerName)}
+                                    className="py-1.5 px-3 bg-neutral-100 hover:bg-neutral-200 dark:bg-[#1a0e10] hover:dark:bg-[#251214] border border-neutral-200/80 dark:border-[#3c1a1e] text-gray-800 dark:text-neutral-200 font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 h-fit shrink-0 self-center"
+                                    title="Download Invoice Ticket"
+                                  >
+                                    <Download className="w-3.5 h-3.5" /> Ticket
+                                  </button>
+
                                   {or.status === 'placed' && (
                                     <button
                                       type="button"

@@ -23,7 +23,7 @@ import {
   ShoppingBag, Search, Sparkles, SlidersHorizontal, Heart, Clock, Star, 
   HelpCircle, MessageSquare, ChevronRight, CheckCircle2, Phone, ShieldCheck, 
   ArrowRight, X, AlertTriangle, CreditCard, Check, Compass, Info, Send,
-  LogOut, GraduationCap, MapPin, User, Zap, Trash2, Wallet
+  LogOut, GraduationCap, MapPin, User, Zap, Trash2, Wallet, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, authenticateWithGoogle, isRealFirebase } from './firebase';
@@ -34,6 +34,7 @@ import {
   writeCakeImage, getAllOrders,
   subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders
 } from './lib/firestoreService';
+import { downloadReceiptFile } from './lib/receipt';
 
 export default function App() {
   // --- 0. FIREBASE AUTHENTICATION FLOW STATE ---
@@ -2434,13 +2435,30 @@ export default function App() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setOrderCompletePopup(false)}
-                className="w-full py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl shadow-lg shadow-pink-600/10 text-xs text-center"
-              >
-                Done, Back to Shop
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentOrderObj = activeOrders.find(o => o.id === newOrderId);
+                    if (currentOrderObj) {
+                      downloadReceiptFile(currentOrderObj, studentUser.name);
+                    } else {
+                      alert("Order details not found to generate receipt.");
+                    }
+                  }}
+                  className="w-full py-2.5 bg-neutral-900 hover:bg-black text-white dark:bg-[#1a0e10] hover:dark:bg-[#251214] font-extrabold rounded-xl text-xs text-center border border-gray-200 dark:border-[#3c1a1e] flex items-center justify-center gap-2 transition-all cursor-pointer select-none"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download Digital Receipt
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setOrderCompletePopup(false)}
+                  className="w-full py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl shadow-lg shadow-pink-600/10 text-xs text-center"
+                >
+                  Done, Back to Shop
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
