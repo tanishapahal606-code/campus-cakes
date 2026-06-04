@@ -305,7 +305,7 @@ export function downloadReceiptFile(order: Order, studentName?: string) {
       <div class="meta-box" style="grid-column: span 2;">
         <div class="meta-label">Customer Recipient Info</div>
         <div class="meta-value" style="font-size: 12px; margin-bottom: 2px;">${customerName}</div>
-        <div style="font-size: 11px; color: #52525b;">📧 ${order.userEmail || 'N/A'} &nbsp;|&nbsp; 📞 ${customerPhone}</div>
+        <div style="font-size: 11px; color: #52525b;">📧 ${order.userEmail || 'N/A'}</div>
         <div style="font-size: 11px; color: #db2777; font-weight: 600; margin-top: 4px;">📍 Delivery: ${deliveryAddress}</div>
       </div>
     </div>

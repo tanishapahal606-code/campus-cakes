@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   CAMPUSES, CATEGORIES, CAKE_PRODUCTS, FAQS, AI_RECOMMENDATION_TEMPLATES 
 } from './data';
@@ -23,7 +23,8 @@ import {
   ShoppingBag, Search, Sparkles, SlidersHorizontal, Heart, Clock, Star, 
   HelpCircle, MessageSquare, ChevronRight, CheckCircle2, Phone, ShieldCheck, 
   ArrowRight, X, AlertTriangle, CreditCard, Check, Compass, Info, Send,
-  LogOut, GraduationCap, MapPin, User, Zap, Trash2, Wallet, Download
+  LogOut, GraduationCap, MapPin, User, Zap, Trash2, Wallet, Download,
+  Bell, BellOff, BellRing
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, authenticateWithGoogle, isRealFirebase } from './firebase';
@@ -411,6 +412,256 @@ export default function App() {
     localStorage.setItem('campus_cakes_active_orders', JSON.stringify(activeOrders));
   }, [activeOrders]);
 
+  // --- BROWSER / IN-APP NOTIFICATIONS SYSTEM INITIALIZATION ---
+  interface InAppToast {
+    id: string;
+    title: string;
+    body: string;
+  }
+  const [inAppToasts, setInAppToasts] = useState<InAppToast[]>([]);
+  const [notificationPermission, setNotificationPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>(() => {
+    const saved = localStorage.getItem('campus_cakes_notify_pref');
+    if (saved) return saved as any;
+    return 'granted'; // Default to enabled / granted as requested!
+  });
+
+  // Try to sync with native permission on mount, but respect our 'granted' default preference
+  useEffect(() => {
+    if ('Notification' in window) {
+      try {
+        const saved = localStorage.getItem('campus_cakes_notify_pref');
+        if (!saved) {
+          localStorage.setItem('campus_cakes_notify_pref', 'granted');
+          Notification.requestPermission().then((p) => {
+            if (p === 'granted') {
+              setNotificationPermission('granted');
+            }
+          }).catch(() => {
+            // Silence sandbox exceptions
+          });
+        }
+      } catch (err) {
+        console.warn("Permission sync issue in sandboxed environment: ", err);
+      }
+    }
+  }, []);
+
+  const addInAppToast = (title: string, body: string) => {
+    const freshId = `toast-${Date.now()}`;
+    setInAppToasts(prev => [...prev, { id: freshId, title, body }]);
+    setTimeout(() => {
+      setInAppToasts(prev => prev.filter(t => t.id !== freshId));
+    }, 8500);
+  };
+
+  const removeInAppToast = (id: string) => {
+    setInAppToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const triggerPopupNotification = (title: string, body: string) => {
+    // If the user has disabled/denied notifications, do not issue sounds or banners
+    if (notificationPermission === 'denied') return;
+
+    // 1. Premium sound chime alert using the Web Audio API
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(512.33, audioCtx.currentTime); // C5 accent frequency
+      osc.frequency.exponentialRampToValueAtTime(768.0, audioCtx.currentTime + 0.12); // G5 elegant transition
+      
+      gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + 0.22);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.25);
+    } catch (e) {
+      console.warn("Audio Context alert blocked or prevented: ", e);
+    }
+
+    // 2. HTML5 native browser Push Notifications
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const n = new Notification(title, {
+          body: body,
+          icon: '/favicon.ico'
+        });
+        setTimeout(() => n.close(), 6500);
+      } catch (err) {
+        console.warn("Iframe native push context prevented:", err);
+      }
+    }
+
+    // 3. Smart UI Fallback Toasts (guarantees notice visibility under iframe sandbox limitations)
+    addInAppToast(title, body);
+  };
+
+  const handleRequestNotificationPermission = async () => {
+    if (notificationPermission === 'granted') {
+      // Toggle off (Muted)
+      setNotificationPermission('denied');
+      localStorage.setItem('campus_cakes_notify_pref', 'denied');
+      addInAppToast("🔕 live alerts paused", "Live updates and audio chime alerts are now silenced.");
+      return;
+    }
+
+    // Toggle on (Enabled!)
+    setNotificationPermission('granted');
+    localStorage.setItem('campus_cakes_notify_pref', 'granted');
+
+    // Attempt to prompt HTML5 system Notifications as progressive enhancement
+    if ('Notification' in window) {
+      try {
+        const p = await Notification.requestPermission();
+        if (p === 'granted') {
+          const n = new Notification("🔔 Notifications Enabled!", {
+            body: "You'll receive push tracking updates for campus cake arrivals!",
+            icon: '/favicon.ico'
+          });
+          setTimeout(() => n.close(), 4500);
+        }
+      } catch (err) {
+        console.warn("Iframe native push prompt prevented:", err);
+      }
+    }
+
+    addInAppToast("🔔 Live Alerts Active!", "You will now receive beautiful real-time order tracking alerts.");
+    
+    // Quick success chime audio
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+      osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.08); 
+      gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + 0.2);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.25);
+    } catch (_) {}
+  };
+
+  // Comparative Order Monitor Ref track
+  const prevOrdersRef = useRef<Order[]>([]);
+  const notifiedEventsRef = useRef<Set<string>>(new Set());
+
+  // Function to calculate remaining days until a recurring yearly event date
+  const getDaysUntilCelebration = (dateStr: string) => {
+    const parts = dateStr.split('-');
+    if (parts.length < 3) return -1;
+    const celebMonth = parseInt(parts[1], 10) - 1; // 0-indexed month
+    const celebDay = parseInt(parts[2], 10);
+    
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    
+    // Construct target celebration date on current year
+    let celebDateThisYear = new Date(currentYear, celebMonth, celebDay);
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    if (celebDateThisYear < todayMidnight) {
+      celebDateThisYear.setFullYear(currentYear + 1);
+    }
+    
+    const diffTime = celebDateThisYear.getTime() - todayMidnight.getTime();
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  // Check saved celebration reminders and trigger push/in-app alert updates
+  useEffect(() => {
+    if (!profileLoaded || !studentUser.savedCelebrations || studentUser.savedCelebrations.length === 0) return;
+
+    studentUser.savedCelebrations.forEach((celeb) => {
+      if (!celeb.remindMe) return;
+      // Prevent duplicate triggers in same browser segment / session
+      if (notifiedEventsRef.current.has(celeb.id)) return;
+
+      const daysLeft = getDaysUntilCelebration(celeb.date);
+
+      if (daysLeft === 0) {
+        triggerPopupNotification(
+          `🎉 Event Today: ${celeb.name}`,
+          `Happy Celebration! Today is ${celeb.name}'s (${celeb.relation}) special day. Treat them with a custom cake pre-order or instant kiosk pickup!`
+        );
+        notifiedEventsRef.current.add(celeb.id);
+      } else if (daysLeft > 0 && daysLeft <= 2) {
+        const dayLabel = daysLeft === 1 ? "tomorrow" : "in 2 days";
+        triggerPopupNotification(
+          `⏰ Celebration Alert: ${celeb.name}`,
+          `${celeb.name}'s (${celeb.relation}) celebration is coming up ${dayLabel} (on ${celeb.date}). Don't forget to secure their cake from Campus Cakes!`
+        );
+        notifiedEventsRef.current.add(celeb.id);
+      }
+    });
+  }, [studentUser.savedCelebrations, profileLoaded]);
+
+  useEffect(() => {
+    if (!profileLoaded) return;
+    
+    // Initial silent load of existing active orders on app launch/login
+    if (prevOrdersRef.current.length === 0 && activeOrders.length > 0) {
+      prevOrdersRef.current = activeOrders;
+      return;
+    }
+
+    activeOrders.forEach(currentOrder => {
+      const prevOrder = prevOrdersRef.current.find(o => o.id === currentOrder.id);
+      
+      if (!prevOrder) {
+        // Brand new order detected
+        if (isAdmin) {
+          triggerPopupNotification(
+            "🔔 New Order Dispatched!",
+            `Order #${currentOrder.id} placed by ${currentOrder.customerName} for ₹${Math.round(currentOrder.total)} has entered the kitchen queue.`
+          );
+        } else if (currentOrder.userId === firebaseUser?.uid) {
+          triggerPopupNotification(
+            "🎂 Order Booked Successfully!",
+            `Your Order #${currentOrder.id} is securely submitted to the campus kitchen.`
+          );
+        }
+      } else if (prevOrder.status !== currentOrder.status) {
+        // Status Transition detected
+        const mappedStatus = currentOrder.status === 'completed' || currentOrder.status === 'ready' ? 'delivered' : currentOrder.status;
+        
+        if (isAdmin) {
+          triggerPopupNotification(
+            `📈 Order #${currentOrder.id} Updated`,
+            `Status of order from ${currentOrder.customerName} marked as: ${mappedStatus}.`
+          );
+        } else if (currentOrder.userId === firebaseUser?.uid) {
+          let customTitle = "";
+          let customBody = "";
+          
+          if (currentOrder.status === 'preparing') {
+            customTitle = "🍳 Cake Bake Active!";
+            customBody = `The baker chefs are active on Order #${currentOrder.id}! Layer modeling is in progress.`;
+          } else if (currentOrder.status === 'delivery') {
+            customTitle = "🚴 Out for Campus Delivery!";
+            customBody = `Your cake for Order #${currentOrder.id} has left the oven and is heading with our runner.`;
+          } else if (currentOrder.status === 'ready' || currentOrder.status === 'completed') {
+            customTitle = "✅ Cake Delivered!";
+            customBody = `Success! Order #${currentOrder.id} has reached your designated campus dispatch location. Enjoy!`;
+          }
+
+          if (customTitle && customBody) {
+            triggerPopupNotification(customTitle, customBody);
+          }
+        }
+      }
+    });
+
+    prevOrdersRef.current = activeOrders;
+  }, [activeOrders, profileLoaded, isAdmin, firebaseUser]);
+
   const [reviews, setReviews] = useState<FeedbackReview[]>([]);
 
   // Search, Filters & AI occasions
@@ -756,9 +1007,7 @@ export default function App() {
     
     const effectiveRedeemPoints = redeemPoints;
     const pointsDiscount = effectiveRedeemPoints ? (studentUser.rewardPoints || 0) : 0;
-    const totalBeforeWallet = Math.max(0, subtotal + surchargeTotal - pointsDiscount);
-    const walletUsed = useWallet ? Math.min((studentUser.walletBalance || 0), totalBeforeWallet) : 0;
-    const total = Math.max(0, totalBeforeWallet - walletUsed);
+    const total = Math.max(0, subtotal + surchargeTotal - pointsDiscount);
     const pointsDeducted = effectiveRedeemPoints ? Math.min((studentUser.rewardPoints || 0), subtotal + surchargeTotal) : 0;
 
     // Generated ID
@@ -774,7 +1023,7 @@ export default function App() {
       tax,
       deliveryFee,
       total,
-      paymentMethod: walletUsed > 0 && total === 0 ? 'Campus Wallet' : (paymentMode === 'upi' ? `UPI (${upiIdInput})` + (walletUsed > 0 ? ` + Wallet (₹${walletUsed})` : '') : 'Credit Card' + (walletUsed > 0 ? ` + Wallet (₹${walletUsed})` : '')),
+      paymentMethod: paymentMode === 'upi' ? `UPI (${upiIdInput})` : 'Credit Card',
       pointsEarned: Math.floor(subtotal / 10),
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       timestamp: new Date().toISOString()
@@ -809,14 +1058,12 @@ export default function App() {
       }
     }
     
-    // Award loyalty points to user profile and deduct spent points & wallet balance
+    // Award loyalty points to user profile and deduct spent points
     const updatedPoints = studentUser.rewardPoints - Math.floor(pointsDeducted) + Math.floor(subtotal / 10);
-    const updatedWallet = Math.max(0, (studentUser.walletBalance ?? 0) - walletUsed);
     
     const updatedUser = {
       ...studentUser,
-      rewardPoints: updatedPoints,
-      walletBalance: updatedWallet
+      rewardPoints: updatedPoints
     };
 
     setStudentUser(updatedUser);
@@ -2149,14 +2396,14 @@ export default function App() {
 
       {/* --- PAYMENT INTEGRATION CHECKOUT DRAWER --- */}
       {isCheckoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <div className="fixed inset-0 bg-gray-950/75 backdrop-blur-sm" onClick={() => setIsCheckoutOpen(false)} />
           
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white dark:bg-[#120709] rounded-3xl overflow-hidden border border-gray-100 dark:border-[#291316] max-w-md w-full p-6 shadow-2xl relative z-50 space-y-4"
+            className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-100 dark:border-[#291316] max-w-md w-full p-6 shadow-2xl relative z-50 space-y-4 my-auto max-h-[92vh] overflow-y-auto scrollbar-thin"
           >
             {/* Header */}
             <div className="flex justify-between items-center pb-2 border-b">
@@ -2323,49 +2570,17 @@ export default function App() {
                 {redeemPoints && <p className="text-[10px] text-amber-600 font-bold">XP points applied to offset the total!</p>}
               </div>
 
-              {/* Wallet Balance Application */}
-              <div className="space-y-1.5 pb-2">
-                <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600">
-                      <Wallet className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-900 dark:text-white">Campus Wallet</h4>
-                      <p className="text-[10px] text-gray-600 dark:text-[#d4d4d8]">Available: ₹{studentUser.walletBalance ?? 0}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setUseWallet(!useWallet)}
-                    disabled={(studentUser.walletBalance ?? 0) <= 0}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-250 focus:outline-none ${
-                        useWallet && (studentUser.walletBalance ?? 0) > 0 ? 'bg-emerald-500' : 'bg-gray-300'
-                    } ${(studentUser.walletBalance ?? 0) <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className={`w-5 h-5 rounded-full bg-white dark:bg-[#120709] shadow-sm dark:shadow-none transform transition-transform duration-200 ${
-                        useWallet && (studentUser.walletBalance ?? 0) > 0 ? 'translate-x-5' : 'translate-x-0'
-                    }`} />
-                  </button>
-                </div>
-                {useWallet && (studentUser.walletBalance ?? 0) > 0 && (
-                  <p className="text-[10px] text-emerald-600 font-bold">
-                    Deducting ₹{Math.min(studentUser.walletBalance ?? 0, Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0)))} from your wallet!
-                  </p>
-                )}
-              </div>
-
               {/* Segment calculations totals */}
               <div className="border-t border-dashed dark:border-[#3c1a1e] pt-3 text-xs flex justify-between font-extrabold text-gray-800 dark:text-[#fafafa] items-end">
                 <span>Amount to Pay</span>
                 <div className="text-right">
-                  {((redeemPoints) || (useWallet && (studentUser.walletBalance ?? 0) > 0)) && (
+                  {redeemPoints && (
                     <span className="text-[10px] text-gray-400 line-through mr-2 font-mono">
                       ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)}
                     </span>
                   )}
                   <span className="text-pink-600 dark:text-pink-400 font-mono text-sm">
-                    ₹{Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0) - (useWallet ? Math.min(studentUser.walletBalance ?? 0, Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0))) : 0))}
+                    ₹{Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0))}
                   </span>
                 </div>
               </div>
@@ -2395,14 +2610,14 @@ export default function App() {
       {/* --- ORDER COMPLETE & SUCCESS POPUP BANNER --- */}
       <AnimatePresence>
         {orderCompletePopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
             <div className="fixed inset-0 bg-black/70 backdrop-blur-md" onClick={() => setOrderCompletePopup(false)} />
             
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-[#120709] rounded-3xl p-6 md:p-8 max-w-sm w-full text-center relative z-50 space-y-4 shadow-2xl border"
+              className="bg-white dark:bg-[#120709] rounded-3xl p-6 md:p-8 max-w-sm w-full text-center relative z-50 space-y-4 shadow-2xl border my-auto max-h-[92vh] overflow-y-auto scrollbar-thin"
             >
               <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto shadow-md dark:shadow-none">
                 <Check className="w-8 h-8 stroke-[3]" />
@@ -2474,6 +2689,41 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* --- FLOATING TOAST NOTIFICATIONS DRAWER OVERLAY --- */}
+      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+        <AnimatePresence>
+          {inAppToasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 55, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.16 } }}
+              className="bg-white dark:bg-[#120709] border border-gray-150 dark:border-[#291316] rounded-2xl shadow-2xl p-4 pointer-events-auto flex gap-3.5 items-start"
+              style={{ boxShadow: "0 20px 40px -15px rgba(0,0,0,0.15)" }}
+            >
+              <div className="p-2.5 bg-rose-50 dark:bg-rose-500/10 rounded-xl text-rose-500 flex-shrink-0">
+                <BellRing className="w-4 h-4 animate-bounce-slow text-rose-500 dark:text-rose-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h5 className="text-[11px] font-black text-gray-900 dark:text-white leading-tight uppercase tracking-wider">
+                  {toast.title}
+                </h5>
+                <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] mt-1 font-medium leading-normal">
+                  {toast.body}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeInAppToast(toast.id)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors p-1 flex-shrink-0 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
     </div>
   );

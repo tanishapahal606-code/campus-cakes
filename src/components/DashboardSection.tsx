@@ -505,7 +505,7 @@ export default function DashboardSection({
                               <div className="flex items-center gap-2">
                                 <span className="font-exrabold text-xs text-gray-800 dark:text-[#fafafa] font-bold">Order #{order.id}</span>
                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${currentStatusColor}`}>
-                                  {order.status}
+                                  {order.status === 'completed' || order.status === 'ready' ? 'delivered' : order.status}
                                 </span>
                               </div>
                               <p className="text-[11px] text-gray-400 mt-0.5">{order.date} @ ABC University</p>
