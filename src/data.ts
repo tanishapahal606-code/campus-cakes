@@ -4,6 +4,9 @@
  */
 
 import { Campus, CakeItem, KioskCake, FeedbackReview } from './types';
+import hazelnutImage from './assets/images/hero_hazelnut_cake_1779292345407.png';
+import bentoImage from './assets/images/minimalist_bento_cake_1779292365214.png';
+import redVelvetImage from './assets/images/red_velvet_cupcake_1779292382726.png';
 
 export const CAMPUSES: Campus[] = [
   { id: 'abc-univ', name: 'ABC University (Main Campus)', location: 'Hub & Central Quad', active: true },
@@ -37,7 +40,7 @@ export const CAKE_PRODUCTS: CakeItem[] = [
     category: 'Chocolate Cakes',
     isEggless: false,
     isTrending: true,
-    image: '/src/assets/images/hero_hazelnut_cake_1779292345407.png',
+    image: hazelnutImage,
     deliveryTime: '24 Hours',
     weights: [0.5, 1.0, 1.5, 2.0],
     flavors: ['Classic Hazelnut Premium', 'Intense Dark Velvet', 'Mocha Crunch Chocolate'],
@@ -51,7 +54,7 @@ export const CAKE_PRODUCTS: CakeItem[] = [
     category: 'Bento Cakes',
     isEggless: true,
     isTrending: true,
-    image: '/src/assets/images/minimalist_bento_cake_1779292365214.png',
+    image: bentoImage,
     deliveryTime: '24 Hours',
     weights: [0.3, 0.5],
     flavors: ['Sweet Strawberry Cloud', 'Fresh Bourbon Vanilla', 'Classic Salted Caramel'],
@@ -65,7 +68,7 @@ export const CAKE_PRODUCTS: CakeItem[] = [
     category: 'Red Velvet',
     isEggless: false,
     isTrending: false,
-    image: '/src/assets/images/red_velvet_cupcake_1779292382726.png',
+    image: redVelvetImage,
     deliveryTime: '24 Hours',
     weights: [0.5, 1.0, 1.5],
     flavors: ['Classic Velvet Cream', 'Double Cheese Swirl', 'Eggless Velvet Dream'],
@@ -187,7 +190,7 @@ export const KIOSK_INVENTORY: KioskCake[] = [
     flavor: 'Classic Whipped Cream Velvet',
     remainingStock: 4,
     totalStock: 4,
-    image: '/src/assets/images/red_velvet_cupcake_1779292382726.png',
+    image: redVelvetImage,
   },
   {
     id: 'kiosk-mini-bento',
@@ -196,7 +199,7 @@ export const KIOSK_INVENTORY: KioskCake[] = [
     flavor: 'Vanilla Sprinkles with Cute Art',
     remainingStock: 1,
     totalStock: 4,
-    image: '/src/assets/images/minimalist_bento_cake_1779292365214.png',
+    image: bentoImage,
   },
   {
     id: 'kiosk-pineapple-rush',
@@ -256,7 +259,7 @@ export const STUDENT_TESTIMONIALS: FeedbackReview[] = [
     comment: 'Literally saved our club treasurer birthday! We forgot until 10 PM. Ordered for next evening and was delivered right to the mess gate. Tastes phenomenal!',
     cakeName: 'Gourmet Chocolate Hazelnut Dream',
     date: '3 days ago',
-    image: '/src/assets/images/hero_hazelnut_cake_1779292345407.png'
+    image: hazelnutImage
   },
   {
     id: 'test-2',
@@ -266,7 +269,7 @@ export const STUDENT_TESTIMONIALS: FeedbackReview[] = [
     comment: 'The Kiosk emergency reserve is the best thing about Campus Cakes. Picked up a bento at 5 PM right after exams. Tastes super light and perfectly balanced!',
     cakeName: 'Korean Pastel Bento Cake',
     date: '1 week ago',
-    image: '/src/assets/images/minimalist_bento_cake_1779292365214.png'
+    image: bentoImage
   },
   {
     id: 'test-3',
