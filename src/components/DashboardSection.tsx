@@ -9,7 +9,7 @@ import {
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Wallet, Download
+  Truck, Phone, Mail, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
@@ -34,6 +34,7 @@ interface DashboardSectionProps {
   campuses?: { id: string; name: string; location: string; active: boolean }[];
   onDeleteCampus?: (id: string) => void;
   isAdmin?: boolean;
+  onPurgeAndResetDatabase?: () => void;
 }
 
 export default function DashboardSection({
@@ -56,6 +57,7 @@ export default function DashboardSection({
   campuses = [],
   onDeleteCampus,
   isAdmin = false,
+  onPurgeAndResetDatabase,
 }: DashboardSectionProps) {
   const [activeTab, setActiveTab] = useState<'student' | 'admin'>('student');
   const [addressInput, setAddressInput] = useState(user.address);
@@ -424,7 +426,6 @@ export default function DashboardSection({
                       Loyalty Points
                     </span>
                     <p className="text-3xl font-black mt-2">{user.rewardPoints} XP</p>
-                    <p className="text-[10px] text-pink-100 mt-1">Unlock free cupcake boxes at 500 XP</p>
                   </div>
                   <Coins className="w-10 h-10 text-white/40" />
                 </div>
@@ -725,6 +726,22 @@ export default function DashboardSection({
               {/* Startup Analytics Section */}
               {activeAdminTab === 'analytics' && (
                 <div className="space-y-6">
+                  {/* Administrative Database Clean-slate action panel */}
+                  {onPurgeAndResetDatabase && (
+                    <div className="p-4 bg-red-50/50 dark:bg-rose-500/5 border border-red-200/60 dark:border-red-950/40 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div>
+                        <h4 className="text-xs font-black text-red-900 dark:text-red-400 uppercase tracking-wide">Production Launch Deployment Guard</h4>
+                        <p className="text-[10.5px] text-red-700/90 dark:text-gray-400 mt-0.5">Prepare the platform for production by purging development-era test orders and resetting all user XP metrics to zero.</p>
+                      </div>
+                      <button
+                        onClick={onPurgeAndResetDatabase}
+                        className="px-4 py-2 bg-red-100 hover:bg-red-200/95 dark:bg-rose-950/40 hover:dark:bg-rose-900/40 text-red-700 dark:text-red-400 border border-red-250 dark:border-[#3c1a1e] rounded-xl font-bold text-[11px] uppercase tracking-wide transition-colors active:scale-95 cursor-pointer shadow-sm"
+                      >
+                        Wipe Database & Reset XP
+                      </button>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-white dark:bg-[#120709] p-4 rounded-2xl border border-gray-150 dark:border-[#291316]">
                       <div className="flex justify-between items-center text-gray-400">

@@ -16,6 +16,7 @@ import CampusSelector from './components/CampusSelector';
 import KioskSection from './components/KioskSection';
 import CustomOrderModal from './components/CustomOrderModal';
 import DashboardSection from './components/DashboardSection';
+import SupportSection from './components/SupportSection';
 import { DarkModeToggle } from './components/DarkModeToggle';
 
 // Lucide React Icons
@@ -23,7 +24,7 @@ import {
   ShoppingBag, Search, Sparkles, SlidersHorizontal, Heart, Clock, Star, 
   HelpCircle, MessageSquare, ChevronRight, CheckCircle2, Phone, ShieldCheck, 
   ArrowRight, X, AlertTriangle, CreditCard, Check, Compass, Info, Send,
-  LogOut, GraduationCap, MapPin, User, Zap, Trash2, Wallet, Download,
+  LogOut, GraduationCap, MapPin, User, Zap, Trash2, Download,
   Bell, BellOff, BellRing
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,7 +33,7 @@ import {
   testFirestoreConnection, getCampuses, writeCampus, removeCampus, 
   getProducts, writeProduct, removeProduct, getKioskProducts, writeKioskProduct, 
   removeKioskProduct, getUserProfile, writeUserProfile, getUserOrders, writeOrder, 
-  writeCakeImage, getAllOrders,
+  writeCakeImage, getAllOrders, removeOrder,
   subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
@@ -50,8 +51,9 @@ export default function App() {
   const [campusSelected, setCampusSelected] = useState<boolean>(() => {
     return localStorage.getItem('campus_cakes_selected_campus') !== null;
   });
-  const [activeZomatoTab, setActiveZomatoTab] = useState<'delivery' | 'kiosk' | 'portal'>('delivery');
+  const [activeZomatoTab, setActiveZomatoTab] = useState<'delivery' | 'kiosk' | 'portal' | 'support'>('delivery');
   const [tempSelectedCampus, setTempSelectedCampus] = useState<Campus | null>(null);
+  const [activeDocModal, setActiveDocModal] = useState<'terms' | 'privacy' | 'refund' | null>(null);
 
   // --- 1. STATE CONFIGURATIONS ---
   const [selectedCampus, setSelectedCampus] = useState<Campus>(() => {
@@ -296,9 +298,21 @@ export default function App() {
           healedProfile.walletBalance = 0;
           healedProfile.didWalletReset2026 = true;
         }
+        // Force-reset loyalty points & wallet balance for all users for clean deployment slate
+        let profileChanged = false;
+        if (!healedProfile.didDeploymentReset2026) {
+          healedProfile.rewardPoints = 0;
+          healedProfile.walletBalance = 0;
+          healedProfile.didDeploymentReset2026 = true;
+          profileChanged = true;
+        }
         // Ensure wallet balance is initialized
         if (healedProfile.walletBalance === undefined) {
           healedProfile.walletBalance = 0;
+          profileChanged = true;
+        }
+        if (profileChanged) {
+          await writeUserProfile(healedProfile).catch(err => console.error("Error auto-writing reset profile:", err));
         }
         setStudentUser(healedProfile);
         setProfileLoaded(true);
@@ -362,49 +376,16 @@ export default function App() {
     const saved = localStorage.getItem('campus_cakes_active_orders');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Clean stale development or mock orders from client's storage
+          return parsed.filter(o => o.id !== 'CK-9831' && !o.id.startsWith('mock-'));
+        }
       } catch (err) {
         console.error("Error parsing saved active orders:", err);
       }
     }
-    return [
-      {
-        id: 'CK-9831',
-        campusId: 'abc-univ',
-        items: [
-          {
-            id: 'test-item-1',
-            cakeId: 'choc-hazelnut',
-            name: 'Gourmet Chocolate Hazelnut Dream',
-            basePrice: 549,
-            price: 549,
-            image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&auto=format&fit=crop&q=80',
-            quantity: 1,
-            customization: {
-              flavor: 'Classic Hazelnut Premium',
-              weight: 0.5,
-              messageOnCake: 'Pass Midterms!',
-              addCandles: true,
-              addKnife: true,
-              pickupTime: '2026-05-21 @ 17:00'
-            }
-          }
-        ],
-        orderType: 'pre-order',
-        status: 'placed',
-        subtotal: 549,
-        tax: 30,
-        deliveryFee: 20,
-        total: 599,
-        paymentMethod: 'UPI (GPay)',
-        pointsEarned: 55,
-        date: 'May 20, 2026',
-        timestamp: '2026-05-20T12:00:00Z',
-        customerName: 'Aman Sharma',
-        customerPhone: '+919988776655',
-        deliveryAddress: 'Sarojini Naidu Hostel, Room No. 302A'
-      }
-    ];
+    return [];
   });
 
   // Keep active orders persisted in localStorage for offline & simulation modes
@@ -910,6 +891,46 @@ export default function App() {
     }));
   };
 
+  // Admin operational routine to purge all orders, reset everyone's database state metrics for live deployment
+  const handlePurgeAllOrders = async () => {
+    if (!isAdmin) {
+      alert("Unauthorized operational request: Administrative rights needed to wipe records.");
+      return;
+    }
+    if (!window.confirm("⚠️ DANGER: Are you absolutely sure you want to permanently delete ALL order data from the remote Firestore database and reset analytics for all active users? This cannot be undone.")) {
+      return;
+    }
+    try {
+      if (isRealFirebase) {
+        // 1. Delete all fetched orders from the remote Database
+        const deletePromises = activeOrders.map(order => removeOrder(order.id));
+        await Promise.all(deletePromises);
+      }
+      
+      // 2. Clear state and cache
+      setActiveOrders([]);
+      localStorage.removeItem('campus_cakes_active_orders');
+      
+      // 3. Force-reset reward points & wallet parameters on user's active session profile
+      const zeroedProfile = {
+        ...studentUser,
+        rewardPoints: 0,
+        walletBalance: 0,
+        didDeploymentReset2026: true
+      };
+      setStudentUser(zeroedProfile);
+      
+      if (isRealFirebase) {
+        await writeUserProfile(zeroedProfile);
+      }
+      
+      alert("🎉 Clean Slate Success: All test orders have been purged and database parameters have been prepared for deployment!");
+    } catch (err) {
+      console.error("Critical error while purging deployment database:", err);
+      alert("Failure resetting database records on live server. Please inspect connectivity logs.");
+    }
+  };
+
   // Admin dynamic product publish
   const handleAddCustomCake = (newCake: CakeItem) => {
     setActiveProducts(prev => [newCake, ...prev]);
@@ -1205,10 +1226,10 @@ export default function App() {
           <h1 className="text-3xl font-black font-display text-gray-900 dark:text-white tracking-tight leading-tight italic text-transparent bg-clip-text bg-gradient-to-r from-[#E23744] to-red-650">
             campus cakes
           </h1>
-          <p className="text-[10px] font-black tracking-widest text-[#E23744] uppercase mt-1">Dorm Sweet Dispatch</p>
+          <p className="text-[10px] font-black tracking-widest text-[#E23744] uppercase mt-1">The Only Destination for Every Occasion</p>
 
           <p className="text-sm text-gray-500 dark:text-[#a1a1aa] mt-4 mb-8 leading-relaxed">
-            Verify your student account to access next-day guaranteed dorm birthday delivery, custom theme pre-orders, and our instant live kiosk inventory tracking.
+            Verify your student account to access next-day guaranteed dorm birthday delivery, custom theme pre-orders, and our instant live order tracking.
           </p>
 
           {/* Secure Exclusive Google Sign-In Trigger */}
@@ -1367,7 +1388,7 @@ export default function App() {
           ) : (
             <>
               <h2 className="text-xl md:text-2xl font-black font-display text-gray-900 dark:text-white tracking-tight text-center">
-                Where is your dorm or lab?
+                Select your campus
               </h2>
               <p className="text-xs text-gray-500 dark:text-[#a1a1aa] text-center mt-1 mb-6 leading-relaxed">
                 Select the active university startup hub below to update current catalogs and live kiosk menus.
@@ -1578,7 +1599,7 @@ export default function App() {
       </div>
 
       {/* TRIPLE TAB NAVIGATION SELECTOR (ZOMATO STYLE HOME TABS) */}
-      <div className="bg-white dark:bg-[#120709] border-b border-gray-150 dark:border-[#291316]">
+      <div id="main-tabs-anchor" className="bg-white dark:bg-[#120709] border-b border-gray-150 dark:border-[#291316]">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex gap-6 md:gap-12 overflow-x-auto scrollbar-none">
           
           {/* Tab 1: Delivery */}
@@ -1963,6 +1984,7 @@ export default function App() {
                   writeCampus(newC).catch(err => console.error("Error writing network campus to database:", err));
                 }
               }}
+              onPurgeAndResetDatabase={handlePurgeAllOrders}
             />
 
             {/* VERIFIED STUDENT REVIEWS & COMMUNITY FEEDBACK */}
@@ -2115,10 +2137,15 @@ export default function App() {
           </div>
         )}
 
+        {/* --- STATE 4: AI CUSTOMER SUPPORT CHAT HUB --- */}
+        {activeZomatoTab === 'support' && (
+          <SupportSection user={studentUser} />
+        )}
+
       </main>
 
       {/* FOOTER */}
-      <footer className="relative bg-[#0A0A0A] text-zinc-300 mt-20 border-t border-zinc-800/50 overflow-hidden">
+      <footer className="relative bg-[#67613f] text-zinc-100 mt-20 border-t border-zinc-800/10 overflow-hidden">
         {/* Decorative Top Accent Line */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-500 via-[#E23744] to-amber-500" />
         
@@ -2128,7 +2155,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-6 md:px-12 py-20 grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 relative z-10">
           
           {/* Brand Column */}
-          <div className="md:col-span-5 space-y-6">
+          <div className="md:col-span-7 space-y-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E23744] to-rose-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-red-900/30">
                 CC
@@ -2137,85 +2164,54 @@ export default function App() {
                 campus <span className="text-[#E23744]">cakes</span>
               </span>
             </div>
-            <p className="text-sm text-zinc-400 leading-relaxed font-medium max-w-sm">
+            <p className="text-sm text-zinc-100 leading-relaxed font-semibold max-w-sm">
               Your college campus, sweetened. Delivering handcrafted premium cakes, customized celebrations, and gourmet treats straight to your dorm room, library, or canteen.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900/80 border border-zinc-800 rounded-full px-3.5 py-1.5 shadow-sm dark:shadow-none">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-100 bg-black/35 border border-white/10 rounded-full px-3.5 py-1.5 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
                 Freshly Baked Daily
               </div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 bg-zinc-900/80 border border-zinc-800 rounded-full px-3.5 py-1.5 shadow-sm dark:shadow-none">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-100 bg-black/35 border border-white/10 rounded-full px-3.5 py-1.5 shadow-sm">
                 🚀 Room Service Active
               </div>
             </div>
           </div>
 
-          {/* College Network Column */}
-          <div className="md:col-span-3 space-y-5">
-            <h5 className="font-bold text-sm uppercase tracking-widest text-white flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#E23744]" />
-              Live Campus Network
-            </h5>
-            <ul className="text-sm text-zinc-400 space-y-3.5 font-medium">
-              <li className="flex items-center gap-2.5 hover:text-white transition-colors group cursor-pointer">
-                <span className="text-emerald-500 text-[8px] group-hover:scale-150 transition-transform">●</span> 
-                ABC University 
-                <span className="text-[9px] font-bold bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 border border-zinc-700">Cafe</span>
-              </li>
-              <li className="flex items-center gap-2.5 hover:text-white transition-colors group cursor-pointer">
-                <span className="text-emerald-500 text-[8px] group-hover:scale-150 transition-transform">●</span> 
-                XYZ College 
-                <span className="text-[9px] font-bold bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 border border-zinc-700">Cafe</span>
-              </li>
-              <li className="flex items-center gap-2.5 hover:text-white transition-colors group cursor-pointer">
-                <span className="text-emerald-500 text-[8px] group-hover:scale-150 transition-transform">●</span> 
-                PQR Business Inst. 
-                <span className="text-[9px] font-bold bg-zinc-800/80 px-2 py-0.5 rounded text-zinc-300 border border-zinc-700">Hub</span>
-              </li>
-              <li className="pt-2">
-                <button 
-                  onClick={() => alert('Campus suggestion form loaded soon! Tell us your university canteens details.')}
-                  className="text-[#E23744] hover:text-red-400 font-bold transition-colors inline-flex items-center gap-1 hover:underline cursor-pointer group"
-                >
-                  ⚡ Vote For Your Campus
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </li>
-            </ul>
-          </div>
-
           {/* Operations & Support Column */}
-          <div className="md:col-span-4 space-y-5">
+          <div className="md:col-span-5 space-y-5">
             <h5 className="font-bold text-sm uppercase tracking-widest text-white flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-amber-500" />
+              <HelpCircle className="w-4 h-4 text-amber-300" />
               Operations & Support
             </h5>
-            <div className="text-sm text-zinc-400 space-y-4 font-medium">
+            <div className="text-sm text-zinc-100 space-y-4 font-semibold">
               <div className="flex items-start gap-3">
-                <Clock className="w-4 h-4 text-zinc-500 mt-0.5" />
+                <Clock className="w-4 h-4 text-zinc-200 mt-0.5" />
                 <div>
-                  <span className="text-zinc-200 block">Delivery & Pickup Hours</span>
-                  <span className="text-zinc-500 text-xs">Mon-Sun: 10:00 AM – 10:00 PM</span>
+                  <span className="text-white block">Delivery & Pickup Hours</span>
+                  <span className="text-zinc-200 text-xs font-medium">Mon-Sun: 10:00 AM – 10:00 PM</span>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-zinc-500 mt-0.5" />
+                <MapPin className="w-4 h-4 text-zinc-200 mt-0.5" />
                 <div>
-                  <span className="text-zinc-200 block">Dorm HQ Hub</span>
-                  <span className="text-zinc-500 text-xs">Student Block C, Booth #3</span>
+                  <span className="text-white block">Dorm HQ Hub</span>
+                  <span className="text-zinc-200 text-xs font-medium">Student Block C, Booth #3</span>
                 </div>
               </div>
-              <div className="pt-3">
-                <a 
-                  href="https://wa.me/15557236902" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex w-full sm:w-auto items-center justify-center gap-2 bg-zinc-900 border border-[#128C7E]/30 hover:border-[#128C7E] hover:bg-[#128C7E]/10 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer group"
+              <div className="pt-3 flex flex-col gap-2.5">
+                <button 
+                  onClick={() => {
+                    setActiveZomatoTab('support');
+                    setTimeout(() => {
+                      document.getElementById('main-tabs-anchor')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 bg-gradient-to-r from-red-950/40 to-rose-950/40 hover:from-[#E23744]/20 hover:to-[#E23744]/30 border border-red-500/30 hover:border-red-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer group shadow-[0_0_15px_rgba(226,55,68,0.15)] active:scale-98"
                 >
-                  <Phone className="w-4 h-4 text-[#128C7E] group-hover:scale-110 transition-transform" />
-                  Chat on WhatsApp Support
-                </a>
+                  <Sparkles className="w-3.5 h-3.5 text-[#E23744] group-hover:scale-120 transition-transform animate-pulse" />
+                  Customer Support
+                </button>
               </div>
             </div>
           </div>
@@ -2223,16 +2219,31 @@ export default function App() {
         </div>
 
         {/* Premium Bottom Bar */}
-        <div className="bg-black/50 border-t border-zinc-900 px-6 md:px-12 py-6 text-center text-xs text-zinc-500">
+        <div className="bg-[#67613f] border-t border-zinc-800/10 px-6 md:px-12 py-6 text-center text-xs text-zinc-300">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4">
-            <p className="text-xs leading-relaxed max-w-2xl text-left text-zinc-500 md:max-w-xl font-medium">
+            <p className="text-xs leading-relaxed max-w-2xl text-left text-zinc-200 md:max-w-xl font-medium">
               © {new Date().getFullYear()} Campus Cakes Inc. Operated in partnership with college student committees. 
               Baked fresh, handled on-campus, and hand-delivered securely.
             </p>
-            <div className="flex flex-wrap gap-5 text-xs text-zinc-500 font-medium justify-end">
-              <button onClick={() => alert('Campus Cakes startup operational terms simulation')} className="hover:text-white transition-colors duration-200">Terms of Service</button>
-              <button onClick={() => alert('Student privacy security rules simulation')} className="hover:text-white transition-colors duration-200">Dorm Privacy</button>
-              <button onClick={() => alert('Refund policy simulation')} className="hover:text-white transition-colors duration-200">Refund Policy</button>
+            <div className="flex flex-wrap gap-5 text-xs text-zinc-200 font-medium justify-end">
+              <button 
+                onClick={() => setActiveDocModal('terms')} 
+                className="hover:text-white underline decoration-zinc-400/50 transition-colors duration-200 cursor-pointer"
+              >
+                Terms of Service
+              </button>
+              <button 
+                onClick={() => setActiveDocModal('privacy')} 
+                className="hover:text-white underline decoration-zinc-400/50 transition-colors duration-200 cursor-pointer"
+              >
+                Dorm Privacy
+              </button>
+              <button 
+                onClick={() => setActiveDocModal('refund')} 
+                className="hover:text-white underline decoration-zinc-400/50 transition-colors duration-200 cursor-pointer"
+              >
+                Refund Policy
+              </button>
             </div>
           </div>
         </div>
@@ -2281,7 +2292,7 @@ export default function App() {
                     <ShoppingBag className="w-12 h-12 text-gray-200 mx-auto" />
                     <p className="text-xs font-bold">Your campus bucket is empty!</p>
                     <p className="text-[10px] pr-4 pl-4 text-gray-400 leading-normal">
-                      Pre-order a gorgeous birthday cake for tomorrow, or grab a 10-minutes pickup item from the Kiosk at canteen!
+                      Pre-order a gorgeous birthday cake for tomorrow, or explore our student delivery menu!
                     </p>
                     <button
                       onClick={() => setIsCartOpen(false)}
@@ -2724,6 +2735,138 @@ export default function App() {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* --- FOOTER DOCUMENTS MODAL --- */}
+      <AnimatePresence>
+        {activeDocModal && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveDocModal(null)}
+              className="fixed inset-0 z-[10000] bg-black/75 backdrop-blur-md"
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="fixed inset-4 md:inset-10 max-w-2xl mx-auto my-auto h-fit max-h-[85vh] z-[10001] bg-white dark:bg-[#120709] border border-gray-150 dark:border-[#291316] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+            >
+              {/* Header */}
+              <div className="p-5 md:p-6 border-b border-gray-100 dark:border-[#291316] flex justify-between items-center bg-gray-50 dark:bg-[#1a0d0f]/50">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 bg-[#FCECEF] dark:bg-rose-500/10 text-[#E23744] rounded-xl flex items-center justify-center">
+                    <ShieldCheck className="w-5 h-5 animate-pulse" />
+                  </span>
+                  <div>
+                    <h3 className="text-base md:text-lg font-black font-display text-gray-950 dark:text-white leading-none">
+                      {activeDocModal === 'terms' && 'Terms of Service'}
+                      {activeDocModal === 'privacy' && 'Dorm Privacy Policy'}
+                      {activeDocModal === 'refund' && 'Refund Policy'}
+                    </h3>
+                    <p className="text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider mt-1.5 md:mt-2">
+                      Campus Cakes Standard Guidelines
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveDocModal(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white bg-gray-100 hover:bg-gray-200 dark:bg-[#1a0d0f]/80 dark:hover:bg-red-950/40 rounded-xl transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Document Content View */}
+              <div className="p-6 md:p-8 overflow-y-auto space-y-4 text-[11px] md:text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
+                {activeDocModal === 'terms' && (
+                  <>
+                    <div>
+                      <h4 className="text-gray-950 dark:text-white font-black text-xs md:text-sm uppercase tracking-tight flex items-center gap-1.5">
+                        <span className="text-[#E23744]">1.</span> Custom Cake Culinary Mandate
+                      </h4>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium">All pre-entered, themed custom decorations or customized letter layers require at least 24 hours of advance kitchen prep time. Emergency expedited modifications must be coordinated with student reps at the Dorm HQ Hub.</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-gray-950 dark:text-white font-black text-xs md:text-sm uppercase tracking-tight flex items-center gap-1.5 mt-4">
+                        <span className="text-[#E23744]">2.</span> Dorm Delivery & Coordinates
+                      </h4>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium">Delivery drop-offs occur strictly within designated student residential towers, library foyers, or academic wings. Complete coordinate accuracy reduces drop-off time. Delivery handlers wait a maximum of 10 minutes at towers.</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-gray-950 dark:text-white font-black text-xs md:text-sm uppercase tracking-tight flex items-center gap-1.5 mt-4">
+                        <span className="text-[#E23744]">3.</span> VIP XP Loyalty Tiers
+                      </h4>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium">VIP status XP tier privileges guarantee active custom preorder priority, exclusive seasonal flavors, and discounted delivery fee structures. VIP points are non-transferable and tied to student authentication logins.</p>
+                    </div>
+                  </>
+                )}
+
+                {activeDocModal === 'privacy' && (
+                  <>
+                    <div>
+                      <h4 className="text-gray-950 dark:text-white font-black text-xs md:text-sm uppercase tracking-tight flex items-center gap-1.5">
+                        <span className="text-pink-500">1.</span> Contact Data Protection
+                      </h4>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium">Student mobile identifiers, block-room positions, and checkout history remain stored securely using industry-standard local storage models or encrypted cloud data collections. We do not distribute credentials to outer third parties.</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-gray-950 dark:text-white font-black text-xs md:text-sm uppercase tracking-tight flex items-center gap-1.5 mt-4">
+                        <span className="text-pink-500">2.</span> Custom Inscription Secrecy
+                      </h4>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium">Any personalized message strings, themed decorations, or customized lettering applied onto custom cake layers are kept strictly secure and confidential within our baker group to respect campus privacy bounds.</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-gray-950 dark:text-white font-black text-xs md:text-sm uppercase tracking-tight flex items-center gap-1.5 mt-4">
+                        <span className="text-pink-500">3.</span> Local Preference Memory
+                      </h4>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium">In-app settings, chosen campus campuses, active orders cache, and UI preferences are localized to your web browser client to maintain speedy app loading and state tracking across campus activities.</p>
+                    </div>
+                  </>
+                )}
+
+                {activeDocModal === 'refund' && (
+                  <>
+                    <div>
+                      <h4 className="text-gray-950 dark:text-white font-black text-xs md:text-sm uppercase tracking-tight flex items-center gap-1.5">
+                        <span className="text-amber-500">1.</span> Delivery Quality Compensation
+                      </h4>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium">If physical transportation compromises the cake decoration, letters, or cream layers, you are eligible for 100% cash-back or refund compensations. Simply log the damage with dormitory reps or dial +91 99887 76655.</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-gray-950 dark:text-white font-black text-xs md:text-sm uppercase tracking-tight flex items-center gap-1.5 mt-4">
+                        <span className="text-amber-500">2.</span> Custom Orders Cancellation Void
+                      </h4>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400 font-medium">Because custom items are decorated individually, user-initiated cancellations of order tickets within 10 hours of delivery target times are ineligible for full cash-back due to raw bakery material loss.</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Footer action bar */}
+              <div className="p-4 bg-gray-50 dark:bg-[#1a0d0f]/50 border-t border-gray-100 dark:border-[#291316] flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveDocModal(null)}
+                  className="px-5 py-2.5 bg-[#E23744] hover:bg-red-700 text-white rounded-xl text-xs font-black shadow transition-all cursor-pointer active:scale-95"
+                >
+                  Close Document
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
     </div>
   );

@@ -364,3 +364,13 @@ export async function writeCakeImage(imageRecord: CakeImageRecord): Promise<void
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
+
+export async function removeOrder(orderId: string): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `orders/${orderId}`;
+  try {
+    await deleteDoc(doc(db, 'orders', orderId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}

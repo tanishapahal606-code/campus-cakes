@@ -102,6 +102,7 @@ export interface UserProfile {
   uid?: string;
   walletBalance?: number;
   didWalletReset2026?: boolean;
+  didDeploymentReset2026?: boolean;
 }
 
 export interface FeedbackReview {
