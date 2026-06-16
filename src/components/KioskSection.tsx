@@ -46,22 +46,34 @@ export default function KioskSection({ selectedCampus, onReserveCake, inventory 
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {liveInventory.map((item) => {
-          const isOut = item.remainingStock === 0;
-          const isLow = item.remainingStock > 0 && item.remainingStock <= 2;
-          const percentageLeft = (item.remainingStock / item.totalStock) * 100;
-
-          return (
-            <motion.div
-              key={item.id}
-              whileHover={{ y: -6 }}
-              transition={{ duration: 0.3 }}
-              className={`bg-white dark:bg-[#120709] rounded-2xl p-4 border flex flex-col justify-between transition-all duration-300 relative ${
-                isOut 
-                  ? 'border-gray-200 dark:border-[#3c1a1e]/60 opacity-70 filter grayscale-[40%]' 
-                  : 'border-amber-100 shadow-md dark:shadow-none shadow-amber-500/5 hover:shadow-xl hover:shadow-pink-500/5'
-              }`}
-            >
+        {liveInventory.length === 0 ? (
+          Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="bg-white dark:bg-[#120709] rounded-xl p-4 border border-gray-100 dark:border-[#291316] flex flex-col justify-between animate-pulse space-y-3">
+              <div className="rounded-xl bg-gray-25 dark:bg-zinc-800 h-32 w-full" />
+              <div className="space-y-2 pb-2">
+                <div className="h-4 bg-gray-300 dark:bg-zinc-700 rounded w-2/3" />
+                <div className="h-3 bg-gray-300 dark:bg-zinc-700 rounded w-1/2" />
+              </div>
+              <div className="h-9 bg-gray-300 dark:bg-zinc-700 rounded-xl w-full" />
+            </div>
+          ))
+        ) : (
+          liveInventory.map((item) => {
+            const isOut = item.remainingStock === 0;
+            const isLow = item.remainingStock > 0 && item.remainingStock <= 2;
+            const percentageLeft = (item.remainingStock / item.totalStock) * 100;
+  
+            return (
+              <motion.div
+                key={item.id}
+                whileHover={{ y: -6 }}
+                transition={{ duration: 0.3 }}
+                className={`bg-white dark:bg-[#120709] rounded-2xl p-4 border flex flex-col justify-between transition-all duration-300 relative ${
+                  isOut 
+                    ? 'border-gray-200 dark:border-[#3c1a1e]/60 opacity-70 filter grayscale-[40%]' 
+                    : 'border-amber-100 shadow-md dark:shadow-none shadow-amber-500/5 hover:shadow-xl hover:shadow-pink-500/5'
+                }`}
+              >
               {/* Image and relative tags */}
               <div className="relative rounded-xl overflow-hidden h-32 mb-3 bg-gray-50 dark:bg-[#1a0d0f]/80">
                 <img
@@ -136,7 +148,7 @@ export default function KioskSection({ selectedCampus, onReserveCake, inventory 
               </button>
             </motion.div>
           );
-        })}
+        }))}
       </div>
 
       {/* Trust guarantees badge footer */}

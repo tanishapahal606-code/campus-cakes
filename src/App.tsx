@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  CAMPUSES, CATEGORIES, CAKE_PRODUCTS, FAQS, AI_RECOMMENDATION_TEMPLATES 
+  CAMPUSES, CATEGORIES, CAKE_PRODUCTS, KIOSK_INVENTORY, FAQS, AI_RECOMMENDATION_TEMPLATES 
 } from './data';
 import { 
   Campus, CakeItem, KioskCake, CartItem, Order, UserProfile, SavedCelebration, FeedbackReview, OrderStatus 
@@ -68,46 +68,16 @@ export default function App() {
   });
   
   // Catalogs
-  const [campuses, setCampuses] = useState<Campus[]>(CAMPUSES);
-  const [activeProducts, setActiveProducts] = useState<CakeItem[]>(CAKE_PRODUCTS);
-  const [kioskInventory, setKioskInventory] = useState<KioskCake[]>([
-    {
-      id: 'kiosk-choc-truffle',
-      name: 'Campus Truffle Smash (Kiosk Ready)',
-      price: 16.50,
-      flavor: 'Double Chocolate Fudge',
-      remainingStock: 3,
-      totalStock: 5,
-      image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'kiosk-velvet-bite',
-      name: 'Red Velvet Classic Kiosk Joy',
-      price: 17.00,
-      flavor: 'Classic Whipped Cream Velvet',
-      remainingStock: 4,
-      totalStock: 4,
-      image: 'https://images.unsplash.com/photo-1550617931-e17a7b70dce2?w=500&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'kiosk-mini-bento',
-      name: 'Bento Kiosk Surprise (Limited)',
-      price: 11.99,
-      flavor: 'Vanilla Sprinkles with Cute Art',
-      remainingStock: 1,
-      totalStock: 4,
-      image: 'https://images.unsplash.com/photo-1516685018646-549198525c1b?w=500&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'kiosk-pineapple-rush',
-      name: 'Emergency Pineapple Dream',
-      price: 13.50,
-      flavor: 'Fresh Eggless Pineapple Blast',
-      remainingStock: 0,
-      totalStock: 3,
-      image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=500&auto=format&fit=crop&q=80',
-    }
-  ]);
+  const [loadingCatalog, setLoadingCatalog] = useState<boolean>(isRealFirebase);
+  const [campuses, setCampuses] = useState<Campus[]>(() => {
+    return isRealFirebase ? [] : CAMPUSES;
+  });
+  const [activeProducts, setActiveProducts] = useState<CakeItem[]>(() => {
+    return isRealFirebase ? [] : CAKE_PRODUCTS;
+  });
+  const [kioskInventory, setKioskInventory] = useState<KioskCake[]>(() => {
+    return isRealFirebase ? [] : KIOSK_INVENTORY;
+  });
 
   // Student Account Simulation State
   const [studentUser, setStudentUser] = useState<UserProfile>({
@@ -163,7 +133,10 @@ export default function App() {
   // Master database sync on startup (Catalog and Stock synchronizer)
   useEffect(() => {
     async function initDatabaseCatalog() {
-      if (!isRealFirebase) return;
+      if (!isRealFirebase) {
+        setLoadingCatalog(false);
+        return;
+      }
       try {
         await testFirestoreConnection();
         
@@ -180,8 +153,12 @@ export default function App() {
               await writeCampus(c).catch(e => console.warn("Admin rights needed to bootstrap campuses", e));
             }
             localStorage.setItem('_has_bootstrapped_campuses', 'true');
+            setCampuses(CAMPUSES);
           }
-        } catch (e) { console.error("Error syncing campuses:", e); }
+        } catch (e) {
+          console.error("Error syncing campuses:", e);
+          setCampuses(CAMPUSES);
+        }
 
         // 2. Sync Products (Standard Delivery Cakes)
         try {
@@ -196,8 +173,12 @@ export default function App() {
               await writeProduct(p).catch(e => console.warn("Admin rights needed to bootstrap products", e));
             }
             localStorage.setItem('_has_bootstrapped_products', 'true');
+            setActiveProducts(CAKE_PRODUCTS);
           }
-        } catch (e) { console.error("Error syncing products:", e); }
+        } catch (e) {
+          console.error("Error syncing products:", e);
+          setActiveProducts(CAKE_PRODUCTS);
+        }
 
         // 3. Sync Kiosk Inventory Stock Levels
         try {
@@ -208,52 +189,20 @@ export default function App() {
             if (!hasKiosk) localStorage.setItem('_has_bootstrapped_kiosk', 'true');
           } else {
             // Bootstrap Firestore with initial default kiosk inventory and log initial state images
-            const initialKiosk = [
-            {
-              id: 'kiosk-choc-truffle',
-              name: 'Campus Truffle Smash (Kiosk Ready)',
-              price: 16.50,
-              flavor: 'Double Chocolate Fudge',
-              remainingStock: 3,
-              totalStock: 5,
-              image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
-            },
-            {
-              id: 'kiosk-velvet-bite',
-              name: 'Red Velvet Classic Kiosk Joy',
-              price: 17.00,
-              flavor: 'Classic Whipped Cream Velvet',
-              remainingStock: 4,
-              totalStock: 4,
-              image: 'https://images.unsplash.com/photo-1550617931-e17a7b70dce2?w=500&auto=format&fit=crop&q=80',
-            },
-            {
-              id: 'kiosk-mini-bento',
-              name: 'Bento Kiosk Surprise (Limited)',
-              price: 11.99,
-              flavor: 'Vanilla Sprinkles with Cute Art',
-              remainingStock: 1,
-              totalStock: 4,
-              image: 'https://images.unsplash.com/photo-1516685018646-549198525c1b?w=500&auto=format&fit=crop&q=80',
-            },
-            {
-              id: 'kiosk-pineapple-rush',
-              name: 'Emergency Pineapple Dream',
-              price: 13.50,
-              flavor: 'Fresh Eggless Pineapple Blast',
-              remainingStock: 0,
-              totalStock: 3,
-              image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=500&auto=format&fit=crop&q=80',
+            for (const k of KIOSK_INVENTORY) {
+              await writeKioskProduct(k).catch(e => console.warn("Admin rights needed to bootstrap kiosk products", e));
             }
-          ];
-          for (const k of initialKiosk) {
-            await writeKioskProduct(k).catch(e => console.warn("Admin rights needed to bootstrap kiosk products", e));
+            localStorage.setItem('_has_bootstrapped_kiosk', 'true');
+            setKioskInventory(KIOSK_INVENTORY);
           }
-          localStorage.setItem('_has_bootstrapped_kiosk', 'true');
+        } catch (e) {
+          console.error("Error syncing kiosk products:", e);
+          setKioskInventory(KIOSK_INVENTORY);
         }
-        } catch (e) { console.error("Error syncing kiosk products:", e); }
       } catch (err) {
         console.error("Error connecting to Firestore database:", err);
+      } finally {
+        setLoadingCatalog(false);
       }
     }
     initDatabaseCatalog();
@@ -1397,7 +1346,24 @@ export default function App() {
               {/* Active Hub Grid */}
               <div className="space-y-3 mb-6">
                 <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Active Startup Hubs</h5>
-                {activeCampuses.map((campus) => (
+                {loadingCatalog ? (
+                  Array.from({ length: 2 }).map((_, idx) => (
+                    <div key={idx} className="w-full flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-[#1a0d0f]/80 border-2 border-gray-100 dark:border-[#291316] animate-pulse">
+                      <div className="flex items-start gap-3.5 flex-1">
+                        <div className="p-2.5 bg-gray-205 dark:bg-zinc-800 rounded-xl w-10 h-10 shrink-0" />
+                        <div className="space-y-2 flex-1 pt-1">
+                          <div className="h-4 bg-gray-205 dark:bg-zinc-800 rounded w-2/3" />
+                          <div className="h-3 bg-gray-205 dark:bg-zinc-800 rounded w-1/3" />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : activeCampuses.length === 0 ? (
+                  <div className="p-6 text-center bg-gray-50/50 dark:bg-[#100608]/50 rounded-2xl border border-dashed border-gray-200 dark:border-[#291316]">
+                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500">No active campuses listed currently.</p>
+                  </div>
+                ) : (
+                  activeCampuses.map((campus) => (
                   <div
                     key={campus.id}
                     className="w-full flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-gradient-to-r hover:from-red-50/5 hover:to-white hover:border-red-300 border-2 border-gray-100 dark:border-[#291316] text-left transition-all duration-300 transform hover:-translate-y-0.5 group shadow-sm dark:shadow-none active:scale-[0.99]"
@@ -1437,7 +1403,7 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                ))}
+                )))}
               </div>
 
               {isAdmin && (
@@ -1808,7 +1774,23 @@ export default function App() {
                 )}
 
               {/* GRID OF PRODUCT CARDS IN HIGH FIDELITY ZOMATO STYLE */}
-              {filteredProducts.length === 0 ? (
+              {loadingCatalog ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {[1, 2, 3].map((n) => (
+                    <div key={n} className="bg-white dark:bg-[#120709] rounded-[24px] border border-gray-100 dark:border-[#291316] p-3.5 space-y-4 animate-pulse">
+                      <div className="aspect-[4/3] rounded-[18px] bg-gray-205 dark:bg-zinc-800" />
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-205 dark:bg-zinc-800 rounded w-2/3" />
+                        <div className="h-3 bg-gray-205 dark:bg-zinc-800 rounded w-1/2" />
+                      </div>
+                      <div className="flex justify-between items-center pt-2">
+                        <div className="h-5 bg-gray-205 dark:bg-zinc-800 rounded w-1/4" />
+                        <div className="h-8 bg-gray-205 dark:bg-zinc-800 rounded-xl w-1/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredProducts.length === 0 ? (
                 <div className="p-12 text-center bg-white dark:bg-[#120709] rounded-3xl border border-gray-100 dark:border-[#291316] max-w-xl mx-auto space-y-3 shadow-inner">
                   <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
                   <p className="font-black text-sm text-gray-900 dark:text-white">No Cakes Match Your Filters</p>
