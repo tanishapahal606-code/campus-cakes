@@ -8,7 +8,12 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, User as FirebaseUser } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Default / fallback Firebase config for sandbox preview in case the remote cloud console hasn't completed provisioning yet.
@@ -32,17 +37,38 @@ try {
   if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("YOUR_")) {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     const databaseId = (firebaseConfig as any).firestoreDatabaseId;
-    db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+    
+    try {
+      // Initialize Firestore with robust local persistent cache (IndexedDB)
+      // This saves massive free-tier read credits since recurring visits use local assets!
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      }, databaseId || undefined);
+    } catch (dbErr) {
+      console.warn("Fast persistent cache initialization failed, falling back to standard initialization:", dbErr);
+      db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+    }
+
     auth = getAuth(app);
     isRealFirebase = true;
-    console.log("Firebase initialized successfully using provisioned config.");
+    console.log("Firebase initialized successfully with persistent local caching enabled.");
   } else {
     throw new Error("Config keys are placeholder values.");
   }
 } catch (error) {
   // Graceful initialization with fallback values so sandbox never halts
   app = getApps().length === 0 ? initializeApp(fallbackConfig) : getApp();
-  db = getFirestore(app);
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+  } catch (dbErr) {
+    db = getFirestore(app);
+  }
   auth = getAuth(app);
   console.log("Firebase initialized using fallback developer sandbox configuration.");
 }

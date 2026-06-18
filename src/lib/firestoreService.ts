@@ -82,6 +82,53 @@ function sanitizeFirestoreData(data: any): any {
   return data;
 }
 
+// ============================================================================
+// High-performance local caching layers to conserve Firestore read quotas.
+// This prevents read spikes during fresh visits and ensures scaling inside free-tier.
+// ============================================================================
+interface LocalCacheItem<T> {
+  data: T;
+  timestamp: number;
+}
+
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache freshness guarantee
+
+function getFromLocalCache<T>(key: string): T | null {
+  try {
+    const cached = localStorage.getItem(`cc_cache_${key}`);
+    if (!cached) return null;
+    const item: LocalCacheItem<T> = JSON.parse(cached);
+    const now = Date.now();
+    if (now - item.timestamp < CACHE_TTL_MS) {
+      console.log(`%c[Firestore Cache] Serving '${key}' from memory/local storage bypass (Saved server reads)`, "color: #10B981; font-weight: bold;");
+      return item.data;
+    }
+  } catch (e) {
+    console.warn("Error reading cache:", e);
+  }
+  return null;
+}
+
+function setToLocalCache<T>(key: string, data: T): void {
+  try {
+    const item: LocalCacheItem<T> = {
+      data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(`cc_cache_${key}`, JSON.stringify(item));
+  } catch (e) {
+    console.warn("Error saving to cache:", e);
+  }
+}
+
+function clearLocalCache(key: string): void {
+  try {
+    localStorage.removeItem(`cc_cache_${key}`);
+  } catch (e) {
+    console.warn("Error invalidating cache:", e);
+  }
+}
+
 
 // Ensure remote connectivity test on init
 export async function testFirestoreConnection() {
@@ -102,6 +149,13 @@ export async function testFirestoreConnection() {
 export async function getCampuses(): Promise<Campus[]> {
   if (!isRealFirebase) return [];
   const colPath = 'campuses';
+  
+  // High efficiency LocalStorage fallback first
+  const cached = getFromLocalCache<Campus[]>(colPath);
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+
   try {
     const q = collection(db, colPath);
     const snap = await getDocs(q);
@@ -109,6 +163,10 @@ export async function getCampuses(): Promise<Campus[]> {
     snap.forEach((d) => {
       items.push(d.data() as Campus);
     });
+    
+    if (items.length > 0) {
+      setToLocalCache(colPath, items);
+    }
     return items;
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, colPath);
@@ -120,6 +178,7 @@ export async function writeCampus(campus: Campus): Promise<void> {
   const path = `campuses/${campus.id}`;
   try {
     await setDoc(doc(db, 'campuses', campus.id), sanitizeFirestoreData(campus));
+    clearLocalCache('campuses');
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -130,6 +189,7 @@ export async function removeCampus(campusId: string): Promise<void> {
   const path = `campuses/${campusId}`;
   try {
     await deleteDoc(doc(db, 'campuses', campusId));
+    clearLocalCache('campuses');
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -142,6 +202,13 @@ export async function removeCampus(campusId: string): Promise<void> {
 export async function getProducts(): Promise<CakeItem[]> {
   if (!isRealFirebase) return [];
   const colPath = 'products';
+  
+  // Avoid network read roundtrip if caches are fresh
+  const cached = getFromLocalCache<CakeItem[]>(colPath);
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+
   try {
     const q = collection(db, colPath);
     const snap = await getDocs(q);
@@ -149,6 +216,10 @@ export async function getProducts(): Promise<CakeItem[]> {
     snap.forEach((d) => {
       items.push(d.data() as CakeItem);
     });
+    
+    if (items.length > 0) {
+      setToLocalCache(colPath, items);
+    }
     return items;
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, colPath);
@@ -160,6 +231,7 @@ export async function writeProduct(product: CakeItem): Promise<void> {
   const path = `products/${product.id}`;
   try {
     await setDoc(doc(db, 'products', product.id), sanitizeFirestoreData(product));
+    clearLocalCache('products');
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -170,6 +242,7 @@ export async function removeProduct(productId: string): Promise<void> {
   const path = `products/${productId}`;
   try {
     await deleteDoc(doc(db, 'products', productId));
+    clearLocalCache('products');
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -182,6 +255,13 @@ export async function removeProduct(productId: string): Promise<void> {
 export async function getKioskProducts(): Promise<KioskCake[]> {
   if (!isRealFirebase) return [];
   const colPath = 'kiosk_products';
+  
+  // Guard kiosk catalogs from causing continuous loads
+  const cached = getFromLocalCache<KioskCake[]>(colPath);
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+
   try {
     const q = collection(db, colPath);
     const snap = await getDocs(q);
@@ -189,6 +269,10 @@ export async function getKioskProducts(): Promise<KioskCake[]> {
     snap.forEach((d) => {
       items.push(d.data() as KioskCake);
     });
+    
+    if (items.length > 0) {
+      setToLocalCache(colPath, items);
+    }
     return items;
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, colPath);
@@ -200,6 +284,7 @@ export async function writeKioskProduct(kioskItem: KioskCake): Promise<void> {
   const path = `kiosk_products/${kioskItem.id}`;
   try {
     await setDoc(doc(db, 'kiosk_products', kioskItem.id), sanitizeFirestoreData(kioskItem));
+    clearLocalCache('kiosk_products');
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -210,6 +295,7 @@ export async function removeKioskProduct(kioskId: string): Promise<void> {
   const path = `kiosk_products/${kioskId}`;
   try {
     await deleteDoc(doc(db, 'kiosk_products', kioskId));
+    clearLocalCache('kiosk_products');
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -342,6 +428,13 @@ export interface CakeImageRecord {
 export async function getCakeImages(): Promise<CakeImageRecord[]> {
   if (!isRealFirebase) return [];
   const colPath = 'cake_images';
+  
+  // Guard cake images library from query spikes
+  const cached = getFromLocalCache<CakeImageRecord[]>(colPath);
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+
   try {
     const q = collection(db, colPath);
     const snap = await getDocs(q);
@@ -349,6 +442,10 @@ export async function getCakeImages(): Promise<CakeImageRecord[]> {
     snap.forEach((d) => {
       items.push(d.data() as CakeImageRecord);
     });
+    
+    if (items.length > 0) {
+      setToLocalCache(colPath, items);
+    }
     return items;
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, colPath);
@@ -360,6 +457,7 @@ export async function writeCakeImage(imageRecord: CakeImageRecord): Promise<void
   const path = `cake_images/${imageRecord.id}`;
   try {
     await setDoc(doc(db, 'cake_images', imageRecord.id), sanitizeFirestoreData(imageRecord));
+    clearLocalCache('cake_images');
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
