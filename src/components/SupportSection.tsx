@@ -122,14 +122,14 @@ export default function SupportSection({ user }: SupportSectionProps) {
             </h4>
             <div className="space-y-3.5">
               <div className="flex gap-2.5 items-start">
-                <Compass className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                <Compass className="w-4 h-4 text-[#C49A25] flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[11px] font-black text-gray-800 dark:text-[#fafafa]">Dorm Delivery HQ</p>
                   <p className="text-[10px] text-gray-400 dark:text-gray-400 leading-snug mt-0.5">Drop-offs are delivered directly to student host blocks, hostel lobbies, and student booths.</p>
                 </div>
               </div>
               <div className="flex gap-2.5 items-start">
-                <Sparkles className="w-4 h-4 text-pink-500 flex-shrink-0 mt-0.5" />
+                <Sparkles className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[11px] font-black text-gray-800 dark:text-[#fafafa]">Pre-order Cut-off Rules</p>
                   <p className="text-[10px] text-gray-400 dark:text-gray-400 leading-snug mt-0.5">Any pre-ordered themed custom cake requires at least 24 hours of advance kitchen prep time.</p>

@@ -35,6 +35,7 @@ interface DashboardSectionProps {
   onDeleteCampus?: (id: string) => void;
   isAdmin?: boolean;
   onPurgeAndResetDatabase?: () => void;
+  onShowToast?: (title: string, body: string) => void;
 }
 
 export default function DashboardSection({
@@ -58,6 +59,7 @@ export default function DashboardSection({
   onDeleteCampus,
   isAdmin = false,
   onPurgeAndResetDatabase,
+  onShowToast,
 }: DashboardSectionProps) {
   const [activeTab, setActiveTab] = useState<'student' | 'admin'>('student');
   const [addressInput, setAddressInput] = useState(user.address);
@@ -244,7 +246,11 @@ export default function DashboardSection({
     setNewCakeImage('');
     setNewCakeWeights([0.5, 1.0, 1.5, 2.0]);
     setNewCakeWeightPrices({});
-    alert('Artisan cake added to pre-order menu successfully!');
+    if (onShowToast) {
+      onShowToast("Catalog Updated", "Artisan cake added to pre-order menu successfully!");
+    } else {
+      alert('Artisan cake added to pre-order menu successfully!');
+    }
   };
 
   const handleAddNewCampusSubmit = (e: React.FormEvent) => {
@@ -254,7 +260,11 @@ export default function DashboardSection({
       onAddCampus(newCampusName, newCampusLocation);
       setNewCampusName('');
       setNewCampusLocation('');
-      alert('New campus added successfully!');
+      if (onShowToast) {
+        onShowToast("Hub Added", `New campus "${newCampusName}" added successfully!`);
+      } else {
+        alert('New campus added successfully!');
+      }
     }
   };
 
@@ -298,7 +308,11 @@ export default function DashboardSection({
       setNewKioskFlavor('Chocolate');
       setNewKioskStock('20');
       setNewKioskImage('');
-      alert('Kiosk product added successfully!');
+      if (onShowToast) {
+        onShowToast("Kiosk Catalog Updated", `Instant Kiosk product "${newKioskName}" added successfully!`);
+      } else {
+        alert('Kiosk product added successfully!');
+      }
     }
   };
 
@@ -344,7 +358,11 @@ export default function DashboardSection({
         flavors: ['Vanilla Cream', 'Dark Ganache Swirl'],
       });
       setEditingCakeId(null);
-      alert('Advance product details updated successfully!');
+      if (onShowToast) {
+        onShowToast("Product Edited", "Advance cake product details updated successfully!");
+      } else {
+        alert('Advance product details updated successfully!');
+      }
     }
   };
 
@@ -362,7 +380,11 @@ export default function DashboardSection({
         image: editingKioskImage || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
       });
       setEditingKioskId(null);
-      alert('Kiosk product details updated successfully!');
+      if (onShowToast) {
+        onShowToast("Kiosk Product Edited", "Kiosk product details updated successfully!");
+      } else {
+        alert('Kiosk product details updated successfully!');
+      }
     }
   };
 
@@ -372,7 +394,7 @@ export default function DashboardSection({
       {/* Tab bar header */}
       <div className="bg-gray-50 dark:bg-[#1a0d0f]/80/80 px-4 md:px-6 py-4 border-b border-gray-100 dark:border-[#291316] flex flex-wrap gap-2 items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-pink-100 rounded-xl text-pink-600 dark:text-pink-400">
+          <div className="p-2 bg-[#FAF3D9] dark:bg-[#1E1407] rounded-xl text-[#C49A25] dark:text-[#D4AF37] border border-[#D4AF37]/20">
             <User className="w-5 h-5" />
           </div>
           <div>
@@ -385,7 +407,7 @@ export default function DashboardSection({
           <button
             onClick={() => setActiveTab('student')}
             className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 ${
-              activeTab === 'student' ? 'bg-white dark:bg-[#120709] text-pink-600 dark:text-pink-400 shadow-sm dark:shadow-none' : 'hover:text-gray-900 hover:dark:text-white'
+              activeTab === 'student' ? 'bg-white dark:bg-[#120709] text-[#C49A25] dark:text-[#D4AF37] shadow-sm dark:shadow-none' : 'hover:text-gray-900 hover:dark:text-white'
             }`}
           >
             👤 Student Hub
@@ -394,7 +416,7 @@ export default function DashboardSection({
             <button
               onClick={() => setActiveTab('admin')}
               className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 ${
-                activeTab === 'admin' ? 'bg-white dark:bg-[#120709] text-purple-600 shadow-sm dark:shadow-none' : 'hover:text-gray-900 hover:dark:text-white'
+                activeTab === 'admin' ? 'bg-white dark:bg-[#120709] text-amber-700 dark:text-amber-400 shadow-sm dark:shadow-none' : 'hover:text-gray-900 hover:dark:text-white'
               }`}
             >
               🛠️ Team Desk
@@ -418,68 +440,147 @@ export default function DashboardSection({
               className="space-y-6"
             >
               {/* Rewards Points & Loyalty Metrics */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-3xl p-5 text-white flex items-center justify-between relative overflow-hidden group">
-                  <span className="absolute -right-6 -bottom-6 w-24 h-24 bg-white dark:bg-[#120709]/10 rounded-full group-hover:scale-125 transition-transform duration-500" />
-                  <div>
-                    <span className="text-[10px] font-bold bg-white dark:bg-[#120709]/20 px-2.5 py-0.5 rounded-full uppercase text-pink-50">
-                      Loyalty Points
-                    </span>
-                    <p className="text-3xl font-black mt-2">{user.rewardPoints} XP</p>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                {/* 1. Metallic Elite Loyalty Member Card (Luxury Theme) */}
+                <div className="lg:col-span-6 xl:col-span-5 bg-gradient-to-br from-[#0c0406] via-[#1a0e12] to-[#0c0406] rounded-[32px] p-6 text-[#F9D98A] border border-amber-500/25 shadow-2xl relative overflow-hidden group flex flex-col justify-between h-[210px]">
+                  {/* Sheen Overlay Effect */}
+                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none" />
+                  <motion.div 
+                    animate={{ x: [-200, 400] }}
+                    transition={{ repeat: Infinity, duration: 6, ease: "easeInOut", repeatDelay: 4 }}
+                    className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent -skew-x-12 pointer-events-none" 
+                  />
+                  
+                  {/* Decorative background logo watermark */}
+                  <div className="absolute right-[-20px] bottom-[-20px] w-44 h-44 bg-amber-500/[0.02] rounded-full border border-amber-500/[0.05] pointer-events-none flex items-center justify-center">
+                    <div className="w-32 h-32 rounded-full border border-amber-500/[0.03]" />
                   </div>
-                  <Coins className="w-10 h-10 text-white/40" />
-                </div>
 
-                <div className="bg-purple-50 dark:bg-purple-500/10 rounded-3xl p-5 border border-purple-100 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold bg-purple-200 text-purple-800 px-2.5 py-0.5 rounded-full uppercase">
-                      Celebration Calendar
-                    </span>
-                    <p className="text-2xl font-black text-purple-900 dark:text-purple-300 mt-2">
-                      {user.savedCelebrations.length} Active
-                    </p>
-                    <p className="text-[10px] text-purple-600 mt-1">Receive SMS reminder 2 days before</p>
-                  </div>
-                  <Calendar className="w-8 h-8 text-purple-400" />
-                </div>
-
-                {/* Dorm Delivery Address */}
-                <div className="bg-amber-50 rounded-3xl p-4 border border-amber-100 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] font-bold bg-amber-200 text-amber-800 px-2.5 py-0.5 rounded-full uppercase">
-                        Dorm Room Address
+                  <div className="flex justify-between items-start z-10">
+                    <div>
+                      <span className="text-[9px] font-black tracking-[0.2em] bg-gradient-to-r from-amber-400 to-[#D4AF37] text-black px-2.5 py-1 rounded-md uppercase font-display select-none">
+                        Dorm Elite Platinum
                       </span>
-                      <button 
-                        type="button"
-                        onClick={() => setIsSavedAddress(!isSavedAddress)}
-                        className="text-[10px] text-pink-600 dark:text-pink-400 font-extrabold hover:underline"
-                      >
-                        {isSavedAddress ? "Edit" : "Save"}
-                      </button>
+                      <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">{user.name}</h4>
                     </div>
-                    {isSavedAddress ? (
-                      <p className="text-xs text-gray-700 dark:text-[#e4e4e7] font-semibold mt-1 flex items-start gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-pink-500 flex-shrink-0 mt-0.5" />
-                        <span>{addressInput}</span>
-                      </p>
-                    ) : (
-                      <input
-                        type="text"
-                        value={addressInput}
-                        onChange={(e) => setAddressInput(e.target.value)}
-                        className="w-full text-xs font-semibold p-1.5 bg-white dark:bg-[#120709] border rounded-lg focus:outline-none"
-                      />
-                    )}
+                    {/* Golden Card Chip Component */}
+                    <div className="w-9 h-7 bg-gradient-to-br from-amber-400 via-amber-200 to-[#996515] rounded-md relative shadow-md p-1 flex flex-col justify-between overflow-hidden">
+                      <div className="flex justify-between h-[20%]"><div className="w-1.5 h-1 bg-black/20 rounded-sm" /><div className="w-1.5 h-1 bg-black/20 rounded-sm" /></div>
+                      <div className="h-[2px] bg-black/15 w-full" />
+                      <div className="flex justify-between h-[20%]"><div className="w-1.5 h-1 bg-black/20 rounded-sm" /><div className="w-1.5 h-1 bg-black/20 rounded-sm" /></div>
+                    </div>
                   </div>
-                  <p className="text-[9px] text-amber-700 mt-1">Deliveries will route automatically here unless toggled.</p>
+
+                  <div className="z-10 mt-2">
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Acquired Loyalty Balance</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3px md:text-3xl font-black font-display tracking-tight text-white bg-gradient-to-r from-amber-200 via-amber-100 to-[#D4AF37] bg-clip-text text-transparent">
+                        {user.rewardPoints}
+                      </span>
+                      <span className="text-[11px] font-extrabold text-[#D4AF37] uppercase tracking-widest">XP</span>
+                    </div>
+
+                    {/* Progress Slider to next reward milestone */}
+                    <div className="w-full mt-3">
+                      <div className="flex justify-between items-center text-[8px] text-zinc-500 font-extrabold tracking-widest mb-1.5">
+                        <span className="uppercase">LEVEL {(Math.floor(user.rewardPoints / 100)) + 1}</span>
+                        <span className="text-[#D4AF37] uppercase">{(100 - (user.rewardPoints % 100))} XP TO NEXT CAKE REWARD</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden border border-zinc-800 p-[1px]">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${user.rewardPoints % 100}%` }}
+                          transition={{ duration: 1.2, ease: "easeOut" }}
+                          className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-200 rounded-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Premium Celebration Event Schedule Hub */}
+                <div className="lg:col-span-3 bg-white dark:bg-[#120709] rounded-[32px] p-5 border border-[#D4AF37]/20 dark:border-[#291316] shadow-xl flex flex-col justify-between min-h-[210px] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#D4AF37]/[0.06] to-transparent rounded-full blur-2xl pointer-events-none" />
+                  
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[9px] font-extrabold bg-[#FAF3D9] dark:bg-[#1E1407] text-[#C49A25] dark:text-[#F3E5AB] px-2.5 py-1 rounded-xl uppercase tracking-widest leading-none border border-[#D4AF37]/20">
+                        Milestone Reminders
+                      </span>
+                      <Calendar className="w-4 h-4 text-[#C49A25] dark:text-[#D4AF37] animate-pulse-slow" />
+                    </div>
+                    <h3 className="text-xl font-black text-gray-950 dark:text-white font-display tracking-tight leading-tight mt-3">
+                      {user.savedCelebrations.length} Active Events
+                    </h3>
+                    <p className="text-[10px] text-gray-500 dark:text-[#a1a1aa] font-semibold tracking-wide leading-relaxed mt-1.5">
+                      Your university wings are safeguarded. You will automatically receive a dispatch text 48h prior with preinstalled ideas.
+                    </p>
+                  </div>
+                  
+                  <div className="pt-3 border-t border-dashed border-gray-150 dark:border-[#291316] flex items-center justify-between text-[10px] font-bold text-[#C49A25] dark:text-[#D4AF37]">
+                    <span>SMS alert active</span>
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                  </div>
+                </div>
+
+                {/* 3. Dorm GPS Delivery Station address picker layout */}
+                <div className="lg:col-span-3 bg-white dark:bg-[#120709] rounded-[32px] p-5 border border-amber-500/10 dark:border-[#291316] shadow-xl flex flex-col justify-between min-h-[210px] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-500/[0.04] to-transparent rounded-full blur-2xl pointer-events-none" />
+                  
+                  <div>
+                    <div className="flex items-center justify-between gap-2.5 mb-2">
+                      <span className="text-[9px] font-extrabold bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2.5 py-1 rounded-xl uppercase tracking-widest leading-none">
+                        GPS Landing Station
+                      </span>
+                      <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={() => {
+                          setIsSavedAddress(!isSavedAddress);
+                          if (!isSavedAddress && onShowToast) {
+                            onShowToast("Coordinates Synchronized", "Your delivery landing spot has been registered in the startup grid.");
+                          }
+                        }}
+                        className="text-[10px] bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1d0e11] hover:dark:bg-[#2e1518] px-2.5 py-1 rounded-lg text-[#E23744] font-black transition-all"
+                      >
+                        {isSavedAddress ? "EDIT SPOT" : "LOCK IN"}
+                      </motion.button>
+                    </div>
+
+                    <div className="mt-3.5">
+                      {isSavedAddress ? (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">CURRENT DESTINATION:</p>
+                          <p className="text-xs text-gray-900 dark:text-white font-heavy flex items-start gap-1.5 leading-relaxed">
+                            <MapPin className="w-4 h-4 text-[#E23744] flex-shrink-0 mt-0.5" />
+                            <span className="font-extrabold">{addressInput}</span>
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] text-gray-400 font-extrabold">OVERWRITE DESTINATION COORDINATES:</p>
+                          <input
+                            type="text"
+                            value={addressInput}
+                            onChange={(e) => setAddressInput(e.target.value)}
+                            className="w-full text-xs font-semibold p-2 border border-gray-200 dark:border-[#3c1a1e] rounded-xl outline-none focus:border-[#E23744] bg-gray-50 dark:bg-black/40"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium leading-normal mt-2">
+                    Dorm dispatch uses university maps. Every driver is a collegiate helper.
+                  </p>
                 </div>
               </div>
 
               {/* Order History */}
               <div>
-                <h3 className="text-xs font-black text-gray-800 dark:text-[#fafafa] uppercase tracking-widest mb-3.5 flex items-center gap-1">
-                  <ShoppingBag className="w-4 h-4 text-pink-600 dark:text-pink-400" /> Recent Campus Orders
+                <h3 className="text-xs font-black text-gray-800 dark:text-[#fafafa] uppercase tracking-widest mb-3.5 flex items-center gap-1 font-display">
+                  <ShoppingBag className="w-4 h-4 text-[#C49A25] dark:text-[#D4AF37]" /> Recent Campus Orders
                 </h3>
 
                 {orders.length === 0 ? (
@@ -491,15 +592,15 @@ export default function DashboardSection({
                   <div className="space-y-3">
                     {orders.map((order) => {
                       const currentStatusColor = 
-                        order.status === 'placed' ? 'bg-indigo-100 text-indigo-700' :
-                        order.status === 'preparing' ? 'bg-amber-100 text-amber-700' :
-                        order.status === 'delivery' ? 'bg-pink-100 text-pink-700 font-bold animate-pulse' :
-                        'bg-green-100 text-green-700';
+                        order.status === 'placed' ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 border border-indigo-200/20' :
+                        order.status === 'preparing' ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 border border-amber-200/20' :
+                        order.status === 'delivery' ? 'bg-red-50 dark:bg-red-950/45 text-[#E23744] font-bold animate-pulse border border-red-200/35' :
+                        'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 border border-emerald-200/20';
 
                       return (
-                        <div key={order.id} className="p-4 rounded-3xl border border-gray-100 dark:border-[#291316]/85 hover:border-gray-200 hover:dark:border-[#3c1a1e] bg-white dark:bg-[#120709] shadow-sm dark:shadow-none flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div key={order.id} className="p-4 rounded-3xl border border-gray-150 dark:border-[#291316] hover:border-gray-200 hover:dark:border-[#3c1a1e] bg-white dark:bg-[#120709] shadow-sm dark:shadow-none flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                           <div className="flex items-start gap-3">
-                            <div className="p-2 bg-pink-50 dark:bg-pink-500/10 rounded-2xl text-pink-600 dark:text-pink-400">
+                            <div className="p-2 bg-[#FAF3D9] dark:bg-[#1E1407] rounded-xl text-[#C49A25] dark:text-[#D4AF37] border border-[#D4AF37]/25 shrink-0">
                               <Package className="w-5 h-5" />
                             </div>
                             <div>
@@ -514,7 +615,7 @@ export default function DashboardSection({
                               <div className="mt-2 space-y-1">
                                 {order.items.map((it, idx) => (
                                   <p key={idx} className="text-xs font-semibold text-gray-700 dark:text-[#e4e4e7] flex items-center gap-1.5">
-                                    <span className="w-1 h-1 bg-pink-400 rounded-full" />
+                                    <span className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full" />
                                     {it.name} <span className="text-[10px] text-gray-400">({it.quantity}x)</span>
                                     {it.customization && (
                                       <span className="text-[9px] bg-amber-50 text-amber-600 px-1 py-0.5 rounded border border-amber-100 font-bold">
@@ -530,7 +631,7 @@ export default function DashboardSection({
                           <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-t-0 pt-3 md:pt-0 border-gray-100 dark:border-[#291316] flex-wrap md:flex-nowrap">
                             <div className="text-right">
                               <p className="text-[10px] text-gray-400">Points Earned</p>
-                              <p className="text-xs font-bold text-pink-600 dark:text-pink-400">+{order.pointsEarned} XP</p>
+                              <p className="text-xs font-bold text-[#C49A25] dark:text-[#D4AF37]">+{order.pointsEarned} XP</p>
                             </div>
                             <div className="text-right">
                               <p className="text-[10px] text-gray-400">Total Charges</p>
@@ -548,7 +649,7 @@ export default function DashboardSection({
                               <button
                                 type="button"
                                 onClick={() => onRepeatOrder(order.id)}
-                                className="px-3 py-2 bg-pink-50 dark:bg-pink-500/10 hover:bg-pink-100 rounded-xl text-pink-700 font-black text-[11px] transition-colors flex items-center gap-1"
+                                className="px-3 py-2 bg-red-50 dark:bg-red-950/20 hover:bg-red-100/40 dark:hover:bg-red-950/40 rounded-xl text-[#E23744] font-black text-[11px] transition-colors flex items-center gap-1 cursor-pointer"
                               >
                                 <RefreshCw className="w-3 h-3" /> Quick Repeat
                               </button>
@@ -788,10 +889,10 @@ export default function DashboardSection({
                     <div className="bg-white dark:bg-[#120709] p-4 rounded-xl border border-gray-150 dark:border-[#291316]">
                       <div className="flex justify-between items-center text-gray-400 font-bold">
                         <span className="text-[10px] uppercase">Popular Flavor</span>
-                        <Clock className="w-4 h-4 text-purple-600" />
+                        <Clock className="w-4 h-4 text-[#D4AF37]" />
                       </div>
                       <p className="text-sm font-black text-gray-800 dark:text-[#fafafa] mt-1.5 truncate" title={popularFlavor}>{popularFlavor}</p>
-                      <p className="text-[9px] text-pink-600 dark:text-pink-400 font-bold mt-0.5">Based on ordered quantity</p>
+                      <p className="text-[9px] text-[#C49A25] dark:text-[#D4AF37] font-bold mt-0.5">Based on ordered quantity</p>
                     </div>
                   </div>
 
@@ -801,19 +902,19 @@ export default function DashboardSection({
                     {/* Simulated Peak Hours bar chart */}
                     <div className="p-4 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-200 dark:border-[#3c1a1e]">
                       <h5 className="text-[11px] font-black text-gray-700 dark:text-[#e4e4e7] uppercase tracking-widest mb-3 flex items-center gap-1">
-                        <BarChart2 className="w-3.5 h-3.5 text-purple-600" /> Hourly Peak Orders Indicator
+                        <BarChart2 className="w-3.5 h-3.5 text-[#D4AF37]" /> Hourly Peak Orders Indicator
                       </h5>
                       <div className="h-28 flex items-end justify-between p-2 pt-4 bg-white dark:bg-[#120709] rounded-xl border border-gray-100 dark:border-[#291316]">
                         {Object.entries(hourlyDistribution).map(([h, count], id) => {
                           const percentHeight = maxHourValue > 0 ? (count / maxHourValue) * 100 : 0;
                           return (
                             <div key={id} className="flex-1 flex flex-col items-center">
-                              <div className="w-5 bg-purple-600 hover:bg-pink-500 transition-colors rounded-t-sm relative group" style={{ height: `${Math.max(4, percentHeight * 0.6)}px` }}>
+                              <div className="w-5 bg-gradient-to-t from-[#B38F1D] to-[#D4AF37] hover:from-[#D4AF37] hover:to-[#FFF3CD] transition-colors rounded-t-xs relative group" style={{ height: `${Math.max(4, percentHeight * 0.6)}px` }}>
                                 <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black text-white text-[8px] font-bold p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                                   {count} order{count !== 1 ? 's' : ''} ({Math.round(percentHeight)}%)
                                 </span>
                               </div>
-                              <span className="text-[8px] text-gray-400 font-black mt-1">{h}</span>
+                              <span className="text-[8px] text-gray-405 font-black mt-1">{h}</span>
                             </div>
                           );
                         })}
@@ -850,11 +951,11 @@ export default function DashboardSection({
 
                           <div>
                             <div className="flex justify-between items-center text-[10px] mb-1 text-gray-600 dark:text-[#d4d4d8]">
-                              <span className="font-bold text-pink-700">🎉 Standard Dorm pre-orders</span>
+                              <span className="font-bold text-[#E23744]">🎉 Standard Dorm pre-orders</span>
                               <span className="font-extrabold text-gray-900 dark:text-white">{preOrderPct}%</span>
                             </div>
                             <div className="h-2 w-full bg-gray-100 dark:bg-[#1a0d0f] rounded-full">
-                              <div className="h-full bg-pink-500 rounded-full transition-all duration-500" style={{ width: `${preOrderPct}%` }} />
+                              <div className="h-full bg-[#E23744] rounded-full transition-all duration-500" style={{ width: `${preOrderPct}%` }} />
                             </div>
                           </div>
                         </div>
@@ -883,7 +984,7 @@ export default function DashboardSection({
                     {/* Header Controls */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-[#120709] p-5 rounded-3xl border border-gray-150 dark:border-[#291316] shadow-sm dark:shadow-none">
                       <div>
-                        <h4 className="font-black text-sm text-purple-950 dark:text-pink-300 dark:text-purple-300 uppercase tracking-wider">📦 Start-up Order Central</h4>
+                        <h4 className="font-black text-sm text-[#C49A25] dark:text-[#D4AF37] uppercase tracking-wider font-display">📦 Start-up Order Central</h4>
                         <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] mt-0.5">
                           Manage real-time order states and dispatched hostel runner directions.
                         </p>
@@ -895,7 +996,7 @@ export default function DashboardSection({
                           onClick={() => setAdminOrderFilter('all')}
                           className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                             adminOrderFilter === 'all'
-                              ? 'bg-purple-900 text-white shadow-sm dark:shadow-none'
+                              ? 'bg-[#1a080a] border border-[#D4AF37]/35 text-amber-200 shadow-sm dark:shadow-none'
                               : 'text-gray-500 dark:text-[#a1a1aa] hover:text-gray-900 hover:dark:text-white hover:bg-gray-100 hover:dark:bg-slate-800/50'
                           }`}
                         >
@@ -926,8 +1027,8 @@ export default function DashboardSection({
                           onClick={() => setAdminOrderFilter('delivery')}
                           className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                             adminOrderFilter === 'delivery'
-                              ? 'bg-pink-600 text-white shadow-sm dark:shadow-none'
-                              : 'text-pink-600 dark:text-pink-400 hover:text-pink-950 hover:bg-pink-50 hover:dark:bg-pink-500/10/50'
+                              ? 'bg-[#E23744] text-white shadow-sm dark:shadow-none'
+                              : 'text-[#E23744] hover:text-red-950 hover:bg-red-50 hover:dark:bg-[#1a0d0f]'
                           }`}
                         >
                           Runner Out ({countDelivery})

@@ -37,6 +37,7 @@ import {
   subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
+import brandLogo from './assets/images/brand_logo_1781589358418.jpg';
 
 export default function App() {
   // --- 0. FIREBASE AUTHENTICATION FLOW STATE ---
@@ -726,7 +727,7 @@ export default function App() {
   const handleReserveKioskCake = (kioskItem: KioskCake) => {
     // Check if stock exists
     if (kioskItem.remainingStock <= 0) {
-      alert("Uh-oh! That ready-to-go slice is currently out of stock. Try customizing a fresh one to pick up tomorrow!");
+      addInAppToast("Out of Stock Today", "Uh-oh! That ready-to-go slice is currently out of stock. Try customizing a fresh pre-order cake!");
       return;
     }
 
@@ -843,7 +844,7 @@ export default function App() {
   // Admin operational routine to purge all orders, reset everyone's database state metrics for live deployment
   const handlePurgeAllOrders = async () => {
     if (!isAdmin) {
-      alert("Unauthorized operational request: Administrative rights needed to wipe records.");
+      addInAppToast("Operation Blocked", "Unauthorized operational request: Administrative rights needed to wipe records.");
       return;
     }
     if (!window.confirm("⚠️ DANGER: Are you absolutely sure you want to permanently delete ALL order data from the remote Firestore database and reset analytics for all active users? This cannot be undone.")) {
@@ -873,10 +874,10 @@ export default function App() {
         await writeUserProfile(zeroedProfile);
       }
       
-      alert("🎉 Clean Slate Success: All test orders have been purged and database parameters have been prepared for deployment!");
+      addInAppToast("Clean Slate Success", "🎉 All test orders have been purged and database parameters have been prepared for deployment!");
     } catch (err) {
       console.error("Critical error while purging deployment database:", err);
-      alert("Failure resetting database records on live server. Please inspect connectivity logs.");
+      addInAppToast("Operational Error", "Failure resetting database records on live server. Please inspect connectivity logs.");
     }
   };
 
@@ -1068,7 +1069,7 @@ export default function App() {
 
     setReviews(prev => [newRev, ...prev]);
     setSubmittingComment('');
-    alert('Thank you! Your verified student review was successfully published.');
+    addInAppToast("Review Contribution", "Thank you! Your verified student review was successfully published.");
   };
 
   // Toggle wishlist cake
@@ -1139,46 +1140,113 @@ export default function App() {
   // 1. Loading State Screen
   if (authChecking) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6 selection:bg-red-100">
-        <div className="flex flex-col items-center max-w-sm text-center">
-          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#E23744] via-red-500 to-rose-600 flex items-center justify-center text-white shadow-2xl shadow-red-500/20 mb-6 animate-pulse">
-            <span className="text-2xl font-black font-display tracking-tight">CC</span>
+      <div className="min-h-screen bg-[#0A0304] flex items-center justify-center p-6 selection:bg-amber-100/20">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,55,68,0.06)_0%,transparent_70%)] pointer-events-none" />
+        <div className="flex flex-col items-center max-w-sm text-center relative z-10">
+          
+          {/* Circular Embossed Logo Container with Luxury Shine and Ripple */}
+          <div className="relative mb-8">
+            {/* Spinning/pulsing aura boundary */}
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+              className="absolute -inset-4 rounded-full bg-gradient-to-tr from-[#D4AF37] via-amber-500/20 to-transparent opacity-40 blur-md"
+            />
+            {/* Soft breathing pulse ring */}
+            <motion.div 
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+              className="absolute -inset-1 rounded-full border-2 border-dashed border-[#D4AF37]/30"
+            />
+            {/* Outer embossed ring */}
+            <div className="relative p-1 bg-gradient-to-tr from-[#D4AF37] via-amber-200 to-[#996515] rounded-full shadow-2xl shadow-amber-500/10">
+              <motion.img 
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 100, damping: 15 }}
+                src={brandLogo} 
+                className="w-24 h-24 rounded-full object-cover shadow-inner bg-black border-2 border-black/50"
+                alt="Campus Cakes"
+              />
+            </div>
           </div>
-          <h2 className="text-xl font-black font-display text-gray-900 dark:text-white tracking-tight">Campus Cakes Hub</h2>
-          <p className="text-xs text-gray-400 font-bold tracking-wide mt-2">Checking your student dispatch credentials...</p>
-          <div className="mt-6 flex items-center justify-center">
-            <div className="w-6 h-6 border-3 border-[#E23744] border-t-transparent rounded-full animate-spin"></div>
+
+          <motion.h2 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-2xl font-black font-display text-amber-100 tracking-tight leading-none italic uppercase"
+          >
+            campus cakes
+          </motion.h2>
+
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-[9px] text-[#D4AF37] font-black tracking-[0.25em] uppercase mt-2 mb-6"
+          >
+            THE ONLY DESTINATION FOR EVERY OCCASION
+          </motion.p>
+
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/5 border border-amber-500/10 text-[9px] font-bold text-amber-200/80 uppercase tracking-widest">
+            <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full animate-ping" />
+            Initializing Dispatch Grid
           </div>
         </div>
       </div>
     );
   }
-
   // 2. Google Sign-In Screen (Mandated Exclusive Method)
   if (!firebaseUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-tr from-red-50/20 via-white to-amber-50/10 flex items-center justify-center p-4 selection:bg-red-100">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none" />
+      <div className="min-h-screen bg-[#070102] flex items-center justify-center p-4 selection:bg-[#F3E5AB] selection:text-[#805000] relative overflow-hidden">
+        {/* Elite Ambient Orbs */}
+        <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-gradient-to-tr from-[#D4AF37]/10 via-[#E23744]/10 to-transparent rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-br from-[#E23744]/10 via-[#996515]/5 to-transparent rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808005_1px,transparent_1px),linear-gradient(to_bottom,#80808005_1px,transparent_1px)] bg-[size:16px_28px] pointer-events-none" />
         
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative max-w-md w-full bg-white dark:bg-[#120709] rounded-[40px] border border-gray-150 dark:border-[#291316] shadow-2xl shadow-red-500/5 p-8 md:p-10 text-center"
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 220, damping: 18 }}
+          className="relative max-w-md w-full bg-[#120709]/95 backdrop-blur-xl rounded-[44px] border-2 border-[#D4AF37]/30 shadow-[0_30px_70px_rgba(0,0,0,0.8)] p-8 md:p-11 text-center relative z-10"
         >
-          {/* Logo Brand Accent */}
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 rounded-[24px] bg-gradient-to-tr from-[#E23744] via-red-550 to-orange-500 flex items-center justify-center text-white shadow-xl shadow-red-500/25 ring-4 ring-white animate-bounce-slow">
-              <span className="text-2xl font-black font-display tracking-tighter">CC</span>
-            </div>
+          {/* Gilded Top Badge */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#D4AF37] to-[#E23744] text-black text-[8px] font-black uppercase tracking-[0.25em] px-4 py-1 rounded-full border-2 border-[#070102] shadow-md">
+            👑 MEMBER SECURED PORTAL
           </div>
 
-          <h1 className="text-3xl font-black font-display text-gray-900 dark:text-white tracking-tight leading-tight italic text-transparent bg-clip-text bg-gradient-to-r from-[#E23744] to-red-650">
+          {/* Logo Brand Accent with luxury hover and pulse */}
+          <div className="flex justify-center mb-6 mt-2">
+            <motion.div 
+              whileHover={{ scale: 1.11, rotate: 6 }}
+              transition={{ type: "spring", stiffness: 300, damping: 15 }}
+              className="relative"
+            >
+              {/* Spinning/shining aura boundary */}
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
+                className="absolute -inset-3.5 rounded-full bg-gradient-to-tr from-[#D4AF37]/45 via-red-500/20 to-transparent opacity-60 blur-md"
+              />
+              <div className="p-1.5 bg-gradient-to-tr from-[#D4AF37] via-[#FFF3CD] to-[#996515] rounded-full shadow-2xl ring-4 ring-[#120709] transition-all">
+                <img 
+                  src={brandLogo} 
+                  className="w-22 h-22 rounded-full object-cover bg-black"
+                  alt="Campus Cakes Premium Logo"
+                />
+              </div>
+            </motion.div>
+          </div>
+
+          <h1 className="text-3xl font-extrabold font-serif text-white tracking-tight leading-none italic uppercase text-transparent bg-clip-text bg-gradient-to-r from-[#FEFAF6] via-[#D4AF37] to-[#FEFAF6]">
             campus cakes
           </h1>
-          <p className="text-[10px] font-black tracking-widest text-[#E23744] uppercase mt-1">The Only Destination for Every Occasion</p>
+          <p className="text-[9px] font-black tracking-[0.3em] text-[#E23744] uppercase mt-1.5">THE ONLY DESTINATION FOR EVERY CELEBRATION</p>
 
-          <p className="text-sm text-gray-500 dark:text-[#a1a1aa] mt-4 mb-8 leading-relaxed">
-            Verify your student account to access next-day guaranteed dorm birthday delivery, custom theme pre-orders, and our instant live order tracking.
+          <p className="text-xs text-zinc-300 mt-5 mb-8 leading-relaxed font-medium">
+            Welcome to the members-only gateway. Verify your student account to unlock guaranteed premium dorm deliveries, exquisite bespoke decorations, and instantaneous campus kiosk live fridge reserves.
           </p>
 
           {/* Secure Exclusive Google Sign-In Trigger */}
@@ -1186,9 +1254,9 @@ export default function App() {
             <button
               id="google-signin-btn"
               onClick={handleGoogleSignIn}
-              className="w-full h-12 flex items-center justify-center bg-white dark:bg-[#120709] hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80 text-gray-700 dark:text-[#e4e4e7] font-bold text-sm px-6 rounded-2xl border-2 border-gray-100 dark:border-[#291316] shadow-sm dark:shadow-none hover:shadow-md dark:shadow-none active:scale-98 transition-all duration-200 cursor-pointer"
+              className="w-full h-13 flex items-center justify-center bg-gradient-to-r from-[#1E0E10] to-[#251013] hover:from-[#2B1519] hover:to-[#2F1518] text-zinc-200 hover:text-white font-extrabold text-xs px-6 rounded-2xl border-2 border-[#D4AF37]/35 shadow-md hover:shadow-lg hover:border-[#D4AF37]/65 transition-all duration-300 cursor-pointer"
             >
-              <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="none">
+              <svg className="w-5 h-5 mr-3.5" viewBox="0 0 24 24" fill="none">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" fill="#FBBC05" />
@@ -1196,15 +1264,15 @@ export default function App() {
               </svg>
               Sign in with student Google account
             </button>
-            <p className="text-[10px] text-gray-400 font-medium font-mono">Only student organization Google credentials are supported.</p>
+            <p className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest pt-1">Only official student organization credentials permitted.</p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-100 dark:border-[#291316] flex items-center justify-center gap-4 text-[11px] text-gray-400 font-bold">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#E23744]" /> Firebase Verified
+          <div className="mt-8 pt-6 border-t border-[#D4AF37]/20 flex items-center justify-center gap-4 text-[10px] text-zinc-400 font-extrabold uppercase tracking-wide">
+            <span className="flex items-center gap-1.5 text-[#FEFAF6]">
+              <ShieldCheck className="w-4 h-4 text-[#D4AF37]" /> Firebase Secure Gate
             </span>
-            <span>•</span>
-            <span>Est. May 2026</span>
+            <span className="text-zinc-650">•</span>
+            <span className="text-zinc-500 font-mono">Est. May 2026</span>
           </div>
         </motion.div>
       </div>
@@ -1238,9 +1306,13 @@ export default function App() {
           {/* Header Brand */}
           <div className="flex items-center justify-between border-b pb-4 mb-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E23744] via-red-550 to-rose-500 flex items-center justify-center text-white font-black text-sm">
-                CC
-              </div>
+              <motion.div 
+                whileHover={{ scale: 1.12, rotate: 12 }}
+                transition={{ type: "spring", stiffness: 300, damping: 12 }}
+                className="w-10 h-10 rounded-full border border-amber-500/25 overflow-hidden shadow-inner bg-black flex items-center justify-center shrink-0"
+              >
+                <img src={brandLogo} className="w-full h-full object-cover" alt="Campus Cakes" />
+              </motion.div>
               <div>
                 <h4 className="font-black text-xs text-gray-900 dark:text-white leading-none">Campus Cakes</h4>
                 <p className="text-[9px] text-[#E23744] font-black mt-0.5">Welcome, {firebaseUser.displayName?.split(' ')[0] || 'Friend'}</p>
@@ -1465,36 +1537,51 @@ export default function App() {
       </div>
     );
   }  return (
-    <div className="min-h-screen bg-neutral-50/60 text-gray-800 dark:text-[#fafafa] font-sans selection:bg-red-100 selection:text-[#E23744]">
+    <div className="min-h-screen bg-[#FAF7F2] dark:bg-[#070102] text-zinc-850 dark:text-[#FEFAF6] font-sans selection:bg-[#F3E5AB] selection:text-[#805000] relative overflow-x-hidden">
+      
+      {/* PREMIUM CHIC AMBIENT ARTISTIC GLOWS */}
+      <div className="absolute top-[5%] left-[10%] w-[45vw] h-[45vw] md:w-[35rem] md:h-[35rem] bg-gradient-to-tr from-amber-200/20 via-rose-200/10 to-transparent dark:from-rose-950/10 dark:via-[#4A0E17]/10 dark:to-transparent rounded-full blur-[80px] pointer-events-none select-none z-0" />
+      <div className="absolute top-[35%] right-[5%] w-[40vw] h-[40vw] md:w-[30rem] md:h-[30rem] bg-gradient-to-br from-amber-300/10 via-amber-100/5 to-transparent dark:from-yellow-950/5 dark:via-zinc-900/5 dark:to-transparent rounded-full blur-[100px] pointer-events-none select-none z-0" />
       
       {/* APP HEADER */}
-      <header className="sticky top-0 z-40 bg-white dark:bg-[#120709]/95 backdrop-blur-md border-b border-gray-150 dark:border-[#291316] px-4 md:px-8 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-[#FCFAF7]/95 dark:bg-[#0B0405]/95 backdrop-blur-md border-b border-[#D4AF37]/25 dark:border-[#3C2216]/60 px-4 md:px-8 py-4.5 flex items-center justify-between shadow-[0_4px_30px_rgba(212,175,55,0.04)] relative z-10">
         
-        {/* Brand Logo and Title in classical Zomato lowercase italic bold layout */}
-        <div className="flex items-center gap-1.5">
+        {/* Brand Logo and Title in classical Zomato lowercase italic bold layout with premium animated logo stamp */}
+        <div className="flex items-center gap-2.5">
+          <motion.div
+            onClick={() => { setActiveZomatoTab('delivery'); handleSelectOccasion(null); }}
+            whileHover={{ scale: 1.15, rotate: 360, boxShadow: "0 0 20px rgba(212, 175, 55, 0.6)" }}
+            transition={{ type: "spring", stiffness: 220, damping: 15 }}
+            className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#D4AF37] shadow-lg bg-black cursor-pointer shrink-0 hidden xs:flex items-center justify-center p-0.5 relative group"
+          >
+            {/* Spinning golden sheen */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+            <img src={brandLogo} className="w-full h-full rounded-full object-cover" alt="Campus Cakes" />
+          </motion.div>
           <div 
             onClick={() => { setActiveZomatoTab('delivery'); handleSelectOccasion(null); }}
-            className="text-2xl md:text-3xl font-black italic tracking-tighter text-[#E23744] font-display hover:opacity-90 transition-opacity flex items-center gap-1 cursor-pointer select-none"
+            className="text-2xl md:text-3.5xl font-black italic tracking-tighter text-[#E23744] dark:text-[#FCFAF7] font-display hover:opacity-95 transition-all flex items-center gap-1 cursor-pointer select-none"
           >
-            campus cakes
+            <span className="font-serif font-black tracking-tight drop-shadow-sm">campus</span> 
+            <span className="text-zinc-950 dark:text-[#D4AF37] not-italic font-black bg-gradient-to-r from-[#D4AF37] via-[#FFDF00] to-[#C5A02B] bg-clip-text text-transparent uppercase tracking-widest font-sans text-xl md:text-2xl ml-1 pl-1.5 border-l-2 border-[#D4AF37]/30">cakes</span>
           </div>
-          <span className="text-[8px] bg-red-50 dark:bg-red-500/10 text-[#E23744] ring-1 ring-red-100 px-1.5 py-0.5 rounded-md font-extrabold uppercase uppercase tracking-wide hidden sm:inline-block">Dorm Dispatch</span>
+          <span className="text-[8px] bg-gradient-to-r from-[#D4AF37]/15 to-transparent text-[#C49A25] ring-1 ring-[#D4AF37]/45 px-2 py-0.5 rounded-md font-black uppercase tracking-[0.2em] hidden sm:inline-block shadow-xs">Dorm Dispatch</span>
         </div>
 
         {/* Combined Location + Dish Search Bar (Like Classic Zomato) */}
-        <div className="hidden md:flex items-center bg-white dark:bg-[#120709] border border-gray-200 dark:border-[#3c1a1e] rounded-2xl px-3 py-1.5 shadow-sm dark:shadow-none max-w-xl flex-1 mx-6 h-11">
+        <div className="hidden md:flex items-center bg-[#FAF6F0] dark:bg-[#120708] border border-[#D4AF37]/25 dark:border-[#3C2216] rounded-2xl px-3.5 py-1.5 shadow-sm max-w-xl flex-1 mx-6 h-11 transition-all focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/10">
           {/* Location Picker display */}
-          <div className="flex items-center gap-1.5 text-gray-700 dark:text-[#e4e4e7] text-xs font-bold max-w-[180px] truncate">
-            <MapPin className="w-4 h-4 text-[#E23744] flex-shrink-0" />
+          <div className="flex items-center gap-1.5 text-zinc-750 dark:text-[#FEFAF6] text-xs font-bold max-w-[180px] truncate">
+            <MapPin className="w-4 h-4 text-[#C49A25] flex-shrink-0" />
             <span>{selectedCampus.name.split('(')[0]}</span>
           </div>
           
           {/* Central Divider */}
-          <div className="w-[1px] h-5 bg-gray-200 dark:bg-[#1a0d0f] mx-3"></div>
+          <div className="w-[1px] h-5 bg-[#D4AF37]/35 dark:bg-[#3C2216]/50 mx-3"></div>
           
           {/* Culinary and flavour input search */}
           <div className="flex items-center flex-1 gap-2">
-            <Search className="w-4 h-4 text-gray-400" />
+            <Search className="w-4 h-4 text-zinc-400 dark:text-zinc-550" />
             <input
               type="text"
               placeholder="Search for cakes, toppings, bento, flavors..."
@@ -1503,7 +1590,7 @@ export default function App() {
                 setSearchQuery(e.target.value);
                 setActiveZomatoTab('delivery');
               }}
-              className="bg-transparent border-none text-xs w-full focus:outline-none placeholder-gray-400 font-medium"
+              className="bg-transparent border-none text-xs w-full focus:outline-none placeholder-zinc-455 dark:placeholder-zinc-500 font-semibold text-zinc-900 dark:text-[#FEFAF6]"
             />
           </div>
         </div>
@@ -1518,13 +1605,14 @@ export default function App() {
             selectedCampus={selectedCampus}
             onCampusChange={handleCampusChange}
             campuses={campuses}
+            onShowToast={addInAppToast}
           />
 
           {/* Checkout Cart Anchor Button */}
           <button
             id="global-cart-anchor"
             onClick={() => setIsCartOpen(true)}
-            className="relative p-2.5 bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-red-50 hover:dark:bg-red-500/10 rounded-2xl border text-gray-700 dark:text-[#e4e4e7] hover:text-[#E23744] transition-all duration-300 cursor-pointer"
+            className="relative p-2.5 bg-[#FCFAF7] dark:bg-[#120708] hover:bg-[#FCECEF] hover:dark:bg-[#200A0E] rounded-2xl border border-[#D4AF37]/20 dark:border-[#3C2216]/60 text-zinc-700 dark:text-[#FEFAF6] hover:text-[#E23744] hover:border-[#E23744] transition-all duration-300 cursor-pointer shadow-sm"
           >
             <ShoppingBag className="w-5 h-5" />
             
@@ -1539,18 +1627,18 @@ export default function App() {
           <button
             onClick={handleSignOut}
             title="Sign Out"
-            className="p-2.5 bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-red-50 hover:dark:bg-red-500/10 text-gray-550 hover:text-[#E23744] rounded-2xl border transition-all duration-300 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+            className="p-2.5 bg-[#FCFAF7] dark:bg-[#120708] hover:bg-red-50 hover:dark:bg-red-950/20 text-zinc-500 hover:text-[#E23744] rounded-2xl border border-[#D4AF37]/20 dark:border-[#3C2216]/60 transition-all duration-300 flex items-center gap-1.5 text-xs font-bold cursor-pointer shadow-sm"
           >
-            <LogOut className="w-4 h-4 text-gray-500 dark:text-[#a1a1aa] hover:text-[#E23744]" />
+            <LogOut className="w-4 h-4 text-zinc-500 dark:text-zinc-400 hover:text-[#E23744]" />
             <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
       </header>
 
       {/* MOBILE COMBINED SEARCH BAR (Rendered on phones for high fidelity) */}
-      <div className="block md:hidden px-4 pt-3.5 pb-2 bg-white dark:bg-[#120709] border-b border-gray-100 dark:border-[#291316]">
-        <div className="flex items-center bg-gray-50 dark:bg-[#1a0d0f]/80 border border-gray-150 dark:border-[#291316] rounded-xl px-3 py-2 flex-1 h-10 shadow-inner">
-          <Search className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+      <div className="block md:hidden px-4 pt-3.5 pb-2 bg-[#FCFAF7] dark:bg-[#0B0405] border-b border-[#D4AF37]/15 dark:border-[#3C2216]/40">
+        <div className="flex items-center bg-[#FAF6F0] dark:bg-[#120708]/80 border border-[#D4AF37]/25 dark:border-[#3C2216] rounded-xl px-3 py-2 flex-1 h-10 shadow-inner">
+          <Search className="w-4 h-4 text-zinc-450 mr-2 flex-shrink-0" />
           <input
             type="text"
             placeholder="Search toppings, chocolate, cupcakes..."
@@ -1559,67 +1647,88 @@ export default function App() {
               setSearchQuery(e.target.value);
               setActiveZomatoTab('delivery');
             }}
-            className="bg-transparent border-none text-xs w-full focus:outline-none placeholder-gray-400 font-semibold"
+            className="bg-transparent border-none text-xs w-full focus:outline-none placeholder-zinc-455 font-semibold text-zinc-900"
           />
         </div>
       </div>
 
       {/* TRIPLE TAB NAVIGATION SELECTOR (ZOMATO STYLE HOME TABS) */}
-      <div id="main-tabs-anchor" className="bg-white dark:bg-[#120709] border-b border-gray-150 dark:border-[#291316]">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 flex gap-6 md:gap-12 overflow-x-auto scrollbar-none">
+      <div id="main-tabs-anchor" className="bg-[#FAF7F2] dark:bg-[#0B0405] border-b border-[#D4AF37]/25 dark:border-[#3C2216]/65 shadow-[0_5px_15px_-10px_rgba(212,175,55,0.1)] relative z-10">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 flex gap-4 md:gap-10 overflow-x-auto scrollbar-none py-1">
           
           {/* Tab 1: Delivery */}
           <button
             onClick={() => setActiveZomatoTab('delivery')}
-            className={`pb-3.5 pt-4 text-sm md:text-base font-bold flex items-center gap-3 border-b-3 transition-all cursor-pointer relative select-none ${
+            className={`pb-4 pt-4 text-sm md:text-base font-bold flex items-center gap-3 transition-all cursor-pointer relative select-none shrink-0 group ${
               activeZomatoTab === 'delivery'
-                ? 'border-[#E23744] text-[#E23744] font-black'
-                : 'border-transparent text-gray-400 hover:text-gray-700 hover:dark:text-[#e4e4e7]'
+                ? 'text-[#E23744] dark:text-[#F3E5AB] font-black'
+                : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-[#FEFAF6]'
             }`}
           >
-            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'delivery' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 dark:bg-[#1a0d0f] text-gray-400'}`}>
+            <div className={`p-2.5 rounded-2xl transition-all duration-300 ${activeZomatoTab === 'delivery' ? 'bg-gradient-to-br from-[#FCFAF7] to-[#FCECEF] dark:from-[#200A0D] dark:to-[#0C0405] text-[#E23744] dark:text-[#FEFAF6] shadow-sm scale-105 border border-[#E23744]/20' : 'bg-[#FAF6F0] dark:bg-[#120708]/85 text-zinc-400 border border-transparent'}`}>
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div className="text-left font-display">
-              <p className="font-extrabold text-xs md:text-sm leading-tight">Delivery</p>
-              <p className="text-[10px] text-gray-400 font-medium hidden sm:block">Guaranteed student dispatch</p>
+              <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Delivery Pantry</p>
+              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">Guaranteed dispatch</p>
             </div>
+            {activeZomatoTab === 'delivery' && (
+              <motion.div 
+                layoutId="activeZomatoUnderline" 
+                className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] rounded-t-full shadow-[0_-2px_10px_rgba(212,175,55,0.4)]"
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              />
+            )}
           </button>
 
           {/* Tab 2: Campus Kiosk Fridge */}
           <button
             onClick={() => setActiveZomatoTab('kiosk')}
-            className={`pb-3.5 pt-4 text-sm md:text-base font-bold flex items-center gap-3 border-b-3 transition-all cursor-pointer relative select-none ${
+            className={`pb-4 pt-4 text-sm md:text-base font-bold flex items-center gap-3 transition-all cursor-pointer relative select-none shrink-0 group ${
               activeZomatoTab === 'kiosk'
-                ? 'border-[#E23744] text-[#E23744] font-black'
-                : 'border-transparent text-gray-400 hover:text-gray-700 hover:dark:text-[#e4e4e7]'
+                ? 'text-[#E23744] dark:text-[#F3E5AB] font-black'
+                : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-[#FEFAF6]'
             }`}
           >
-            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'kiosk' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 dark:bg-[#1a0d0f] text-gray-400'}`}>
-              <Zap className="w-4 h-4 animate-pulse" />
+            <div className={`p-2.5 rounded-2xl transition-all duration-300 ${activeZomatoTab === 'kiosk' ? 'bg-gradient-to-br from-[#FFFDF0] to-[#FAF3D9] dark:from-[#251D0B] dark:to-[#0C0405] text-amber-600 dark:text-[#F3E5AB] shadow-sm scale-105 border border-[#D4AF37]/30' : 'bg-[#FAF6F0] dark:bg-[#120708]/85 text-zinc-400 border border-transparent'}`}>
+              <Zap className="w-4 h-4 text-[#D4AF37] animate-pulse" />
             </div>
             <div className="text-left font-display">
-              <p className="font-extrabold text-xs md:text-sm leading-tight">Instant Kiosk</p>
-              <p className="text-[10px] text-gray-400 font-medium hidden sm:block">Pick up in 10 mins today</p>
+              <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Instant Kiosk</p>
+              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">Pick up in 10 mins today</p>
             </div>
+            {activeZomatoTab === 'kiosk' && (
+              <motion.div 
+                layoutId="activeZomatoUnderline" 
+                className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] rounded-t-full shadow-[0_-2px_10px_rgba(212,175,55,0.4)]"
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              />
+            )}
           </button>
 
           {/* Tab 3: Student Portal Logs */}
           <button
             onClick={() => setActiveZomatoTab('portal')}
-            className={`pb-3.5 pt-4 text-sm md:text-base font-bold flex items-center gap-3 border-b-3 transition-all cursor-pointer relative select-none ${
+            className={`pb-4 pt-4 text-sm md:text-base font-bold flex items-center gap-3 transition-all cursor-pointer relative select-none shrink-0 group ${
               activeZomatoTab === 'portal'
-                ? 'border-[#E23744] text-[#E23744] font-black'
-                : 'border-transparent text-gray-400 hover:text-gray-700 hover:dark:text-[#e4e4e7]'
+                ? 'text-[#E23744] dark:text-[#F3E5AB] font-black'
+                : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-[#FEFAF6]'
             }`}
           >
-            <div className={`p-2 rounded-full transition-colors ${activeZomatoTab === 'portal' ? 'bg-[#FCECEF] text-[#E23744]' : 'bg-gray-100 dark:bg-[#1a0d0f] text-gray-400'}`}>
+            <div className={`p-2.5 rounded-2xl transition-all duration-300 ${activeZomatoTab === 'portal' ? 'bg-gradient-to-br from-[#FCFAF5] to-[#F5EFE0] dark:from-[#222116] dark:to-[#0C0405] text-[#C49A25] shadow-sm scale-105 border border-[#D4AF37]/35' : 'bg-[#FAF6F0] dark:bg-[#120708]/85 text-zinc-400 border border-transparent'}`}>
               <User className="w-4 h-4" />
             </div>
             <div className="text-left font-display">
-              <p className="font-extrabold text-xs md:text-sm leading-tight">Student Portal</p>
-              <p className="text-[10px] text-gray-400 font-medium hidden sm:block">History, Perks & FAQ</p>
+              <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Student Portal</p>
+              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">History, Perks & FAQ</p>
             </div>
+            {activeZomatoTab === 'portal' && (
+              <motion.div 
+                layoutId="activeZomatoUnderline" 
+                className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] rounded-t-full shadow-[0_-2px_10px_rgba(212,175,55,0.4)]"
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              />
+            )}
           </button>
         </div>
       </div>
@@ -1630,94 +1739,173 @@ export default function App() {
         {activeZomatoTab === 'delivery' && (
           <div className="space-y-6">
             
+            {/* BRAND LUXURY SHOWCASE HERO BANNER - GOLD & ROYAL VELVET */}
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative p-8 md:p-11 bg-gradient-to-br from-[#160406] via-[#0C0203] to-[#240A0D] rounded-[40px] border-2 border-[#D4AF37]/30 shadow-[0_25px_60px_-15px_rgba(226,55,68,0.15)] overflow-hidden text-white"
+            >
+              {/* Premium royal overlays and light stars */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(212,175,55,0.15),transparent_60%)] pointer-events-none" />
+              <div className="absolute -left-10 -bottom-10 w-96 h-96 bg-gradient-to-tr from-[#E23744]/15 to-transparent rounded-full blur-[100px] pointer-events-none" />
+              
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
+                {/* Brand Text */}
+                <div className="space-y-4 max-w-2xl text-center lg:text-left">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-[9px] font-black text-[#F3E5AB] uppercase tracking-[0.2em] leading-none shadow-sm">
+                    <Sparkles className="w-3 h-3 text-[#D4AF37] animate-spin" /> ESTABLISHED CAMPUS PATISSERIE
+                  </div>
+                  
+                  <h1 className="text-3xl md:text-4.5xl font-extrabold font-serif tracking-tight text-white leading-none">
+                    Gourmet Royal Pastries <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-[#FFF3CD] to-[#D4AF37] italic font-serif">Handcrafted for the Campus Elite</span>
+                  </h1>
+                  
+                  <p className="text-xs md:text-sm text-zinc-300 font-medium leading-relaxed max-w-xl">
+                    Welcome to the verified Campus Cakes dispatch. Every cake is custom-made by master pastry chefs using direct-sourced organic vanilla beans, Belgian cocoa reserves, and gold leaf dust—hand-delivered in temperature-restrained crystal boxes directly to your dorm gate.
+                  </p>
+                  
+                  {/* Real-time VIP perks row */}
+                  <div className="flex flex-wrap justify-center lg:justify-start gap-4 pt-3 text-[10px] uppercase font-black tracking-widest text-[#D4AF37]/90">
+                    <span className="flex items-center gap-1.5 bg-[#1F1407]/80 border border-[#D4AF37]/25 px-3 py-1.5 rounded-xl"><Check className="w-3.5 h-3.5 text-emerald-500" /> FREE DORM COURIER</span>
+                    <span className="flex items-center gap-1.5 bg-[#1F1407]/80 border border-[#D4AF37]/25 px-3 py-1.5 rounded-xl"><Check className="w-3.5 h-3.5 text-emerald-500" /> 100% HIGHEST QUALITY</span>
+                  </div>
+                </div>
+ 
+                {/* Golden Animated Emblem Emblem Showcase */}
+                <div className="relative shrink-0 select-none group mt-4 lg:mt-0">
+                  {/* Outer glowing pulsing background rings */}
+                  <motion.div 
+                    animate={{ scale: [1, 1.2, 1], rotate: -360 }}
+                    transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
+                    className="absolute -inset-10 bg-gradient-to-tr from-[#D4AF37]/35 via-[#E23744]/25 to-transparent rounded-full blur-[40px] opacity-80"
+                  />
+                  
+                  {/* Logo frame */}
+                  <motion.div
+                    whileHover={{ scale: 1.13, rotate: -4 }}
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ 
+                      y: { repeat: Infinity, duration: 4.5, ease: "easeInOut" },
+                      scale: { type: "spring", stiffness: 300, damping: 15 }
+                    }}
+                    className="relative p-2 bg-gradient-to-tr from-[#D4AF37] via-[#FFF3CD] to-[#996515] rounded-full shadow-2xl cursor-pointer ring-4 ring-black/50"
+                  >
+                    <img 
+                      src={brandLogo} 
+                      className="w-32 h-32 md:w-36 md:h-36 rounded-full object-cover border-4 border-black/90 shadow-inner bg-black" 
+                      alt="Campus Cakes Seal" 
+                    />
+                    
+                    {/* Tiny golden tag overlay */}
+                    <motion.div 
+                      animate={{ scale: [0.95, 1.08, 0.95] }}
+                      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                      className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#D01C2B] via-[#E23744] to-[#D01C2B] text-white text-[9px] font-extrabold px-3 py-1.5 rounded-full border-2 border-[#D4AF37] shadow-lg uppercase tracking-widest whitespace-nowrap"
+                    >
+                      👑 PREMIUM RATING
+                    </motion.div>
+                  </motion.div>
+                </div>
+              </div>
+            </motion.div>
+
             {/* PRE-ORDER CATALOGUE SECTION */}
             <section id="marketplace-shelf" className="scroll-mt-20">
               
               {/* Filter Row Title */}
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-black font-display text-gray-950 dark:text-white tracking-tight">
-                    Order for Tomorrow at {selectedCampus.name.split(' ')[0]}
+                  <h2 className="text-2xl md:text-3xl font-black font-serif text-gray-950 dark:text-[#FEFAF6] tracking-tight leading-none">
+                    Order for Tomorrow at <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#C5A02B] italic">{selectedCampus.name.split(' ')[0]}</span>
                   </h2>
+                  <div className="w-20 h-[3px] bg-gradient-to-r from-[#D4AF37] to-transparent mt-2.5 rounded-full" />
                 </div>
               </div>
 
               {/* VERTICAL FILTER CONTROLS */}
-              <div className="bg-white dark:bg-[#120709] rounded-2xl p-4 md:p-5 border border-gray-150 dark:border-[#291316] shadow-sm dark:shadow-none mb-6 space-y-5">
+              <div className="bg-[#FCFAF7] dark:bg-[#0B0405] rounded-[28px] p-4 md:p-6 border border-[#D4AF37]/15 dark:border-[#3C2216]/50 shadow-md mb-6 space-y-5">
                 
                 {/* Occasion / Celebration Filters */}
                 <div className="flex flex-col gap-2.5">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[#E23744]" /> Filter by Celebration Occasion:
+                  <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.16em] flex items-center gap-1.5 font-display">
+                    <Sparkles className="w-3.5 h-3.5 text-[#C49A25]" /> FILTER BY CELEBRATION OCCASION:
                   </span>
                   <div className="flex flex-wrap gap-2">
-                    <button
+                    <motion.button
+                      key="all-celebrations"
                       type="button"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => handleSelectOccasion(null)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
                         activeOccasionId === null
-                          ? 'bg-[#E23744] text-white shadow-sm dark:shadow-none'
-                          : 'bg-gray-100 dark:bg-[#1a0d0f] hover:bg-gray-200 hover:dark:bg-[#2a1316] text-gray-600 dark:text-[#d4d4d8]'
+                          ? 'bg-gradient-to-r from-[#D01C2B] to-[#E23744] text-white border-[#E23744]'
+                          : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/25 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
                       }`}
                     >
                       All Celebrations
-                    </button>
+                    </motion.button>
                     {AI_RECOMMENDATION_TEMPLATES.map((item) => {
                       const active = activeOccasionId === item.occasionId;
                       return (
-                        <button
+                        <motion.button
                           key={item.occasionId}
                           type="button"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => handleSelectOccasion(active ? null : item.occasionId)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
                             active
-                              ? 'bg-amber-500 text-indigo-950 shadow-sm dark:shadow-none font-black'
-                              : 'bg-gray-100 dark:bg-[#1a0d0f]/80 hover:bg-gray-200 hover:dark:bg-[#2a1316] text-gray-600 dark:text-[#d4d4d8]'
+                              ? 'bg-gradient-to-r from-[#AF2430] to-[#C49A25] text-white border-[#D4AF37] font-black shadow-md'
+                              : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/20 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
                           }`}
                         >
                           {item.title}
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
                 </div>
 
-                <div className="w-full h-[1px] bg-gray-100 dark:bg-[#1a0d0f]"></div>
+                <div className="w-full h-[1px] bg-[#D4AF37]/15 dark:bg-[#3C2216]/50"></div>
 
                 {/* Category Filters */}
                 <div className="flex flex-col gap-2.5">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Categories:
+                  <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.16em] font-display">
+                    CATEGORIES:
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {CATEGORIES.map((category) => {
                       const active = selectedCategory === category;
                       return (
-                        <button
+                        <motion.button
                           key={category}
                           type="button"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => setSelectedCategory(category)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
                             active
-                              ? 'bg-[#E23744] text-white shadow-sm dark:shadow-none'
-                              : 'bg-gray-100 dark:bg-[#1a0d0f] hover:bg-gray-200 hover:dark:bg-[#2a1316] text-gray-600 dark:text-[#d4d4d8]'
+                              ? 'bg-[#E23744] text-white border-[#E23744]'
+                              : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/20 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
                           }`}
                         >
                           {category}
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
                 </div>
 
-                <div className="w-full h-[1px] bg-gray-100 dark:bg-[#1a0d0f]"></div>
+                <div className="w-full h-[1px] bg-[#D4AF37]/15 dark:bg-[#3C2216]/50"></div>
 
                 {/* Bottom Config Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   {/* Pricing limitation slider */}
-                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-xs w-full sm:w-auto">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Max Budget:</span>
+                  <div className="flex items-center gap-2 px-3.5 py-2 bg-[#FAF6F0] dark:bg-[#120708] rounded-xl border border-[#D4AF37]/25 dark:border-[#3C2216] text-xs w-full sm:w-auto shadow-sm">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-[#C49A25]" />
+                    <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-550 uppercase tracking-wider pl-1">Max Budget:</span>
                     <input
                       type="range"
                       min="150"
@@ -1725,22 +1913,22 @@ export default function App() {
                       step="50"
                       value={priceRange}
                       onChange={(e) => setPriceRange(parseInt(e.target.value))}
-                      className="w-full sm:w-32 accent-[#E23744] cursor-pointer"
+                      className="w-full sm:w-32 accent-[#D4AF37] cursor-pointer"
                     />
-                    <span className="font-extrabold text-gray-800 dark:text-[#fafafa]">₹{priceRange}</span>
+                    <span className="font-extrabold text-zinc-805 dark:text-[#FEFAF6] font-mono">₹{priceRange}</span>
                   </div>
 
                   {/* Pure eggless toggler */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-gray-650">Pure Eggless Only</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-black text-zinc-600 dark:text-zinc-400 tracking-wide uppercase text-[10px]">Pure Eggless Only</span>
                     <button
                       type="button"
                       onClick={() => setIsEgglessOnly(!isEgglessOnly)}
-                      className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-250 focus:outline-none ${
-                        isEgglessOnly ? 'bg-green-600' : 'bg-gray-300'
+                      className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-250 focus:outline-none cursor-pointer ${
+                        isEgglessOnly ? 'bg-emerald-600' : 'bg-zinc-350 dark:bg-zinc-700'
                       }`}
                     >
-                      <div className={`w-5 h-5 rounded-full bg-white dark:bg-[#120709] shadow-sm dark:shadow-none transform transition-transform duration-200 ${
+                      <div className={`w-5 h-5 rounded-full bg-white dark:bg-[#070102] shadow-sm transform transition-transform duration-200 ${
                         isEgglessOnly ? 'translate-x-5' : 'translate-x-0'
                       }`} />
                     </button>
@@ -1748,30 +1936,6 @@ export default function App() {
                 </div>
 
               </div>
-
-                {/* Active Advisor Tip details */}
-                {activeOccasionId && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20 flex items-start gap-3"
-                  >
-                    <div className="p-1.5 bg-amber-500 text-indigo-950 rounded-lg shrink-0 animate-pulse">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div className="text-xs">
-                      {AI_RECOMMENDATION_TEMPLATES.filter(t => t.occasionId === activeOccasionId).map((t, idx) => (
-                        <div key={idx} className="space-y-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-extrabold text-[#E23744] text-[9px] tracking-wide uppercase">★ Campus Intel Advisor</span>
-                          </div>
-                          <p className="font-extrabold text-gray-900 dark:text-white">{t.tagline}</p>
-                          <p className="text-gray-600 dark:text-[#d4d4d8] leading-relaxed font-semibold">{t.counsel}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
 
               {/* GRID OF PRODUCT CARDS IN HIGH FIDELITY ZOMATO STYLE */}
               {loadingCatalog ? (
@@ -1820,10 +1984,12 @@ export default function App() {
                       <motion.div
                         key={cake.id}
                         layoutId={`card-layout-${cake.id}`}
-                        className="bg-white dark:bg-[#120709] rounded-[24px] border border-transparent overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col justify-between p-3.5 hover:border-gray-100 hover:dark:border-[#291316]"
+                        whileHover={{ y: -6, scale: 1.01 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        className="bg-[#FCFAF7] dark:bg-[#0C0405] rounded-[28px] border border-[#D4AF37]/15 dark:border-[#3C2216]/50 overflow-hidden hover:shadow-2xl group flex flex-col justify-between p-4 transition-all duration-300 hover:border-[#D4AF37]/45 dark:hover:border-[#D4AF37]/45 shadow-sm"
                       >
                         {/* Progressive Card aspect-ratio and Zoom hover */}
-                        <div className="relative aspect-[4/3] rounded-[18px] overflow-hidden bg-neutral-100">
+                        <div className="relative aspect-[4/3] rounded-[20px] overflow-hidden bg-[#FAF6F0]">
                           <img
                             src={cake.image}
                             alt={cake.name}
@@ -1834,13 +2000,13 @@ export default function App() {
                           {/* Instant pick elements & labels */}
                           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                             {cake.isEggless && (
-                              <span className="text-[9px] font-black uppercase text-white bg-green-600 px-2 py-0.5 rounded-md flex items-center gap-0.5 shadow-sm dark:shadow-none">
+                              <span className="text-[9px] font-black uppercase text-white bg-emerald-600 px-2 py-0.5 rounded-md flex items-center gap-0.5 shadow-sm dark:shadow-none">
                                 <span className="w-1 h-1 rounded-full bg-white dark:bg-[#120709] animate-pulse" /> EGGLESS
                               </span>
                             )}
                             {cake.isTrending && (
-                              <span className="text-[9px] font-black uppercase text-white bg-[#E23744] px-2 py-0.5 rounded-md shadow-sm dark:shadow-none">
-                                TRENDING
+                              <span className="text-[9px] font-black uppercase text-white bg-[#E23744] px-2 py-0.5 rounded-md shadow-sm dark:shadow-none tracking-wider">
+                                LATEST TREND
                               </span>
                             )}
                           </div>
@@ -1849,14 +2015,14 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleToggleWishlist(cake.id)}
-                            className="absolute top-3 right-3 p-2 rounded-full bg-white dark:bg-[#120709]/90 hover:bg-white hover:dark:bg-[#120709] text-gray-400 hover:text-[#E23744] transition-colors shadow-sm dark:shadow-none"
+                            className="absolute top-3 right-3 p-2 rounded-full bg-[#FCFAF7]/95 dark:bg-[#0C0405]/95 hover:bg-white text-zinc-400 hover:text-[#E23744] transition-colors shadow-sm"
                           >
                             <Heart className={`w-4 h-4 ${inWishlist ? 'fill-[#E23744] text-[#E23744]' : ''}`} />
                           </button>
 
                           {/* Prep-delivery tag */}
-                          <div className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-md text-white rounded-md px-2 py-0.5 text-[9px] font-bold flex items-center gap-1 shadow-sm dark:shadow-none">
-                            <Clock className="w-3 h-3 text-red-405" /> prep & dispatch: {cake.deliveryTime}
+                          <div className="absolute bottom-2.5 left-2.5 bg-black/80 backdrop-blur-md text-white rounded-md px-2.5 py-1 text-[8px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                            <Clock className="w-3 h-3 text-[#D4AF37]" /> PREP & DISPATCH: {cake.deliveryTime}
                           </div>
                         </div>
 
@@ -1864,38 +2030,38 @@ export default function App() {
                         <div className="pt-3.5 flex-1 flex flex-col justify-between">
                           <div>
                             <div className="flex justify-between items-start gap-3">
-                              <h3 className="font-extrabold text-sm md:text-base text-gray-900 dark:text-white group-hover:text-[#E23744] transition-colors leading-tight truncate">
+                              <h3 className="font-black text-base md:text-lg text-zinc-900 dark:text-[#FEFAF6] group-hover:text-[#E23744] transition-colors leading-tight truncate font-display">
                                 {cake.name}
                               </h3>
                               
-                              {/* ZOMATO TRADEMARK GREEN RATING BADGE VALUE (e.g. 4.9 ★) */}
-                              <span className="flex items-center gap-0.5 text-[#24963F] font-black text-xs leading-none bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-1 rounded-md flex-shrink-0">
+                              {/* PREMIUM RATING BADGE VALUE (e.g. 4.9 ★) */}
+                              <span className="flex items-center gap-0.5 text-[#A57C1E] dark:text-[#F3E5AB] font-black text-xs leading-none bg-[#FDF6E2] dark:bg-[#1F1407] px-2 py-1 rounded-md flex-shrink-0 border border-[#D4AF37]/20 font-mono">
                                 {cake.rating} ★
                               </span>
                             </div>
 
-                            <p className="text-[10px] tracking-wide text-gray-400 uppercase font-black tracking-widest mt-0.5 mb-1.5">
+                            <p className="text-[10px] tracking-widest text-[#C49A25] uppercase font-bold mt-1 mb-2 font-mono">
                               {cake.category}
                             </p>
 
-                            <p className="text-gray-500 dark:text-[#a1a1aa] text-xs leading-relaxed line-clamp-2">
+                            <p className="text-zinc-600 dark:text-zinc-300 text-[13px] leading-relaxed line-clamp-2 font-serif italic">
                               {cake.description}
                             </p>
                           </div>
 
                           {/* Price Tag & Custom Button row */}
-                          <div className="border-t border-gray-100 dark:border-[#291316] mt-4 pt-3.5 flex items-center justify-between">
+                          <div className="border-t border-[#D4AF37]/15 dark:border-[#3C2216]/50 mt-4 pt-3.5 flex items-center justify-between">
                             <div>
-                              <p className="text-[9px] text-gray-400 font-bold uppercase leading-none">Starting from</p>
-                              <p className="text-sm font-black text-gray-950 dark:text-white mt-1">₹{cake.price} <span className="text-[10px] text-gray-400 font-medium">for one</span></p>
+                              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold uppercase leading-none font-sans">Starting from</p>
+                              <p className="text-sm font-black text-zinc-900 dark:text-[#FEFAF6] mt-1 font-mono">₹{cake.price} <span className="text-[9px] text-zinc-400 font-medium not-mono font-serif">/ tier</span></p>
                             </div>
 
                             <button
                               type="button"
                               onClick={() => setActiveCustomizingCake(cake)}
-                              className="px-4 py-2 bg-red-50 dark:bg-red-500/10 hover:bg-[#E23744] text-[#E23744] hover:text-white font-extrabold text-xs rounded-xl transition-all duration-205 cursor-pointer shadow-sm dark:shadow-none active:scale-95"
+                              className="px-4 py-2 bg-gradient-to-r from-[#D01C2B] to-[#E23744] hover:brightness-110 text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#E23744]/15 transition-all cursor-pointer active:scale-95 font-display"
                             >
-                              Add & Customise
+                              Customize
                             </button>
                           </div>
 
@@ -1967,6 +2133,7 @@ export default function App() {
                 }
               }}
               onPurgeAndResetDatabase={handlePurgeAllOrders}
+              onShowToast={addInAppToast}
             />
 
             {/* VERIFIED STUDENT REVIEWS & COMMUNITY FEEDBACK */}
@@ -2245,23 +2412,23 @@ export default function App() {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-sm md:max-w-md bg-white dark:bg-[#120709] z-50 shadow-2xl flex flex-col justify-between"
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="fixed right-0 top-0 bottom-0 w-full max-w-sm md:max-w-md bg-white dark:bg-[#0C0405] z-50 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col justify-between border-l border-[#D4AF37]/20"
             >
               {/* Drawer header */}
-              <div className="p-4 bg-pink-50 dark:bg-pink-500/10 border-b flex justify-between items-center">
+              <div className="p-4 bg-gradient-to-r from-[#FAF3D9] to-[#FCFAF7] dark:from-[#1E1407] dark:to-[#0B0405] border-b border-[#D4AF37]/25 flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <span className="p-1.5 bg-pink-600 text-white rounded-lg">
-                    <ShoppingBag className="w-4 h-4" />
+                  <span className="p-2 bg-gradient-to-br from-[#D4AF37] to-[#C49A25] text-black rounded-xl shadow-xs">
+                    <ShoppingBag className="w-4 h-4 text-black" />
                   </span>
                   <div>
-                    <h3 className="font-black text-sm text-gray-900 dark:text-white leading-none">Your Campus Cart</h3>
-                    <p className="text-[10px] text-gray-500 dark:text-[#a1a1aa] mt-1">Ready for {selectedCampus.name}</p>
+                    <h3 className="font-extrabold text-xs md:text-sm text-gray-900 dark:text-white leading-none uppercase tracking-wider font-display">Your Campus Cart</h3>
+                    <p className="text-[9px] text-[#C49A25] font-bold mt-1">Ready for {selectedCampus.name.split(' ')[0]}</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsCartOpen(false)}
-                  className="p-1 hover:bg-gray-200 hover:dark:bg-[#291316] rounded-lg text-gray-500 dark:text-[#a1a1aa]"
+                  className="p-1.5 hover:bg-gray-200 hover:dark:bg-[#291316] rounded-xl text-gray-500 dark:text-[#a1a1aa] transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2270,48 +2437,48 @@ export default function App() {
               {/* Drawer scroll content list */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
                 {cart.length === 0 ? (
-                  <div className="py-20 text-center text-gray-400 space-y-4">
-                    <ShoppingBag className="w-12 h-12 text-gray-200 mx-auto" />
-                    <p className="text-xs font-bold">Your campus bucket is empty!</p>
-                    <p className="text-[10px] pr-4 pl-4 text-gray-400 leading-normal">
+                  <div className="py-20 text-center text-gray-400 space-y-5">
+                    <ShoppingBag className="w-14 h-14 text-zinc-300 dark:text-zinc-800 mx-auto animate-bounce-slow" />
+                    <p className="text-xs font-black text-gray-800 dark:text-white">Your campus bucket is empty!</p>
+                    <p className="text-[10px] pr-4 pl-4 text-zinc-500 dark:text-zinc-400 leading-normal font-medium">
                       Pre-order a gorgeous birthday cake for tomorrow, or explore our student delivery menu!
                     </p>
                     <button
                       onClick={() => setIsCartOpen(false)}
-                      className="px-3 py-1.5 bg-pink-100 text-pink-700 font-bold text-[10px] rounded-lg"
+                      className="px-4 py-2 bg-gradient-to-r from-[#D4AF37] to-[#C49A25] text-black font-black text-[10px] rounded-xl uppercase tracking-wider shadow-md"
                     >
                       Shop Now
                     </button>
                   </div>
                 ) : (
                   <>
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1 pl-1">Selected Confectionery</p>
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 pl-1">Selected Confectionery</p>
                     
                     {cart.map((item) => (
                       <div 
                         key={item.id} 
-                        className="p-3 rounded-2xl border border-gray-100 dark:border-[#291316]/90 hover:border-gray-200 hover:dark:border-[#3c1a1e] bg-gray-50 dark:bg-[#1a0d0f]/80 flex gap-3 h-auto relative"
+                        className="p-3.5 rounded-2xl border border-gray-150 dark:border-[#291316] bg-gray-50 dark:bg-[#120709] flex gap-3 h-auto relative transition-all hover:border-[#D4AF37]/35"
                       >
-                        <img src={item.image} className="w-14 h-14 rounded-xl object-cover border" referrerPolicy="no-referrer" />
+                        <img src={item.image} className="w-14 h-14 rounded-xl object-cover border border-[#D4AF37]/20" referrerPolicy="no-referrer" />
                         
                         <div className="flex-1 min-w-0 pr-6">
-                          <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm inline-block mb-1 ${
-                            item.isInstantKiosk ? 'bg-amber-100 text-amber-800' : 'bg-pink-100 text-pink-700'
+                          <span className={`text-[8px] font-black uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md inline-block mb-1 shadow-xs ${
+                            item.isInstantKiosk ? 'bg-[#FAF3D9] text-amber-800 border border-[#D4AF37]/20' : 'bg-red-50 text-[#E23744] border border-red-150/30'
                           }`}>
                             {item.isInstantKiosk ? '⚡ Kiosk emergency' : '🗓️ Scheduled pre-order'}
                           </span>
 
-                          <h4 className="font-extrabold text-xs text-gray-900 dark:text-white truncate">{item.name}</h4>
+                          <h4 className="font-extrabold text-xs text-gray-900 dark:text-[#FEFAF6] truncate font-serif">{item.name}</h4>
                           
                           {item.customization && (
-                            <div className="mt-1 space-y-0.5 text-[9px] text-gray-500 dark:text-[#a1a1aa]">
-                              <p>✓ Msg: <strong className="text-pink-600 dark:text-pink-400 animate-pulse">"{item.customization.messageOnCake}"</strong></p>
+                            <div className="mt-1 space-y-0.5 text-[9px] text-zinc-500 dark:text-zinc-400">
+                              <p>✓ Msg: <strong className="text-[#E23744] dark:text-[#D4AF37] font-black">"{item.customization.messageOnCake}"</strong></p>
                               <p>✓ Weight: {item.customization.weight} kg • {item.customization.flavor}</p>
                               <p>✓ Slot: {item.customization.pickupTime}</p>
                             </div>
                           )}
 
-                          <div className="mt-2 text-xs font-black text-gray-900 dark:text-white">
+                          <div className="mt-2 text-xs font-black text-gray-950 dark:text-white font-mono">
                             ₹{item.price}
                           </div>
                         </div>
@@ -2319,7 +2486,7 @@ export default function App() {
                         {/* Remove item button */}
                         <button
                           onClick={() => handleRemoveFromCart(item.id)}
-                          className="absolute right-2 top-2 p-1 text-gray-400 hover:text-red-500"
+                          className="absolute right-2 top-2 p-1 text-gray-450 hover:text-red-500 transition-colors"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -2328,10 +2495,10 @@ export default function App() {
 
                     {/* Smart order rule notice summary in summary drawer */}
                     {cart.some(c => !c.isInstantKiosk) && (
-                      <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-2xl text-[10px] text-indigo-900 flex items-start gap-1.5 leading-normal">
-                        <Info className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                      <div className="p-3 bg-amber-50/50 dark:bg-[#1E1407]/40 border border-[#D4AF37]/25 rounded-2xl text-[10px] text-[#805000] dark:text-[#FEFAF6] flex items-start gap-1.5 leading-normal">
+                        <Info className="w-3.5 h-3.5 text-[#C49A25] flex-shrink-0 mt-0.5" />
                         <div>
-                          <strong>Smart Order Check: Passed.</strong> Custom bakes requires 24h prep. We have reserved your scheduled kitchen timeslot on university grid.
+                          <strong>Gilded Prep Time Reserved.</strong> Custom bakes require fine assembly. We have locked your premium kitchen block.
                         </div>
                       </div>
                     )}
@@ -2341,33 +2508,33 @@ export default function App() {
 
               {/* Drawer footer calculation */}
               {cart.length > 0 && (
-                <div className="p-4 bg-gray-50 dark:bg-[#1a0d0f]/80 border-t border-gray-100 dark:border-[#291316] space-y-3">
-                  <div className="space-y-1.5 text-xs text-gray-600 dark:text-[#d4d4d8]">
+                <div className="p-4 bg-[#FAF7F2] dark:bg-[#120709] border-t border-[#D4AF37]/20 space-y-3 relative z-10">
+                  <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-405">
                     <div className="flex justify-between">
                       <span>Cakes Subtotal</span>
-                      <span className="font-bold text-gray-900 dark:text-white font-mono">
+                      <span className="font-extrabold text-gray-900 dark:text-white font-mono">
                         ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0))}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Campus Packaging & Box</span>
-                      <span className="font-bold text-gray-900 dark:text-white font-mono">₹20</span>
+                      <span className="font-extrabold text-gray-900 dark:text-white font-mono">₹20</span>
                     </div>
                     <div className="flex justify-between">
                       <span>GST & State Food Tax</span>
-                      <span className="font-bold text-gray-900 dark:text-white font-mono">₹30</span>
+                      <span className="font-extrabold text-gray-900 dark:text-white font-mono">₹30</span>
                     </div>
-                    <div className="flex justify-between border-t border-dashed dark:border-[#3c1a1e] pt-2 text-sm text-gray-900 dark:text-white font-extrabold">
+                    <div className="flex justify-between border-t border-dashed dark:border-[#3c1a1e] pt-2 text-sm text-gray-900 dark:text-white font-black">
                       <span>Grand Total Charges</span>
-                      <span className="text-pink-600 dark:text-pink-400 font-mono text-base font-black">
+                      <span className="text-[#E23744] dark:text-[#D4AF37] font-mono text-base font-black">
                         ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)}
                       </span>
                     </div>
                   </div>
 
                   {/* Loyalty XP points projection */}
-                  <div className="p-2.5 bg-yellow-100 text-yellow-905 font-bold rounded-xl text-[10px] text-center flex items-center justify-center gap-1">
-                    <span className="animate-spin text-amber-600">★</span> 
+                  <div className="p-2.5 bg-gradient-to-r from-[#FAF3D9] to-[#FCFAF7] dark:from-[#1E1407] dark:to-[#0B0405] border border-[#D4AF37]/25 text-amber-900 dark:text-[#F3E5AB] font-bold rounded-xl text-[9px] text-center flex items-center justify-center gap-1.5">
+                    <span className="text-[#C49A25] animate-pulse">👑</span> 
                     You earn +{Math.floor(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) / 10)} XP student loyalty points!
                   </div>
 
@@ -2376,7 +2543,7 @@ export default function App() {
                       setIsCheckoutOpen(true);
                       setIsCartOpen(false);
                     }}
-                    className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-black text-xs rounded-2xl shadow-lg transition-transform hover:scale-[1.02] flex items-center justify-center gap-1"
+                    className="w-full py-3.5 bg-gradient-to-r from-[#D01C2B] to-[#E23744] hover:brightness-110 text-white font-black text-xs rounded-2xl shadow-lg transition-all hover:scale-[1.01] flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     Proceed to Payment Gate <ArrowRight className="w-3.5 h-3.5" />
                   </button>
@@ -2616,10 +2783,12 @@ export default function App() {
                 <Check className="w-8 h-8 stroke-[3]" />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5 flex flex-col items-center">
                 <p className="text-[10px] uppercase font-black tracking-wider text-green-600">Dispach Confirmed!</p>
-                <h3 className="font-black text-xl text-gray-900 dark:text-white">Your Cake is Booked!</h3>
-                <p className="text-xs font-extrabold text-gray-400">Order Number: #{newOrderId}</p>
+                <h3 className="font-black text-xl text-gray-900 dark:text-white pb-1">Your Cake is Booked!</h3>
+                <p className="text-xs font-black text-gray-800 dark:text-amber-200 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/30 inline-block">
+                  Order Number: #{newOrderId}
+                </p>
               </div>
 
               <p className="text-xs text-gray-500 dark:text-[#a1a1aa] leading-normal">
@@ -2651,7 +2820,7 @@ export default function App() {
                     if (currentOrderObj) {
                       downloadReceiptFile(currentOrderObj, studentUser.name);
                     } else {
-                      alert("Order details not found to generate receipt.");
+                      addInAppToast("Receipt Issue", "Order details not found to generate receipt.");
                     }
                   }}
                   className="w-full py-2.5 bg-neutral-900 hover:bg-black text-white dark:bg-[#1a0e10] hover:dark:bg-[#251214] font-extrabold rounded-xl text-xs text-center border border-gray-200 dark:border-[#3c1a1e] flex items-center justify-center gap-2 transition-all cursor-pointer select-none"
@@ -2679,6 +2848,7 @@ export default function App() {
             cake={activeCustomizingCake}
             onClose={() => setActiveCustomizingCake(null)}
             onAddToCart={handleAddCustomCakeToCart}
+            onShowToast={addInAppToast}
           />
         )}
       </AnimatePresence>
