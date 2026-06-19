@@ -82,6 +82,8 @@ function sanitizeFirestoreData(data: any): any {
   return data;
 }
 
+import { safeStorage } from './safeStorage';
+
 // ============================================================================
 // High-performance local caching layers to conserve Firestore read quotas.
 // This prevents read spikes during fresh visits and ensures scaling inside free-tier.
@@ -95,7 +97,7 @@ const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes cache freshness guarantee
 
 function getFromLocalCache<T>(key: string): T | null {
   try {
-    const cached = localStorage.getItem(`cc_cache_${key}`);
+    const cached = safeStorage.getItem(`cc_cache_${key}`);
     if (!cached) return null;
     const item: LocalCacheItem<T> = JSON.parse(cached);
     const now = Date.now();
@@ -115,7 +117,7 @@ function setToLocalCache<T>(key: string, data: T): void {
       data,
       timestamp: Date.now()
     };
-    localStorage.setItem(`cc_cache_${key}`, JSON.stringify(item));
+    safeStorage.setItem(`cc_cache_${key}`, JSON.stringify(item));
   } catch (e) {
     console.warn("Error saving to cache:", e);
   }
@@ -123,7 +125,7 @@ function setToLocalCache<T>(key: string, data: T): void {
 
 function clearLocalCache(key: string): void {
   try {
-    localStorage.removeItem(`cc_cache_${key}`);
+    safeStorage.removeItem(`cc_cache_${key}`);
   } catch (e) {
     console.warn("Error invalidating cache:", e);
   }

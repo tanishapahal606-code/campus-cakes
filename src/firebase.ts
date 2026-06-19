@@ -27,50 +27,66 @@ const fallbackConfig = {
   appId: "1:1234567890:web:1234567890"
 };
 
-let app;
+let app: any;
 let db: any;
 let auth: any;
 let isRealFirebase = false;
 
-try {
-  // Attempt to load the real provisioned config
-  if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("YOUR_")) {
-    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    const databaseId = (firebaseConfig as any).firestoreDatabaseId;
-    
+const globalScope = typeof window !== 'undefined' ? (window as any) : {} as any;
+
+if (globalScope.__firebaseDb) {
+  app = globalScope.__firebaseApp;
+  db = globalScope.__firebaseDb;
+  auth = globalScope.__firebaseAuth;
+  isRealFirebase = globalScope.__isRealFirebase;
+} else {
+  try {
+    // Attempt to load the real provisioned config
+    if (firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("YOUR_")) {
+      app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      const databaseId = (firebaseConfig as any).firestoreDatabaseId;
+      
+      try {
+        // Initialize Firestore with robust local persistent cache (IndexedDB)
+        // This saves massive free-tier read credits since recurring visits use local assets!
+        db = initializeFirestore(app, {
+          localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager()
+          })
+        }, databaseId || undefined);
+      } catch (dbErr) {
+        console.warn("Fast persistent cache initialization failed, falling back to standard initialization:", dbErr);
+        db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+      }
+
+      auth = getAuth(app);
+      isRealFirebase = true;
+      console.log("Firebase initialized successfully with persistent local caching enabled.");
+    } else {
+      throw new Error("Config keys are placeholder values.");
+    }
+  } catch (error) {
+    // Graceful initialization with fallback values so sandbox never halts
+    app = getApps().length === 0 ? initializeApp(fallbackConfig) : getApp();
     try {
-      // Initialize Firestore with robust local persistent cache (IndexedDB)
-      // This saves massive free-tier read credits since recurring visits use local assets!
       db = initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager()
         })
-      }, databaseId || undefined);
+      });
     } catch (dbErr) {
-      console.warn("Fast persistent cache initialization failed, falling back to standard initialization:", dbErr);
-      db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+      db = getFirestore(app);
     }
-
     auth = getAuth(app);
-    isRealFirebase = true;
-    console.log("Firebase initialized successfully with persistent local caching enabled.");
-  } else {
-    throw new Error("Config keys are placeholder values.");
+    console.log("Firebase initialized using fallback developer sandbox configuration.");
   }
-} catch (error) {
-  // Graceful initialization with fallback values so sandbox never halts
-  app = getApps().length === 0 ? initializeApp(fallbackConfig) : getApp();
-  try {
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
-    });
-  } catch (dbErr) {
-    db = getFirestore(app);
+
+  if (typeof window !== 'undefined') {
+    globalScope.__firebaseApp = app;
+    globalScope.__firebaseDb = db;
+    globalScope.__firebaseAuth = auth;
+    globalScope.__isRealFirebase = isRealFirebase;
   }
-  auth = getAuth(app);
-  console.log("Firebase initialized using fallback developer sandbox configuration.");
 }
 
 export { app, db, auth, isRealFirebase };

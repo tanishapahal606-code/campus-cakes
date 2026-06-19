@@ -37,6 +37,7 @@ import {
   subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
+import { safeStorage } from './lib/safeStorage';
 import brandLogo from './assets/images/brand_logo_1781589358418.jpg';
 
 export default function App() {
@@ -50,7 +51,7 @@ export default function App() {
   );
 
   const [campusSelected, setCampusSelected] = useState<boolean>(() => {
-    return localStorage.getItem('campus_cakes_selected_campus') !== null;
+    return safeStorage.getItem('campus_cakes_selected_campus') !== null;
   });
   const [activeZomatoTab, setActiveZomatoTab] = useState<'delivery' | 'kiosk' | 'portal' | 'support'>('delivery');
   const [tempSelectedCampus, setTempSelectedCampus] = useState<Campus | null>(null);
@@ -58,7 +59,7 @@ export default function App() {
 
   // --- 1. STATE CONFIGURATIONS ---
   const [selectedCampus, setSelectedCampus] = useState<Campus>(() => {
-    const cached = localStorage.getItem('campus_cakes_selected_campus');
+    const cached = safeStorage.getItem('campus_cakes_selected_campus');
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -96,7 +97,7 @@ export default function App() {
   // --- 1.1 FIREBASE AUTH AND LOCAL STORAGE PERSISTENCE EFFECTS ---
   useEffect(() => {
     // Read initial local user cache
-    const cachedUser = localStorage.getItem('campus_cakes_user');
+    const cachedUser = safeStorage.getItem('campus_cakes_user');
     if (cachedUser) {
       try {
         setFirebaseUser(JSON.parse(cachedUser));
@@ -115,10 +116,10 @@ export default function App() {
             emailVerified: user.emailVerified
           };
           setFirebaseUser(customUser);
-          localStorage.setItem('campus_cakes_user', JSON.stringify(customUser));
+          safeStorage.setItem('campus_cakes_user', JSON.stringify(customUser));
         } else {
           // Keep cache if simulated, otherwise clear it on explicit signout
-          const cached = localStorage.getItem('campus_cakes_user');
+          const cached = safeStorage.getItem('campus_cakes_user');
           if (!cached) {
             setFirebaseUser(null);
           }
@@ -144,16 +145,16 @@ export default function App() {
         // 1. Sync Campuses
         try {
           const dbCampuses = await getCampuses();
-          const hasArr = localStorage.getItem('_has_bootstrapped_campuses');
+          const hasArr = safeStorage.getItem('_has_bootstrapped_campuses');
           if ((dbCampuses && dbCampuses.length > 0) || hasArr) {
             setCampuses(dbCampuses);
-            if (!hasArr) localStorage.setItem('_has_bootstrapped_campuses', 'true');
+            if (!hasArr) safeStorage.setItem('_has_bootstrapped_campuses', 'true');
           } else {
             // Bootstrap Firestore with initial static campuses
             for (const c of CAMPUSES) {
               await writeCampus(c).catch(e => console.warn("Admin rights needed to bootstrap campuses", e));
             }
-            localStorage.setItem('_has_bootstrapped_campuses', 'true');
+            safeStorage.setItem('_has_bootstrapped_campuses', 'true');
             setCampuses(CAMPUSES);
           }
         } catch (e) {
@@ -164,16 +165,16 @@ export default function App() {
         // 2. Sync Products (Standard Delivery Cakes)
         try {
           const dbProducts = await getProducts();
-          const hasProd = localStorage.getItem('_has_bootstrapped_products');
+          const hasProd = safeStorage.getItem('_has_bootstrapped_products');
           if ((dbProducts && dbProducts.length > 0) || hasProd) {
             setActiveProducts(dbProducts);
-            if (!hasProd) localStorage.setItem('_has_bootstrapped_products', 'true');
+            if (!hasProd) safeStorage.setItem('_has_bootstrapped_products', 'true');
           } else {
             // Bootstrap Firestore with initial static products
             for (const p of CAKE_PRODUCTS) {
               await writeProduct(p).catch(e => console.warn("Admin rights needed to bootstrap products", e));
             }
-            localStorage.setItem('_has_bootstrapped_products', 'true');
+            safeStorage.setItem('_has_bootstrapped_products', 'true');
             setActiveProducts(CAKE_PRODUCTS);
           }
         } catch (e) {
@@ -184,16 +185,16 @@ export default function App() {
         // 3. Sync Kiosk Inventory Stock Levels
         try {
           const dbKiosk = await getKioskProducts();
-          const hasKiosk = localStorage.getItem('_has_bootstrapped_kiosk');
+          const hasKiosk = safeStorage.getItem('_has_bootstrapped_kiosk');
           if ((dbKiosk && dbKiosk.length > 0) || hasKiosk) {
             setKioskInventory(dbKiosk);
-            if (!hasKiosk) localStorage.setItem('_has_bootstrapped_kiosk', 'true');
+            if (!hasKiosk) safeStorage.setItem('_has_bootstrapped_kiosk', 'true');
           } else {
             // Bootstrap Firestore with initial default kiosk inventory and log initial state images
             for (const k of KIOSK_INVENTORY) {
               await writeKioskProduct(k).catch(e => console.warn("Admin rights needed to bootstrap kiosk products", e));
             }
-            localStorage.setItem('_has_bootstrapped_kiosk', 'true');
+            safeStorage.setItem('_has_bootstrapped_kiosk', 'true');
             setKioskInventory(KIOSK_INVENTORY);
           }
         } catch (e) {
@@ -323,7 +324,7 @@ export default function App() {
 
   // master profile loaded flag
   const [activeOrders, setActiveOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('campus_cakes_active_orders');
+    const saved = safeStorage.getItem('campus_cakes_active_orders');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -340,7 +341,7 @@ export default function App() {
 
   // Keep active orders persisted in localStorage for offline & simulation modes
   useEffect(() => {
-    localStorage.setItem('campus_cakes_active_orders', JSON.stringify(activeOrders));
+    safeStorage.setItem('campus_cakes_active_orders', JSON.stringify(activeOrders));
   }, [activeOrders]);
 
   // --- BROWSER / IN-APP NOTIFICATIONS SYSTEM INITIALIZATION ---
@@ -351,7 +352,7 @@ export default function App() {
   }
   const [inAppToasts, setInAppToasts] = useState<InAppToast[]>([]);
   const [notificationPermission, setNotificationPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>(() => {
-    const saved = localStorage.getItem('campus_cakes_notify_pref');
+    const saved = safeStorage.getItem('campus_cakes_notify_pref');
     if (saved) return saved as any;
     return 'granted'; // Default to enabled / granted as requested!
   });
@@ -360,9 +361,9 @@ export default function App() {
   useEffect(() => {
     if ('Notification' in window) {
       try {
-        const saved = localStorage.getItem('campus_cakes_notify_pref');
+        const saved = safeStorage.getItem('campus_cakes_notify_pref');
         if (!saved) {
-          localStorage.setItem('campus_cakes_notify_pref', 'granted');
+          safeStorage.setItem('campus_cakes_notify_pref', 'granted');
           Notification.requestPermission().then((p) => {
             if (p === 'granted') {
               setNotificationPermission('granted');
@@ -436,14 +437,14 @@ export default function App() {
     if (notificationPermission === 'granted') {
       // Toggle off (Muted)
       setNotificationPermission('denied');
-      localStorage.setItem('campus_cakes_notify_pref', 'denied');
+      safeStorage.setItem('campus_cakes_notify_pref', 'denied');
       addInAppToast("🔕 live alerts paused", "Live updates and audio chime alerts are now silenced.");
       return;
     }
 
     // Toggle on (Enabled!)
     setNotificationPermission('granted');
-    localStorage.setItem('campus_cakes_notify_pref', 'granted');
+    safeStorage.setItem('campus_cakes_notify_pref', 'granted');
 
     // Attempt to prompt HTML5 system Notifications as progressive enhancement
     if ('Notification' in window) {
@@ -636,7 +637,7 @@ export default function App() {
   // Handle Campus Select resets
   const handleCampusChange = (campus: Campus) => {
     setSelectedCampus(campus);
-    localStorage.setItem('campus_cakes_selected_campus', JSON.stringify(campus));
+    safeStorage.setItem('campus_cakes_selected_campus', JSON.stringify(campus));
     setCampusSelected(true);
     
     const updatedUser = {
@@ -653,7 +654,7 @@ export default function App() {
     try {
       const { user, isSimulated } = await authenticateWithGoogle();
       setFirebaseUser(user);
-      localStorage.setItem('campus_cakes_user', JSON.stringify(user));
+      safeStorage.setItem('campus_cakes_user', JSON.stringify(user));
       if (isSimulated) {
         console.log("Using simulated Google login fallback.");
       }
@@ -668,8 +669,8 @@ export default function App() {
         await auth.signOut();
       }
     } catch (e) {}
-    localStorage.removeItem('campus_cakes_user');
-    localStorage.removeItem('campus_cakes_selected_campus');
+    safeStorage.removeItem('campus_cakes_user');
+    safeStorage.removeItem('campus_cakes_selected_campus');
     setFirebaseUser(null);
     setStudentUser({
       name: 'Campus Student',
@@ -690,7 +691,7 @@ export default function App() {
   const handleSelectCampus = (campus: Campus) => {
     if (campus.id === 'admin-bypass') {
       setSelectedCampus(campus);
-      localStorage.setItem('campus_cakes_selected_campus', JSON.stringify(campus));
+      safeStorage.setItem('campus_cakes_selected_campus', JSON.stringify(campus));
       setCampusSelected(true);
       setStudentUser(prev => ({
         ...prev,
@@ -706,7 +707,7 @@ export default function App() {
     if (!tempSelectedCampus) return;
     const fullAddress = `${hostelBlock}, ${roomNo}${instructions ? ` (${instructions})` : ''}`;
     setSelectedCampus(tempSelectedCampus);
-    localStorage.setItem('campus_cakes_selected_campus', JSON.stringify(tempSelectedCampus));
+    safeStorage.setItem('campus_cakes_selected_campus', JSON.stringify(tempSelectedCampus));
     
     const updatedUser = { 
       ...studentUser,
@@ -859,7 +860,7 @@ export default function App() {
       
       // 2. Clear state and cache
       setActiveOrders([]);
-      localStorage.removeItem('campus_cakes_active_orders');
+      safeStorage.removeItem('campus_cakes_active_orders');
       
       // 3. Force-reset reward points & wallet parameters on user's active session profile
       const zeroedProfile = {

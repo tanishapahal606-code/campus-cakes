@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
+import { safeStorage } from '../lib/safeStorage';
 
 export function DarkModeToggle() {
   const [isDark, setIsDark] = useState(() => {
     // Standard initialization check
     if (typeof window !== 'undefined') {
-      const persisted = localStorage.getItem('theme');
+      const persisted = safeStorage.getItem('theme');
       if (persisted === 'dark') return true;
       if (persisted === 'light') return false;
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -17,10 +18,10 @@ export function DarkModeToggle() {
     const root = document.documentElement;
     if (isDark) {
       root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      safeStorage.setItem('theme', 'dark');
     } else {
       root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+      safeStorage.setItem('theme', 'light');
     }
   }, [isDark]);
 
