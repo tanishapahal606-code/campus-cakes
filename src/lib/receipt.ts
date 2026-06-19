@@ -648,8 +648,9 @@ export async function downloadReceiptFile(order: Order, studentName?: string) {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="#E23744" style="color: #E23744;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       </div>
       
-      <div style="font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 900; color: #C0392B; margin-bottom: 8px;">
-        Thank you for celebrating with Campus Cakes! 🍰
+      <div style="font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 900; color: #C0392B; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <img src="${logoUrl}" style="width: 25px; height: 25px; border-radius: 50%; object-fit: cover; border: 1.5px solid #D4AF37; vertical-align: middle;" alt="Campus Cakes" />
+        <span>Thank you for celebrating with Campus Cakes! 🍰</span>
       </div>
       
       <div style="font-size: 11.5px; line-height: 1.6; color: #57534E; font-weight: 600; max-width: 480px; margin: 0 auto; position: relative; z-index: 2;">

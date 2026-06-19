@@ -2306,9 +2306,11 @@ export default function App() {
           {/* Brand Column */}
           <div className="md:col-span-7 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E23744] to-rose-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-red-900/30">
-                CC
-              </div>
+              <img 
+                src={brandLogo} 
+                className="w-11 h-11 rounded-full object-cover border-2 border-[#D4AF37] shadow-lg shadow-black/40 bg-black" 
+                alt="Campus Cakes Logo" 
+              />
               <span className="font-extrabold text-2xl tracking-tight text-white flex items-center gap-1">
                 campus <span className="text-[#E23744]">cakes</span>
               </span>
