@@ -32,9 +32,9 @@ import { auth, authenticateWithGoogle, isRealFirebase } from './firebase';
 import { 
   testFirestoreConnection, getCampuses, writeCampus, removeCampus, 
   getProducts, writeProduct, removeProduct, getKioskProducts, writeKioskProduct, 
-  removeKioskProduct, getUserProfile, writeUserProfile, getUserOrders, writeOrder, 
+  removeKioskProduct, getUserProfile, writeUserProfile, getAllUserProfiles, getUserOrders, writeOrder, 
   writeCakeImage, getAllOrders, removeOrder,
-  subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders
+  subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders, clearAllFirestoreCaches
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
 import { safeStorage } from './lib/safeStorage';
@@ -45,11 +45,6 @@ export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<any | null>(null);
   const [authChecking, setAuthChecking] = useState<boolean>(true);
   
-  const isAdmin = firebaseUser && (
-    firebaseUser.email === 'tanishapahal606@gmail.com' ||
-    firebaseUser.email === 'saransh1860@gmail.com'
-  );
-
   const [campusSelected, setCampusSelected] = useState<boolean>(() => {
     return safeStorage.getItem('campus_cakes_selected_campus') !== null;
   });
@@ -93,6 +88,12 @@ export default function App() {
     wishlist: [],
     walletBalance: 0
   });
+
+  const isAdmin = !!(
+    (firebaseUser && (firebaseUser.email === 'tanishapahal606@gmail.com' || firebaseUser.email === 'saransh1860@gmail.com')) ||
+    (studentUser && (studentUser.email === 'tanishapahal606@gmail.com' || studentUser.email === 'saransh1860@gmail.com')) ||
+    (selectedCampus && selectedCampus.id === 'admin-bypass')
+  );
 
   // --- 1.1 FIREBASE AUTH AND LOCAL STORAGE PERSISTENCE EFFECTS ---
   useEffect(() => {
@@ -853,16 +854,33 @@ export default function App() {
     }
     try {
       if (isRealFirebase) {
-        // 1. Delete all fetched orders from the remote Database
-        const deletePromises = activeOrders.map(order => removeOrder(order.id));
+        // 1. Fetch and delete ALL orders from the remote Database to completely clean operations and start analytics
+        const allDbOrders = await getAllOrders();
+        const deletePromises = allDbOrders.map(order => removeOrder(order.id));
         await Promise.all(deletePromises);
+
+        // 2. Fetch ALL user profiles from the remote database and reset their XP (reward points) and wallet balances
+        const allUserProfiles = await getAllUserProfiles();
+        const resetUserPromises = allUserProfiles.map(async (profile) => {
+          const resetP = {
+            ...profile,
+            rewardPoints: 0,
+            walletBalance: 0,
+            didDeploymentReset2026: true
+          };
+          await writeUserProfile(resetP);
+        });
+        await Promise.all(resetUserPromises);
+
+        // 3. Purge all local cached server states
+        clearAllFirestoreCaches();
       }
       
-      // 2. Clear state and cache
+      // 3. Clear state and cache
       setActiveOrders([]);
       safeStorage.removeItem('campus_cakes_active_orders');
       
-      // 3. Force-reset reward points & wallet parameters on user's active session profile
+      // 4. Force-reset reward points & wallet parameters on user's active session profile
       const zeroedProfile = {
         ...studentUser,
         rewardPoints: 0,
@@ -871,11 +889,11 @@ export default function App() {
       };
       setStudentUser(zeroedProfile);
       
-      if (isRealFirebase) {
-        await writeUserProfile(zeroedProfile);
+      if (isRealFirebase && firebaseUser) {
+        await writeUserProfile({ ...zeroedProfile, uid: firebaseUser.uid });
       }
       
-      addInAppToast("Clean Slate Success", "🎉 All test orders have been purged and database parameters have been prepared for deployment!");
+      addInAppToast("Clean Slate Success", "🎉 All test orders have been purged, all user profile XP metrics have been reset, and startup analytics are cleared!");
     } catch (err) {
       console.error("Critical error while purging deployment database:", err);
       addInAppToast("Operational Error", "Failure resetting database records on live server. Please inspect connectivity logs.");
@@ -1120,7 +1138,10 @@ export default function App() {
       }
     }
 
-    return matchesSearch && matchesCategory && matchesEggless && matchesPrice && matchesTrending && matchesOccasion;
+    // 7. Campus filter (products are campus-specific if associated)
+    const matchesCampus = !cake.campusIds || cake.campusIds.length === 0 || cake.campusIds.includes(selectedCampus.id);
+
+    return matchesSearch && matchesCategory && matchesEggless && matchesPrice && matchesTrending && matchesOccasion && matchesCampus;
   });
 
   // occasion recommend trigger

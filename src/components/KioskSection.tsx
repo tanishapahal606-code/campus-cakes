@@ -16,11 +16,15 @@ interface KioskSectionProps {
 }
 
 export default function KioskSection({ selectedCampus, onReserveCake, inventory }: KioskSectionProps) {
-  const [liveInventory, setLiveInventory] = useState<KioskCake[]>(inventory);
+  const [liveInventory, setLiveInventory] = useState<KioskCake[]>([]);
 
   useEffect(() => {
-    setLiveInventory(inventory);
-  }, [inventory]);
+    const filtered = inventory.filter(item => {
+      if (!item.campusIds || item.campusIds.length === 0) return true;
+      return item.campusIds.includes(selectedCampus.id);
+    });
+    setLiveInventory(filtered);
+  }, [inventory, selectedCampus]);
 
   return (
     <div id="quick-pick-section" className="relative overflow-hidden bg-gradient-to-br from-[#1A0507] via-[#070102] to-[#160406] rounded-[36px] p-6 md:p-8 border border-[#D4AF37]/35 mb-14 shadow-2xl">

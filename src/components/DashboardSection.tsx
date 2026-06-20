@@ -78,6 +78,7 @@ export default function DashboardSection({
   const [newCakeImage, setNewCakeImage] = useState<string>('');
   const [newCakeWeights, setNewCakeWeights] = useState<number[]>([0.5, 1.0, 1.5, 2.0]);
   const [newCakeWeightPrices, setNewCakeWeightPrices] = useState<Record<number, number>>({});
+  const [newCakeCampusIds, setNewCakeCampusIds] = useState<string[]>([]);
 
   // Admin section: editing product state
   const [editingCakeId, setEditingCakeId] = useState<string | null>(null);
@@ -88,13 +89,15 @@ export default function DashboardSection({
   const [editingCakeImage, setEditingCakeImage] = useState('');
   const [editingCakeWeights, setEditingCakeWeights] = useState<number[]>([]);
   const [editingCakeWeightPrices, setEditingCakeWeightPrices] = useState<Record<number, number>>({});
+  const [editingCakeCampusIds, setEditingCakeCampusIds] = useState<string[]>([]);
 
   // Admin section: new kiosk product state
   const [newKioskName, setNewKioskName] = useState('');
   const [newKioskPrice, setNewKioskPrice] = useState('99');
   const [newKioskFlavor, setNewKioskFlavor] = useState('Chocolate');
-  const [newKioskStock, setNewKioskStock] = useState('20');
+  const [newKioskStock, setNewKioskStock] = useState('25');
   const [newKioskImage, setNewKioskImage] = useState('');
+  const [newKioskCampusIds, setNewKioskCampusIds] = useState<string[]>([]);
 
   // Admin section: editing kiosk product state
   const [editingKioskId, setEditingKioskId] = useState<string | null>(null);
@@ -103,6 +106,7 @@ export default function DashboardSection({
   const [editingKioskFlavor, setEditingKioskFlavor] = useState('');
   const [editingKioskStock, setEditingKioskStock] = useState('');
   const [editingKioskImage, setEditingKioskImage] = useState('');
+  const [editingKioskCampusIds, setEditingKioskCampusIds] = useState<string[]>([]);
 
   // Admin section: new campus state
   const [newCampusName, setNewCampusName] = useState('');
@@ -239,6 +243,7 @@ export default function DashboardSection({
       weights: newCakeWeights.length > 0 ? newCakeWeights : [0.5, 1.0, 1.5, 2.0],
       weightPrices: newCakeWeightPrices,
       flavors: ['Vanilla Cream', 'Dark Ganache Swirl'],
+      campusIds: newCakeCampusIds,
     });
     setNewCakeName('');
     setNewCakePrice('499');
@@ -246,6 +251,7 @@ export default function DashboardSection({
     setNewCakeImage('');
     setNewCakeWeights([0.5, 1.0, 1.5, 2.0]);
     setNewCakeWeightPrices({});
+    setNewCakeCampusIds([]);
     if (onShowToast) {
       onShowToast("Catalog Updated", "Artisan cake added to pre-order menu successfully!");
     } else {
@@ -302,12 +308,14 @@ export default function DashboardSection({
         remainingStock: parseInt(newKioskStock),
         totalStock: parseInt(newKioskStock),
         image: newKioskImage || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
+        campusIds: newKioskCampusIds,
       });
       setNewKioskName('');
       setNewKioskPrice('99');
       setNewKioskFlavor('Chocolate');
-      setNewKioskStock('20');
+      setNewKioskStock('25');
       setNewKioskImage('');
+      setNewKioskCampusIds([]);
       if (onShowToast) {
         onShowToast("Kiosk Catalog Updated", `Instant Kiosk product "${newKioskName}" added successfully!`);
       } else {
@@ -356,8 +364,10 @@ export default function DashboardSection({
         weights: editingCakeWeights.length > 0 ? [...editingCakeWeights].sort() : [0.5, 1.0, 1.5, 2.0],
         weightPrices: editingCakeWeightPrices,
         flavors: ['Vanilla Cream', 'Dark Ganache Swirl'],
+        campusIds: editingCakeCampusIds,
       });
       setEditingCakeId(null);
+      setEditingCakeCampusIds([]);
       if (onShowToast) {
         onShowToast("Product Edited", "Advance cake product details updated successfully!");
       } else {
@@ -378,8 +388,10 @@ export default function DashboardSection({
         remainingStock: parseInt(editingKioskStock) || 0,
         totalStock: parseInt(editingKioskStock) || 0,
         image: editingKioskImage || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
+        campusIds: editingKioskCampusIds,
       });
       setEditingKioskId(null);
+      setEditingKioskCampusIds([]);
       if (onShowToast) {
         onShowToast("Kiosk Product Edited", "Kiosk product details updated successfully!");
       } else {
@@ -1363,6 +1375,53 @@ export default function DashboardSection({
                               required
                             />
                           </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-purple-705 dark:text-pink-300 uppercase mb-1.5 font-sans">Campuses Zone Availability (Edit)</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allIds = campuses.map(c => c.id);
+                                  if (editingKioskCampusIds.length === allIds.length) {
+                                    setEditingKioskCampusIds([]);
+                                  } else {
+                                    setEditingKioskCampusIds(allIds);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[9px] font-extrabold uppercase text-purple-700 dark:text-[#f472b6] bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 rounded-lg border border-purple-200 dark:border-purple-800 transition-colors cursor-pointer"
+                              >
+                                {editingKioskCampusIds.length === campuses.length ? "Deselect All" : "Select All"}
+                              </button>
+                              {campuses.map((c) => {
+                                const isSelected = editingKioskCampusIds.includes(c.id);
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setEditingKioskCampusIds(prev => prev.filter(id => id !== c.id));
+                                      } else {
+                                        setEditingKioskCampusIds(prev => [...prev, c.id]);
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 text-[9px] font-bold rounded-lg border cursor-pointer transition-all ${
+                                      isSelected 
+                                        ? 'bg-purple-700 text-white border-purple-705' 
+                                        : 'bg-white dark:bg-[#120709] text-gray-700 dark:text-[#e4e4e7] border-gray-200 dark:border-[#3c1a1e] hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {c.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {editingKioskCampusIds.length === 0 && (
+                              <p className="text-[8px] text-[#C49A25] mt-1.5 font-bold">⚠️ Leaving unselected defaults this product to be available across ALL campuses.</p>
+                            )}
+                          </div>
+
                           <div className="sm:col-span-2 bg-white dark:bg-[#120709] rounded-xl border border-dashed dark:border-[#3c1a1e] border-purple-200 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-purple-700 uppercase">Product Image Override</label>
                             <input
@@ -1427,6 +1486,53 @@ export default function DashboardSection({
                             className="px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] focus:bg-white focus:dark:bg-[#120709] focus:outline-none focus:ring-2 focus:ring-purple-100 transition-colors text-gray-800 dark:text-[#fafafa] font-medium"
                             required
                           />
+
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase mb-1.5 font-sans">Campuses Zone Availability</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allIds = campuses.map(c => c.id);
+                                  if (newKioskCampusIds.length === allIds.length) {
+                                    setNewKioskCampusIds([]);
+                                  } else {
+                                    setNewKioskCampusIds(allIds);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[9px] font-extrabold uppercase text-purple-700 dark:text-[#f472b6] bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 rounded-lg border border-purple-200 dark:border-purple-800 transition-colors cursor-pointer"
+                              >
+                                {newKioskCampusIds.length === campuses.length ? "Deselect All" : "Select All"}
+                              </button>
+                              {campuses.map((c) => {
+                                const isSelected = newKioskCampusIds.includes(c.id);
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setNewKioskCampusIds(prev => prev.filter(id => id !== c.id));
+                                      } else {
+                                        setNewKioskCampusIds(prev => [...prev, c.id]);
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 text-[9px] font-bold rounded-lg border cursor-pointer transition-all ${
+                                      isSelected 
+                                        ? 'bg-purple-600 text-white border-purple-650' 
+                                        : 'bg-white dark:bg-[#120709] text-gray-700 dark:text-[#e4e4e7] border-gray-200 dark:border-[#3c1a1e] hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {c.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {newKioskCampusIds.length === 0 && (
+                              <p className="text-[8px] text-[#C49A25] mt-1.5 font-bold">⚠️ Leaving unselected defaults this product to be available across ALL campuses.</p>
+                            )}
+                          </div>
+
                           <div className="sm:col-span-2 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-xl border border-dashed dark:border-[#3c1a1e] border-gray-300 dark:border-slate-600 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Product Image</label>
                             <input
@@ -1462,58 +1568,69 @@ export default function DashboardSection({
                     </p>
 
                     <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
-                      {kioskInventory.map(item => (
-                        <div key={item.id} className="p-3 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-100 dark:border-[#291316] hover:border-purple-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                          <div className="flex items-center gap-2.5">
-                            <img src={item.image} className="w-10 h-10 rounded-xl object-cover border border-gray-200 dark:border-[#3c1a1e] shadow-sm dark:shadow-none" referrerPolicy="no-referrer" />
-                            <div>
-                              <span className="font-bold text-gray-900 dark:text-white block">{item.name}</span>
-                              <span className="text-[10px] text-purple-600 font-semibold uppercase tracking-wider">{item.flavor}</span>
-                              <span className="text-[10px] text-gray-500 dark:text-[#a1a1aa] block">Base Price: ₹{item.price}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0">
-                            {/* Stock Adjuster */}
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-gray-400 font-bold uppercase mr-1">Stock:</span>
-                              <button
-                                type="button"
-                                onClick={() => onUpdateKioskStock(item.id, Math.max(0, item.remainingStock - 1))}
-                                className="w-6 h-6 bg-white dark:bg-[#120709] hover:bg-red-50 hover:dark:bg-red-500/10 text-red-600 font-extrabold rounded-lg border border-gray-200 dark:border-[#3c1a1e] hover:border-red-200 transition-colors text-center text-xs flex items-center justify-center active:scale-95"
-                              >
-                                -
-                              </button>
-                              <span className="min-w-[40px] text-center font-black text-xs text-gray-900 dark:text-white">
-                                {item.remainingStock} <span className="text-gray-400 font-normal">/ {item.totalStock}</span>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => onUpdateKioskStock(item.id, Math.min(item.totalStock + 10, item.remainingStock + 1))}
-                                className="w-6 h-6 bg-white dark:bg-[#120709] hover:bg-green-50 text-green-600 font-extrabold rounded-lg border border-gray-200 dark:border-[#3c1a1e] hover:border-green-200 transition-colors text-center text-xs flex items-center justify-center active:scale-95"
-                              >
-                                +
-                              </button>
-                            </div>
+                      {kioskInventory.map(item => {
+                        const itemCampuses = item.campusIds && item.campusIds.length > 0
+                          ? campuses.filter(c => item.campusIds?.includes(c.id)).map(c => c.name)
+                          : ['All Campuses'];
 
-                            {/* Editing & Deletion */}
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                title="Edit Product details"
-                                onClick={() => {
-                                  setEditingKioskId(item.id);
-                                  setEditingKioskName(item.name);
-                                  setEditingKioskPrice(item.price.toString());
-                                  setEditingKioskFlavor(item.flavor);
-                                  setEditingKioskStock(item.totalStock.toString());
-                                  setEditingKioskImage(item.image);
-                                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                                }}
-                                className="p-1.5 bg-white dark:bg-[#120709] text-gray-500 dark:text-[#a1a1aa] hover:text-purple-700 hover:bg-purple-50 hover:dark:bg-purple-500/10 rounded-lg border border-gray-250 dark:border-[#3c1a1e] hover:border-purple-200 transition-colors active:scale-95"
-                              >
-                                <Settings className="w-3.5 h-3.5" />
-                              </button>
+                        return (
+                          <div key={item.id} className="p-3 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-100 dark:border-[#291316] hover:border-purple-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-2.5">
+                              <img src={item.image} className="w-10 h-10 rounded-xl object-cover border border-gray-200 dark:border-[#3c1a1e] shadow-sm dark:shadow-none" referrerPolicy="no-referrer" />
+                              <div>
+                                <span className="font-bold text-gray-900 dark:text-white block">{item.name}</span>
+                                <span className="text-[10px] text-purple-600 font-semibold uppercase tracking-wider">{item.flavor}</span>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] text-gray-500 dark:text-[#a1a1aa]">₹{item.price}</span>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-pink-300 font-extrabold rounded">
+                                    Hubs: {itemCampuses.join(', ')}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0">
+                              {/* Stock Adjuster */}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-gray-400 font-bold uppercase mr-1">Stock:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => onUpdateKioskStock(item.id, Math.max(0, item.remainingStock - 1))}
+                                  className="w-6 h-6 bg-white dark:bg-[#120709] hover:bg-red-50 hover:dark:bg-red-500/10 text-red-600 font-extrabold rounded-lg border border-gray-200 dark:border-[#3c1a1e] hover:border-red-200 transition-colors text-center text-xs flex items-center justify-center active:scale-95"
+                                >
+                                  -
+                                </button>
+                                <span className="min-w-[40px] text-center font-black text-xs text-gray-900 dark:text-white">
+                                  {item.remainingStock} <span className="text-gray-400 font-normal">/ {item.totalStock}</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => onUpdateKioskStock(item.id, Math.min(item.totalStock + 10, item.remainingStock + 1))}
+                                  className="w-6 h-6 bg-white dark:bg-[#120709] hover:bg-green-50 text-green-600 font-extrabold rounded-lg border border-gray-200 dark:border-[#3c1a1e] hover:border-green-200 transition-colors text-center text-xs flex items-center justify-center active:scale-95"
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              {/* Editing & Deletion */}
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  title="Edit Product details"
+                                  onClick={() => {
+                                    setEditingKioskId(item.id);
+                                    setEditingKioskName(item.name);
+                                    setEditingKioskPrice(item.price.toString());
+                                    setEditingKioskFlavor(item.flavor);
+                                    setEditingKioskStock(item.totalStock.toString());
+                                    setEditingKioskImage(item.image);
+                                    setEditingKioskCampusIds(item.campusIds || []);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  className="p-1.5 bg-white dark:bg-[#120709] text-gray-500 dark:text-[#a1a1aa] hover:text-purple-700 hover:bg-purple-50 hover:dark:bg-purple-500/10 rounded-lg border border-gray-250 dark:border-[#3c1a1e] hover:border-purple-200 transition-colors active:scale-95"
+                                >
+                                  <Settings className="w-3.5 h-3.5" />
+                                </button>
                               
                               <button
                                 type="button"
@@ -1530,7 +1647,8 @@ export default function DashboardSection({
                             </div>
                           </div>
                         </div>
-                      ))}
+                      );
+                    })}
                     </div>
                   </div>
                 </div>
@@ -1658,6 +1776,52 @@ export default function DashboardSection({
                             {editingCakeWeights.length === 0 && <p className="text-[9px] text-red-500 mt-1 font-medium px-1">Please select at least one weight option.</p>}
                           </div>
 
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-purple-700 dark:text-pink-300 uppercase mb-1.5 font-sans">Campuses Zone Availability (Edit)</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allIds = campuses.map(c => c.id);
+                                  if (editingCakeCampusIds.length === allIds.length) {
+                                    setEditingCakeCampusIds([]);
+                                  } else {
+                                    setEditingCakeCampusIds(allIds);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[9px] font-extrabold uppercase text-purple-700 dark:text-[#f472b6] bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 rounded-lg border border-purple-200 dark:border-purple-800 transition-colors cursor-pointer"
+                              >
+                                {editingCakeCampusIds.length === campuses.length ? "Deselect All" : "Select All"}
+                              </button>
+                              {campuses.map((c) => {
+                                const isSelected = editingCakeCampusIds.includes(c.id);
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setEditingCakeCampusIds(prev => prev.filter(id => id !== c.id));
+                                      } else {
+                                        setEditingCakeCampusIds(prev => [...prev, c.id]);
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 text-[9px] font-bold rounded-lg border cursor-pointer transition-all ${
+                                      isSelected 
+                                        ? 'bg-purple-700 text-white border-purple-705' 
+                                        : 'bg-white dark:bg-[#120709] text-gray-700 dark:text-[#e4e4e7] border-gray-200 dark:border-[#3c1a1e] hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {c.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {editingCakeCampusIds.length === 0 && (
+                              <p className="text-[8px] text-[#C49A25] mt-1.5 font-bold">⚠️ Leaving unselected defaults this product to be available across ALL campuses.</p>
+                            )}
+                          </div>
+
                           <div className="sm:col-span-2 bg-white dark:bg-[#120709] rounded-xl border border-dashed dark:border-[#3c1a1e] border-purple-200 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-purple-700 uppercase">Artwork Override</label>
                             <input
@@ -1779,6 +1943,52 @@ export default function DashboardSection({
                             {newCakeWeights.length === 0 && <p className="text-[9px] text-red-500 mt-1 font-medium">Please select at least one weight option.</p>}
                           </div>
 
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase mb-1.5 font-sans">Campuses Zone Availability</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allIds = campuses.map(c => c.id);
+                                  if (newCakeCampusIds.length === allIds.length) {
+                                    setNewCakeCampusIds([]);
+                                  } else {
+                                    setNewCakeCampusIds(allIds);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[9px] font-extrabold uppercase text-purple-700 dark:text-[#f472b6] bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 rounded-lg border border-purple-200 dark:border-purple-800 transition-colors cursor-pointer"
+                              >
+                                {newCakeCampusIds.length === campuses.length ? "Deselect All" : "Select All"}
+                              </button>
+                              {campuses.map((c) => {
+                                const isSelected = newCakeCampusIds.includes(c.id);
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setNewCakeCampusIds(prev => prev.filter(id => id !== c.id));
+                                      } else {
+                                        setNewCakeCampusIds(prev => [...prev, c.id]);
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 text-[9px] font-bold rounded-lg border cursor-pointer transition-all ${
+                                      isSelected 
+                                        ? 'bg-purple-600 text-white border-purple-650' 
+                                        : 'bg-white dark:bg-[#120709] text-gray-700 dark:text-[#e4e4e7] border-gray-200 dark:border-[#3c1a1e] hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {c.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {newCakeCampusIds.length === 0 && (
+                              <p className="text-[8px] text-[#C49A25] mt-1.5 font-bold">⚠️ Leaving unselected defaults this product to be available across ALL campuses.</p>
+                            )}
+                          </div>
+
                           <div className="sm:col-span-2 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-xl border border-dashed dark:border-[#3c1a1e] border-gray-300 dark:border-slate-600 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Featured Artwork</label>
                             <input
@@ -1814,36 +2024,47 @@ export default function DashboardSection({
                     </p>
 
                     <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
-                      {allCakes.map(item => (
-                        <div key={item.id} className="p-3 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-100 dark:border-[#291316] hover:border-purple-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                          <div className="flex items-center gap-2.5">
-                            <img src={item.image} className="w-10 h-10 rounded-xl object-cover border border-gray-200 dark:border-[#3c1a1e] shadow-sm dark:shadow-none" referrerPolicy="no-referrer" />
-                            <div className="min-w-0">
-                              <span className="font-bold text-gray-900 dark:text-white block truncate max-w-[190px]">{item.name}</span>
-                              <span className="text-[10px] text-purple-600 font-semibold uppercase tracking-wider">{item.category}</span>
-                              <span className="text-[10px] text-gray-500 dark:text-[#a1a1aa] block">Base Price: ₹{item.price}</span>
+                      {allCakes.map(item => {
+                        const itemCampuses = item.campusIds && item.campusIds.length > 0
+                          ? campuses.filter(c => item.campusIds?.includes(c.id)).map(c => c.name)
+                          : ['All Campuses'];
+
+                        return (
+                          <div key={item.id} className="p-3 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-100 dark:border-[#291316] hover:border-purple-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <img src={item.image} className="w-10 h-10 rounded-xl object-cover border border-gray-200 dark:border-[#3c1a1e] shadow-sm dark:shadow-none align-self-start" referrerPolicy="no-referrer" />
+                              <div className="min-w-0">
+                                <span className="font-bold text-gray-900 dark:text-white block truncate max-w-[190px]">{item.name}</span>
+                                <span className="text-[10px] text-purple-600 font-semibold uppercase tracking-wider block">{item.category}</span>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] text-gray-500 dark:text-[#a1a1aa]">Base: ₹{item.price}</span>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-pink-300 font-extrabold rounded">
+                                    Hubs: {itemCampuses.join(', ')}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-end gap-2 border-t sm:border-t-0 pt-2 sm:pt-0">
-                            <button
-                              type="button"
-                              title="Edit product info"
-                              onClick={() => {
-                                setEditingCakeId(item.id);
-                                setEditingCakeName(item.name);
-                                setEditingCakePrice(item.price.toString());
-                                setEditingCakeCategory(item.category);
-                                setEditingCakeDesc(item.description);
-                                setEditingCakeImage(item.image);
-                                setEditingCakeWeights(item.weights || []);
-                                setEditingCakeWeightPrices(item.weightPrices || {});
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                              }}
-                              className="px-2.5 py-1.5 bg-white dark:bg-[#120709] text-gray-500 dark:text-[#a1a1aa] hover:text-purple-700 hover:bg-purple-50 hover:dark:bg-purple-500/10 rounded-lg border border-gray-250 dark:border-[#3c1a1e] hover:border-purple-200 transition-colors text-[10px] font-bold flex items-center gap-1 active:scale-95"
-                            >
-                              <Settings className="w-3.5 h-3.5" /> Edit Info
-                            </button>
+                            
+                            <div className="flex items-center justify-end gap-2 border-t sm:border-t-0 pt-2 sm:pt-0">
+                              <button
+                                type="button"
+                                title="Edit product info"
+                                onClick={() => {
+                                  setEditingCakeId(item.id);
+                                  setEditingCakeName(item.name);
+                                  setEditingCakePrice(item.price.toString());
+                                  setEditingCakeCategory(item.category);
+                                  setEditingCakeDesc(item.description);
+                                  setEditingCakeImage(item.image);
+                                  setEditingCakeWeights(item.weights || []);
+                                  setEditingCakeWeightPrices(item.weightPrices || {});
+                                  setEditingCakeCampusIds(item.campusIds || []);
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="px-2.5 py-1.5 bg-white dark:bg-[#120709] text-gray-500 dark:text-[#a1a1aa] hover:text-purple-700 hover:bg-purple-50 hover:dark:bg-purple-500/10 rounded-lg border border-gray-250 dark:border-[#3c1a1e] hover:border-purple-200 transition-colors text-[10px] font-bold flex items-center gap-1 active:scale-95"
+                              >
+                                <Settings className="w-3.5 h-3.5" /> Edit Info
+                              </button>
                             
                             <button
                               type="button"
@@ -1859,7 +2080,8 @@ export default function DashboardSection({
                             </button>
                           </div>
                         </div>
-                      ))}
+                      );
+                    })}
                     </div>
                   </div>
                 </div>

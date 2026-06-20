@@ -24,6 +24,7 @@ export interface CakeItem {
   weights: number[]; // e.g. [0.5, 1, 1.5, 2]
   weightPrices?: Record<number, number>; // Maps weight to its specific price
   flavors: string[];
+  campusIds?: string[];
 }
 
 export interface KioskCake {
@@ -34,6 +35,7 @@ export interface KioskCake {
   remainingStock: number;
   totalStock: number;
   image: string;
+  campusIds?: string[];
 }
 
 export interface OrderItemCustomization {

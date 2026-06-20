@@ -345,6 +345,22 @@ export async function writeUserProfile(profile: UserProfile): Promise<void> {
   }
 }
 
+export async function getAllUserProfiles(): Promise<UserProfile[]> {
+  if (!isRealFirebase) return [];
+  const colPath = 'users';
+  try {
+    const snap = await getDocs(collection(db, colPath));
+    const items: UserProfile[] = [];
+    snap.forEach((d) => {
+      items.push({ uid: d.id, ...(d.data() as any) } as UserProfile);
+    });
+    return items;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, colPath);
+    return [];
+  }
+}
+
 // ==========================================
 // 5. ORDERS COLLECTION OPERATIONS
 // ==========================================
@@ -474,3 +490,9 @@ export async function removeOrder(orderId: string): Promise<void> {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
+
+export function clearAllFirestoreCaches(): void {
+  const keys = ['campuses', 'products', 'kiosk_products', 'cake_images'];
+  keys.forEach(k => clearLocalCache(k));
+}
+
