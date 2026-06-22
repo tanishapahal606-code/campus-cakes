@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CakeItem, OrderItemCustomization, CartItem } from '../types';
-import { X, Calendar, MessageSquare, Plus, AlertCircle, ShoppingCart, Sparkles, Image, Check } from 'lucide-react';
+import { X, Calendar, MessageSquare, Plus, AlertCircle, ShoppingCart, Sparkles, Image, Check, AlertTriangle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface CustomOrderModalProps {
@@ -36,6 +36,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
   });
   const [deliveryTime, setDeliveryTime] = useState('17:00');
   const [specialInstructions, setSpecialInstructions] = useState('');
+  const [quantity, setQuantity] = useState(1);
   
   // Schedulers live state
   const [isExpress, setIsExpress] = useState(false);
@@ -77,14 +78,13 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
     const diffMs = selectedDateTime.getTime() - currentAnchor.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
 
-    // Any selection is approved, but flagging express mode for visual custom message
     if (diffHours < 24) {
       setIsExpress(true);
+      setTimeWarning("Custom orders require at least 24 hours advance notice.");
     } else {
       setIsExpress(false);
+      setTimeWarning(null);
     }
-    // Force setTimeWarning to null so that validation is always approved
-    setTimeWarning(null);
   }, [deliveryDate, deliveryTime]);
 
   const handlePhotoSimulation = () => {
@@ -127,7 +127,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
       basePrice: cake.price,
       price: calculatedPrice,
       image: cake.image,
-      quantity: 1,
+      quantity,
       customization,
       isInstantKiosk: false,
     };
@@ -172,34 +172,59 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
         {/* Scrollable customizing forms */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 md:p-6 space-y-6">
           
-          {/* Sizing/Weight options section */}
-          <div>
-            <label className="block text-xs font-black text-gray-800 dark:text-amber-100/85 uppercase tracking-widest mb-2.5">
-              1. Customize Cake Weight (Kg)
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {cake.weights.map((w) => {
-                const active = selectedWeight === w;
-                return (
-                  <motion.button
-                    key={w}
-                    type="button"
-                    onClick={() => setSelectedWeight(w)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`p-2.5 rounded-2xl font-black text-xs border text-center transition-all flex flex-col items-center justify-center gap-0.5 ${
-                      active
-                        ? 'bg-[#E23744] border-[#E23744] text-white shadow-lg shadow-red-600/15'
-                        : 'bg-gray-50 dark:bg-[#1a0d0f] border-gray-100 dark:border-[#291316] text-gray-700 dark:text-[#e4e4e7] hover:bg-gray-100 hover:dark:bg-[#1f0e11]'
-                    }`}
-                  >
-                    <span>{w} kg</span>
-                    <span className={`text-[9px] font-bold ${active ? 'text-amber-200' : 'text-gray-500 dark:text-[#a1a1aa]'}`}>
-                      ₹{cake.weightPrices && cake.weightPrices[w] !== undefined ? cake.weightPrices[w] : Math.round(cake.price * (w === 1.0 ? 1.8 : w === 1.5 ? 2.5 : w === 2.0 ? 3.2 : w === 3.0 ? 4.5 : w === 0.3 ? 0.85 : 1.0))}
-                    </span>
-                  </motion.button>
-                );
-              })}
+          {/* Sizing/Weight and Quantity options section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-black text-gray-800 dark:text-amber-100/85 uppercase tracking-widest mb-2.5">
+                1. Customize Cake Weight (Kg)
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {cake.weights.map((w) => {
+                  const active = selectedWeight === w;
+                  return (
+                    <motion.button
+                      key={w}
+                      type="button"
+                      onClick={() => setSelectedWeight(w)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`p-2.5 rounded-2xl font-black text-xs border text-center transition-all flex flex-col items-center justify-center gap-0.5 ${
+                        active
+                          ? 'bg-[#E23744] border-[#E23744] text-white shadow-lg shadow-red-600/15'
+                          : 'bg-gray-50 dark:bg-[#1a0d0f] border-gray-100 dark:border-[#291316] text-gray-700 dark:text-[#e4e4e7] hover:bg-gray-100 hover:dark:bg-[#1f0e11]'
+                      }`}
+                    >
+                      <span>{w} kg</span>
+                      <span className={`text-[9px] font-bold ${active ? 'text-amber-200' : 'text-gray-500 dark:text-[#a1a1aa]'}`}>
+                        ₹{cake.weightPrices && cake.weightPrices[w] !== undefined ? cake.weightPrices[w] : Math.round(cake.price * (w === 1.0 ? 1.8 : w === 1.5 ? 2.5 : w === 2.0 ? 3.2 : w === 3.0 ? 4.5 : w === 0.3 ? 0.85 : 1.0))}
+                      </span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-xs font-black text-gray-800 dark:text-amber-100/85 uppercase tracking-widest mb-2.5">
+                Quantity
+              </label>
+              <div className="flex items-center justify-between border border-gray-200 dark:border-[#3c1a1e] rounded-xl bg-gray-50 dark:bg-[#1a0d0f] p-1.5 h-[56px] w-full max-w-[160px]">
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-10 h-10 rounded-lg bg-white dark:bg-[#2a1418] shadow-sm text-gray-600 dark:text-gray-300 font-black flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#3c1a1e] transition-colors"
+                >
+                  -
+                </button>
+                <span className="font-bold text-base text-gray-900 dark:text-white mx-3">{quantity}</span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-10 h-10 rounded-lg bg-white dark:bg-[#2a1418] shadow-sm text-gray-600 dark:text-gray-300 font-black flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#3c1a1e] transition-colors"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 
@@ -374,12 +399,12 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
 
             {/* Smart Order Rules Alert Container */}
             {isExpress ? (
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/25 rounded-2xl border border-emerald-400/40 flex items-start gap-2.5 text-emerald-800 dark:text-emerald-350">
-                <Check className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-                <div className="text-[10px] leading-relaxed">
-                  <p className="font-extrabold text-emerald-900 dark:text-emerald-400">✓ Smart Order validation approved (Express Waiver Activated)</p>
-                  <p className="text-zinc-600 dark:text-zinc-400 font-semibold font-serif italic text-[11px] mt-0.5">
-                    Your express scheduled slot has been auto-preapproved for expedited prioritizing. On-time baking is fully guaranteed.
+              <div className="p-4 bg-red-600 rounded-[18px] border border-red-500 flex items-start gap-3 text-white shadow-xl shadow-red-600/20">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-100" />
+                <div className="leading-relaxed flex-1">
+                  <p className="font-black text-xs uppercase tracking-wider mb-1">Order Validation Failed</p>
+                  <p className="text-red-50 font-medium text-[11px]">
+                    {timeWarning}
                   </p>
                 </div>
               </div>
@@ -401,8 +426,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
               placeholder="e.g. Please leave with hostel security guard, ring when you reach Block B entrance, etc."
               value={specialInstructions}
               onChange={(e) => setSpecialInstructions(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f] border border-gray-200 dark:border-[#3c1a1e] rounded-xl text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#E23744] text-gray-900 dark:text-white"
-              rows={2}
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f] border border-gray-200 dark:border-[#3c1a1e] rounded-xl text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#E23744] text-gray-900 dark:text-white h-[60px] resize-none"
             />
           </div>
         </form>
@@ -411,7 +435,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
         <div className="bg-gray-50 dark:bg-[#14080a]/90 border-t border-gray-100 dark:border-[#291316] p-4 md:p-5 flex items-center justify-between flex-shrink-0">
           <div>
             <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase leading-none">Net Total Value</p>
-            <p className="text-xl font-black text-gray-900 dark:text-amber-100 mt-1 font-display">₹{Math.round(calculatedPrice)}</p>
+            <p className="text-xl font-black text-gray-900 dark:text-amber-100 mt-1 font-display">₹{Math.round(calculatedPrice * quantity)}</p>
           </div>
 
           <div className="flex gap-2">

@@ -105,6 +105,7 @@ export interface UserProfile {
   walletBalance?: number;
   didWalletReset2026?: boolean;
   didDeploymentReset2026?: boolean;
+  dob?: string;
 }
 
 export interface FeedbackReview {

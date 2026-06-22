@@ -18,13 +18,14 @@ import CustomOrderModal from './components/CustomOrderModal';
 import DashboardSection from './components/DashboardSection';
 import SupportSection from './components/SupportSection';
 import { DarkModeToggle } from './components/DarkModeToggle';
+import CelebrationConfetti from './components/CelebrationConfetti';
 
 // Lucide React Icons
 import { 
   ShoppingBag, Search, Sparkles, SlidersHorizontal, Heart, Clock, Star, 
   HelpCircle, MessageSquare, ChevronRight, CheckCircle2, Phone, ShieldCheck, 
   ArrowRight, X, AlertTriangle, CreditCard, Check, Compass, Info, Send,
-  LogOut, GraduationCap, MapPin, User, Zap, Trash2, Download,
+  LogOut, GraduationCap, MapPin, User, Zap, Trash2, Download, Gift,
   Bell, BellOff, BellRing
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -50,6 +51,8 @@ export default function App() {
   });
   const [activeZomatoTab, setActiveZomatoTab] = useState<'delivery' | 'kiosk' | 'portal' | 'support'>('delivery');
   const [tempSelectedCampus, setTempSelectedCampus] = useState<Campus | null>(null);
+  const [tempAddressDetails, setTempAddressDetails] = useState<{hostelBlock: string, roomNo: string, instructions: string} | null>(null);
+  const [tempDob, setTempDob] = useState<string>('');
   const [activeDocModal, setActiveDocModal] = useState<'terms' | 'privacy' | 'refund' | null>(null);
 
   // --- 1. STATE CONFIGURATIONS ---
@@ -268,6 +271,20 @@ export default function App() {
         }
         setStudentUser(healedProfile);
         setProfileLoaded(true);
+
+        // --- NEW CUSTOMER VS RE-SIGN-IN VERIFICATION ---
+        // If a returning customer has registered their campus, hostel address, and DOB previously
+        if (healedProfile.campusId && healedProfile.address && healedProfile.dob) {
+          const matchedCampus = campuses.find(c => c.id === healedProfile.campusId) || CAMPUSES.find(c => c.id === healedProfile.campusId);
+          if (matchedCampus) {
+            setSelectedCampus(matchedCampus);
+            safeStorage.setItem('campus_cakes_selected_campus', JSON.stringify(matchedCampus));
+          }
+          setCampusSelected(true);
+        } else {
+          // New customer or profile lacking full registration credentials
+          setCampusSelected(false);
+        }
       } else {
         // Bootstrap new user
         const defaultProfile: UserProfile = {
@@ -286,6 +303,9 @@ export default function App() {
         setStudentUser(defaultProfile);
         await writeUserProfile(defaultProfile);
         setProfileLoaded(true);
+        
+        // Brand new user must supply campus selection, hostel address, and DOB
+        setCampusSelected(false);
       }
     });
 
@@ -308,20 +328,43 @@ export default function App() {
       if (unsubProfile) unsubProfile();
       if (unsubOrders) unsubOrders();
     };
-  }, [firebaseUser, isRealFirebase, selectedCampus, isAdmin]);
+  }, [firebaseUser, isRealFirebase, selectedCampus, isAdmin, campuses]);
 
   // Fallback Sync profile details when user authenticates using simulation mode
   useEffect(() => {
     if (!isRealFirebase && firebaseUser) {
+      // Check for cached profile in safeStorage for simulated users
+      const cachedProfileStr = safeStorage.getItem(`campus_cakes_profile_${firebaseUser.uid}`);
+      if (cachedProfileStr) {
+        try {
+          const cachedProfile = JSON.parse(cachedProfileStr);
+          if (cachedProfile && cachedProfile.address && cachedProfile.dob) {
+            setStudentUser(cachedProfile);
+            setProfileLoaded(true);
+            const matchedCampus = campuses.find(c => c.id === cachedProfile.campusId) || CAMPUSES.find(c => c.id === cachedProfile.campusId);
+            if (matchedCampus) {
+              setSelectedCampus(matchedCampus);
+              safeStorage.setItem('campus_cakes_selected_campus', JSON.stringify(matchedCampus));
+            }
+            setCampusSelected(true);
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // If no cached fully registered profile, handle as new customer
       setStudentUser(prev => ({
         ...prev,
-        name: firebaseUser.displayName || prev.name,
-        email: firebaseUser.email || prev.email,
+        name: firebaseUser.displayName || 'Campus Student',
+        email: firebaseUser.email || 'student@campus-cakes.com',
+        address: '',
+        dob: '',
         campusId: selectedCampus.id
       }));
       setProfileLoaded(true);
+      setCampusSelected(false);
     }
-  }, [firebaseUser, selectedCampus, isRealFirebase]);
+  }, [firebaseUser, selectedCampus, isRealFirebase, campuses]);
 
   // master profile loaded flag
   const [activeOrders, setActiveOrders] = useState<Order[]>(() => {
@@ -621,6 +664,34 @@ export default function App() {
   const [cardNumber, setCardNumber] = useState('4111 2222 3333 4444');
   const [redeemPoints, setRedeemPoints] = useState(false);
   const [useWallet, setUseWallet] = useState<boolean>(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, pct: number} | null>(null);
+
+  const handleApplyCoupon = () => {
+    if (!couponInput) return;
+    const storedCoupon = safeStorage.getItem(`campus_cakes_bday_coupon_${studentUser.uid || 'anon'}`);
+    if (storedCoupon === couponInput.trim() && studentUser?.dob) {
+      const today = new Date();
+      const dobDate = new Date(studentUser.dob);
+      if (today.getMonth() === dobDate.getMonth() && today.getDate() === dobDate.getDate()) {
+        const isUsed = safeStorage.getItem(`campus_cakes_bday_used_${storedCoupon}`);
+        if (!isUsed) {
+          setAppliedCoupon({ code: storedCoupon, pct: 10 });
+          addInAppToast("Birthday Discount Applied!", "10% off on your special day. Enjoy!");
+          setCouponInput('');
+          return;
+        } else {
+          addInAppToast("Coupon Expired", "This birthday coupon has already been used.");
+          return;
+        }
+      } else {
+         addInAppToast("Not Your Birthday", "This coupon can only be used on your birthday.");
+         return;
+      }
+    }
+    
+    addInAppToast("Invalid Coupon", "Please enter a valid discount code.");
+  };
 
   // Review submission inputs
   const [submittingRating, setSubmittingRating] = useState<number>(5);
@@ -633,6 +704,36 @@ export default function App() {
   // Simulated live feedback sound/animations
   const [orderCompletePopup, setOrderCompletePopup] = useState<boolean>(false);
   const [newOrderId, setNewOrderId] = useState<string>('');
+
+  const [showBdayPopup, setShowBdayPopup] = useState<boolean>(false);
+  const [bdayDiscountCode, setBdayDiscountCode] = useState<string>('');
+
+  // Birthday check effect
+  useEffect(() => {
+    if (campusSelected && studentUser?.dob) {
+      const today = new Date();
+      const dobDate = new Date(studentUser.dob);
+      if (today.getMonth() === dobDate.getMonth() && today.getDate() === dobDate.getDate()) {
+        const storedCouponKey = `campus_cakes_bday_coupon_${studentUser.uid || 'anon'}`;
+        let code = safeStorage.getItem(storedCouponKey);
+        
+        if (!code) {
+          code = `BDAY-${Math.floor(100000 + Math.random() * 900000)}`;
+          safeStorage.setItem(storedCouponKey, code);
+        }
+
+        const isUsed = safeStorage.getItem(`campus_cakes_bday_used_${code}`);
+        const popupShownKey = `campus_cakes_bday_popup_shown_${studentUser.uid || 'anon'}_${today.getFullYear()}`;
+        const hasShownToday = safeStorage.getItem(popupShownKey);
+
+        if (!isUsed && !hasShownToday) {
+          setBdayDiscountCode(code);
+          setShowBdayPopup(true);
+          safeStorage.setItem(popupShownKey, 'true');
+        }
+      }
+    }
+  }, [campusSelected, studentUser?.dob, studentUser?.uid]);
 
   // --- 2. LOGICAL SIDE-EFFECTS & UPDATES ---
   // Handle Campus Select resets
@@ -706,23 +807,38 @@ export default function App() {
 
   const handleConfirmHostelAddress = (hostelBlock: string, roomNo: string, instructions: string) => {
     if (!tempSelectedCampus) return;
+    setTempAddressDetails({ hostelBlock, roomNo, instructions });
+  };
+
+  const handleConfirmDob = (dobStr: string) => {
+    if (!tempSelectedCampus || !tempAddressDetails) return;
+    
+    const { hostelBlock, roomNo, instructions } = tempAddressDetails;
     const fullAddress = `${hostelBlock}, ${roomNo}${instructions ? ` (${instructions})` : ''}`;
+    
     setSelectedCampus(tempSelectedCampus);
     safeStorage.setItem('campus_cakes_selected_campus', JSON.stringify(tempSelectedCampus));
     
     const updatedUser = { 
       ...studentUser,
+      dob: dobStr,
       campusId: tempSelectedCampus.id,
       address: fullAddress
     };
     
     setStudentUser(updatedUser);
+    safeStorage.setItem('campus_cakes_user', JSON.stringify(updatedUser));
+    if (firebaseUser) {
+      safeStorage.setItem(`campus_cakes_profile_${firebaseUser.uid}`, JSON.stringify(updatedUser));
+    }
+    
     if (isRealFirebase && firebaseUser) {
-      writeUserProfile({ ...updatedUser, uid: firebaseUser.uid }).catch(e => console.error("Error saving address:", e));
+      writeUserProfile({ ...updatedUser, uid: firebaseUser.uid }).catch(e => console.error("Error saving profile:", e));
     }
     
     setCampusSelected(true);
     setTempSelectedCampus(null);
+    setTempAddressDetails(null);
   };
 
   // Kiosk instant reservation
@@ -772,7 +888,13 @@ export default function App() {
 
   // Add Customized pre-order cake to cart
   const handleAddCustomCakeToCart = (item: CartItem) => {
-    setCart(prev => [...prev, item]);
+    setCart(prev => {
+      const existing = prev.find(p => p.id === item.id);
+      if (existing) {
+        return prev.map(p => p.id === item.id ? { ...p, quantity: p.quantity + item.quantity } : p);
+      }
+      return [...prev, item];
+    });
     setIsCartOpen(true);
   };
 
@@ -977,12 +1099,24 @@ export default function App() {
       // Re-add to Kiosk inventory level
       setKioskInventory(prev => prev.map(k => {
         if (k.id === item.cakeId) {
-          return { ...k, remainingStock: Math.min(k.totalStock, k.remainingStock + 1) };
+          return { ...k, remainingStock: Math.min(k.totalStock, k.remainingStock + item.quantity) };
         }
         return k;
       }));
     }
     setCart(prev => prev.filter(c => c.id !== cartId));
+  };
+
+  const handleUpdateQuantity = (cartId: string, delta: number) => {
+    setCart(prev => {
+      return prev.map(item => {
+        if (item.id === cartId) {
+          const newQuantity = Math.max(1, item.quantity + delta);
+          return { ...item, quantity: newQuantity };
+        }
+        return item;
+      });
+    });
   };
 
   // Checkout submission action
@@ -997,8 +1131,13 @@ export default function App() {
     
     const effectiveRedeemPoints = redeemPoints;
     const pointsDiscount = effectiveRedeemPoints ? (studentUser.rewardPoints || 0) : 0;
-    const total = Math.max(0, subtotal + surchargeTotal - pointsDiscount);
-    const pointsDeducted = effectiveRedeemPoints ? Math.min((studentUser.rewardPoints || 0), subtotal + surchargeTotal) : 0;
+    const couponDiscount = appliedCoupon ? Math.floor(subtotal * (appliedCoupon.pct / 100)) : 0;
+    const total = Math.max(0, subtotal + surchargeTotal - pointsDiscount - couponDiscount);
+    const pointsDeducted = effectiveRedeemPoints ? Math.min((studentUser.rewardPoints || 0), subtotal + surchargeTotal - couponDiscount) : 0;
+
+    if (appliedCoupon) {
+      safeStorage.setItem(`campus_cakes_bday_used_${appliedCoupon.code}`, 'used');
+    }
 
     // Generated ID
     const genOrderNo = 'CK-' + Math.floor(1000 + Math.random() * 9000);
@@ -1069,6 +1208,7 @@ export default function App() {
     setOrderCompletePopup(true);
     setRedeemPoints(false);
     setUseWallet(false);
+    setAppliedCoupon(null);
   };
 
   // Review submission
@@ -1349,7 +1489,7 @@ export default function App() {
             </button>
           </div>
 
-          {tempSelectedCampus ? (
+          {tempSelectedCampus && !tempAddressDetails ? (
             <div className="space-y-5 animate-fadeIn">
               <div className="text-center mb-1">
                 <div className="mx-auto w-12 h-12 bg-red-50 dark:bg-red-500/10 text-[#E23744] flex items-center justify-center rounded-2xl mb-3 shadow-inner">
@@ -1422,6 +1562,59 @@ export default function App() {
                   <button
                     type="submit"
                     className="flex-1 py-3 px-4 bg-[#E23744] hover:bg-rose-600 text-white font-bold rounded-xl text-xs shadow-lg shadow-red-500/10 transition-colors cursor-pointer select-none text-center animate-pulse"
+                  >
+                    Confirm & Proceed
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : tempSelectedCampus && tempAddressDetails ? (
+            <div className="space-y-5 animate-fadeIn">
+              <div className="text-center mb-1">
+                <div className="mx-auto w-12 h-12 bg-pink-50 dark:bg-pink-500/10 text-pink-600 flex items-center justify-center rounded-2xl mb-3 shadow-inner">
+                  <Gift className="w-6 h-6 animate-pulse" />
+                </div>
+                <h2 className="text-xl md:text-2xl font-black font-display text-gray-900 dark:text-white tracking-tight">
+                  When's your Birthday?
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-[#a1a1aa] mt-1.5 leading-relaxed">
+                  We love to celebrate with our students! We'll give you a special treat on your special day.
+                </p>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const fd = new FormData(e.currentTarget);
+                  const dob = fd.get('dob') as string;
+                  if (!dob.trim()) return;
+                  handleConfirmDob(dob);
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 px-0.5">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    name="dob"
+                    className="w-full text-xs p-3 border border-gray-200 dark:border-[#3c1a1e] hover:border-gray-350 rounded-xl outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-100 placeholder-gray-400 font-medium transition-all"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTempAddressDetails(null)}
+                    className="flex-1 py-3 px-4 bg-gray-50 dark:bg-[#1a0d0f]/80 hover:bg-gray-100 hover:dark:bg-[#1a0d0f] text-gray-600 dark:text-[#d4d4d8] font-bold border border-gray-200 dark:border-[#3c1a1e] rounded-xl text-xs transition-colors cursor-pointer select-none text-center"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 px-4 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-pink-500/10 transition-colors cursor-pointer select-none text-center"
                   >
                     Confirm & Enter Hub
                   </button>
@@ -2502,8 +2695,21 @@ export default function App() {
                             </div>
                           )}
 
-                          <div className="mt-2 text-xs font-black text-gray-950 dark:text-white font-mono">
-                            ₹{item.price}
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="text-xs font-black text-gray-950 dark:text-white font-mono">
+                              ₹{item.price}
+                            </span>
+                            <div className="flex items-center gap-2 bg-white dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] p-0.5">
+                              <button 
+                                onClick={() => handleUpdateQuantity(item.id, -1)}
+                                className="w-5 h-5 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-[#2a1418] rounded"
+                              >-</button>
+                              <span className="text-[10px] font-bold w-3 text-center">{item.quantity}</span>
+                              <button 
+                                onClick={() => handleUpdateQuantity(item.id, 1)}
+                                className="w-5 h-5 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-[#2a1418] rounded"
+                              >+</button>
+                            </div>
                           </div>
                         </div>
 
@@ -2754,17 +2960,58 @@ export default function App() {
                 {redeemPoints && <p className="text-[10px] text-amber-600 font-bold">XP points applied to offset the total!</p>}
               </div>
 
+              {/* Coupon Code Section */}
+              <div className="space-y-1.5 pb-2">
+                <div className="flex items-center gap-2 p-2 rounded-xl border border-pink-200 bg-pink-50">
+                  <div className="flex-1 flex items-center gap-2">
+                    <Gift className="w-4 h-4 text-pink-500 ml-1" />
+                    <input
+                      type="text"
+                      placeholder="Discount code"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value)}
+                      className="w-full bg-transparent text-xs font-bold outline-none placeholder-pink-300 text-pink-900 uppercase"
+                      disabled={appliedCoupon !== null}
+                    />
+                  </div>
+                  {appliedCoupon ? (
+                    <button
+                      type="button"
+                      onClick={() => { setAppliedCoupon(null); setCouponInput(''); }}
+                      className="px-3 py-1.5 bg-red-100 text-red-600 text-[10px] font-bold rounded-lg border border-red-200 uppercase"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      className="px-3 py-1.5 bg-pink-600 text-white text-[10px] font-bold rounded-lg uppercase hover:bg-pink-700"
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
+                {appliedCoupon && <p className="text-[10px] text-pink-600 font-bold">{appliedCoupon.pct}% Birthday Discount applied!</p>}
+              </div>
+
               {/* Segment calculations totals */}
               <div className="border-t border-dashed dark:border-[#3c1a1e] pt-3 text-xs flex justify-between font-extrabold text-gray-800 dark:text-[#fafafa] items-end">
                 <span>Amount to Pay</span>
                 <div className="text-right">
-                  {redeemPoints && (
+                  {(redeemPoints || appliedCoupon) && (
                     <span className="text-[10px] text-gray-400 line-through mr-2 font-mono">
                       ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)}
                     </span>
                   )}
                   <span className="text-pink-600 dark:text-pink-400 font-mono text-sm">
-                    ₹{Math.max(0, Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50) - (redeemPoints ? studentUser.rewardPoints : 0))}
+                    ₹{
+                      Math.max(0, Math.round(
+                        (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)
+                        - (redeemPoints ? studentUser.rewardPoints : 0)
+                        - (appliedCoupon ? (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (appliedCoupon.pct / 100)) : 0)
+                      ))
+                    }
                   </span>
                 </div>
               </div>
@@ -2911,6 +3158,140 @@ export default function App() {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* --- BIRTHDAY POPUP MODAL --- */}
+      <AnimatePresence>
+        {showBdayPopup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/75 backdrop-blur-md"
+              onClick={() => setShowBdayPopup(false)}
+            />
+            
+            {/* Celebration Animations Backdrop Layer */}
+            <CelebrationConfetti />
+
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 30 }}
+              animate={{ 
+                scale: 1, 
+                opacity: 1, 
+                y: 0,
+                transition: { type: 'spring', damping: 20, stiffness: 200 }
+              }}
+              exit={{ scale: 0.9, opacity: 0, y: 15 }}
+              className="relative w-full max-w-sm bg-gradient-to-br from-[#200508] via-[#0b0103] to-[#180407] rounded-[36px] overflow-hidden shadow-[0_0_50px_rgba(236,72,153,0.25)] border-2 border-pink-500/40 text-center p-8 z-30"
+            >
+              {/* Animated Floating Background Sparks */}
+              <div className="absolute inset-0 opacity-20 pointer-events-none">
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                  className="absolute -top-12 -left-12 w-32 h-32 rounded-full bg-pink-500 blur-2xl"
+                />
+                <motion.div 
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+                  className="absolute -bottom-12 -right-12 w-32 h-32 rounded-full bg-[#D4AF37] blur-2xl"
+                />
+              </div>
+
+              {/* Twinkling decorative icons */}
+              <motion.div 
+                animate={{ scale: [1, 1.3, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute top-10 left-10 text-pink-400"
+              >
+                <Sparkles className="w-5 h-5" />
+              </motion.div>
+              <motion.div 
+                animate={{ scale: [1.3, 1, 1.3], opacity: [1, 0.6, 1] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+                className="absolute bottom-24 right-10 text-[#D4AF37]"
+              >
+                <Sparkles className="w-4 h-4" />
+              </motion.div>
+
+              <button 
+                onClick={() => setShowBdayPopup(false)}
+                className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/15 rounded-full text-zinc-400 hover:text-white transition-colors"
+                title="Close"
+                name="Close Modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              {/* Premium Gift Cylinder Ring */}
+              <div className="relative w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+                <motion.div 
+                  animate={{ scale: [1, 1.15, 1], rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute inset-0 bg-pink-500/20 rounded-full blur-md shadow-[0_0_40px_rgba(236,72,153,0.4)] border border-pink-500/40"
+                />
+                <motion.div 
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="relative z-10 w-16 h-16 bg-gradient-to-tr from-pink-600 to-rose-500 rounded-2xl flex items-center justify-center shadow-lg shadow-pink-500/30"
+                >
+                  <Gift className="w-9 h-9 text-pink-50" />
+                </motion.div>
+              </div>
+
+              <h2 className="text-3.5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-300 to-pink-500 font-serif leading-none uppercase tracking-tight mb-2">
+                Happy Birthday!
+              </h2>
+              <p className="text-sm font-extrabold text-[#FEFAF6] tracking-wide mb-6 uppercase">
+                Hope you have an amazing day, <span className="text-[#D4AF37] font-black">{studentUser.name?.split(' ')[0]}</span>! 🥳
+              </p>
+
+              {/* Glowing High-Tech Voucher Card */}
+              <div className="bg-black/50 rounded-3xl p-6 border border-pink-500/25 mb-6 relative overflow-hidden group">
+                {/* Shiny diagonal reflection stripe */}
+                <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 translate-x-[-150%] group-hover:translate-x-[250%] transition-transform duration-1000 ease-out pointer-events-none" />
+                
+                <p className="text-[10px] text-pink-300/80 uppercase tracking-[0.2em] font-black mb-3.5">Your Special Birthday Voucher</p>
+                
+                <div className="relative">
+                  <div className="bg-gradient-to-r from-pink-500/10 to-rose-500/10 border-2 border-dashed border-pink-500/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 shadow-inner">
+                    <span className="font-mono text-2xl font-black text-pink-300 tracking-[0.1em] select-all filter drop-shadow-[0_0_8px_rgba(236,72,153,0.4)]">
+                      {bdayDiscountCode}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(bdayDiscountCode);
+                        addInAppToast("Birthday Gift Coupon", "📋 Copied template code to clipboard! Double-click input box to paste.");
+                      }}
+                      className="text-[9px] font-black text-[#D4AF37] hover:text-white uppercase tracking-widest mt-1 bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 px-2.5 py-1 rounded-md transition-all active:scale-95"
+                    >
+                      Copy Code
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-zinc-400 mt-4 leading-relaxed font-semibold">
+                  Enter this premium key at checkout to reduce <span className="text-[#D4AF37] font-bold">10% OFF</span> your custom bakes! Valid for today only.
+                </p>
+              </div>
+
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowBdayPopup(false)}
+                className="w-full py-4 bg-gradient-to-r from-pink-600 via-rose-600 to-pink-600 hover:from-pink-500 hover:to-rose-500 text-white font-extrabold text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-pink-600/30 transition-all duration-300 cursor-pointer border border-pink-400/25 group overflow-hidden"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <span>Claim & Continue</span>
+                  <ArrowRight className="w-4 h-4 text-pink-200 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </motion.button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* --- FOOTER DOCUMENTS MODAL --- */}
       <AnimatePresence>
