@@ -8,7 +8,7 @@ import {
   deleteDoc, collection, query, where, onSnapshot 
 } from 'firebase/firestore';
 import { db, auth, isRealFirebase } from '../firebase';
-import { Campus, CakeItem, KioskCake, Order, UserProfile, FeedbackReview } from '../types';
+import { Campus, CakeItem, KioskCake, Order, UserProfile, FeedbackReview, Coupon } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -494,5 +494,91 @@ export async function removeOrder(orderId: string): Promise<void> {
 export function clearAllFirestoreCaches(): void {
   const keys = ['campuses', 'products', 'kiosk_products', 'cake_images'];
   keys.forEach(k => clearLocalCache(k));
+}
+
+// ==========================================
+// 7. COUPONS COLLECTION OPERATIONS
+// ==========================================
+export function subscribeToCoupons(onUpdate: (coupons: Coupon[]) => void) {
+  if (!isRealFirebase) return () => {};
+  const q = collection(db, 'coupons');
+  return onSnapshot(q, (snap) => {
+    const coupons: Coupon[] = [];
+    snap.forEach((d) => coupons.push({ ...d.data() as Coupon, id: d.id }));
+    onUpdate(coupons);
+  }, (err) => {
+    handleFirestoreError(err, OperationType.GET, 'coupons');
+  });
+}
+
+export async function getCoupons(): Promise<Coupon[]> {
+  if (!isRealFirebase) return [];
+  const colPath = 'coupons';
+  try {
+    const snap = await getDocs(collection(db, colPath));
+    const items: Coupon[] = [];
+    snap.forEach((d) => items.push({ ...d.data() as Coupon, id: d.id }));
+    return items;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, colPath);
+    return [];
+  }
+}
+
+export async function writeCoupon(coupon: Coupon): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `coupons/${coupon.id}`;
+  try {
+    await setDoc(doc(db, 'coupons', coupon.id), sanitizeFirestoreData(coupon));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function removeCoupon(couponId: string): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `coupons/${couponId}`;
+  try {
+    await deleteDoc(doc(db, 'coupons', couponId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+
+// ==========================================
+// 8. REVIEWS COLLECTION OPERATIONS
+// ==========================================
+export function subscribeToReviews(onUpdate: (reviews: FeedbackReview[]) => void) {
+  if (!isRealFirebase) return () => {};
+  const q = collection(db, 'reviews');
+  return onSnapshot(q, (snap) => {
+    const reviewsList: FeedbackReview[] = [];
+    snap.forEach((d) => reviewsList.push({ ...d.data() as FeedbackReview, id: d.id }));
+    reviewsList.sort((a, b) => b.id.localeCompare(a.id));
+    onUpdate(reviewsList);
+  }, (err) => {
+    handleFirestoreError(err, OperationType.GET, 'reviews');
+  });
+}
+
+export async function writeReview(review: FeedbackReview): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `reviews/${review.id}`;
+  try {
+    await setDoc(doc(db, 'reviews', review.id), sanitizeFirestoreData(review));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function removeReview(reviewId: string): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `reviews/${reviewId}`;
+  try {
+    await deleteDoc(doc(db, 'reviews', reviewId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
 }
 

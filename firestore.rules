@@ -112,6 +112,18 @@ service cloud.firestore {
         (!data.keys().contains('uploadedBy') || (data.uploadedBy is string && data.uploadedBy.size() <= 128));
     }
 
+    function isValidReview(data) {
+      return data.keys().hasAll(['id', 'userName', 'userImage', 'rating', 'comment', 'cakeName', 'date']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userName is string && data.userName.size() <= 100 &&
+        data.userImage is string && data.userImage.size() <= 2000000 &&
+        data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+        data.comment is string && data.comment.size() <= 1000 &&
+        data.cakeName is string && data.cakeName.size() <= 200 &&
+        data.date is string && data.date.size() <= 100 &&
+        (!data.keys().contains('image') || (data.image is string && data.image.size() <= 2000000));
+    }
+
 
     // --- MATCH BLOCKS ---
 
@@ -188,6 +200,20 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(cakeImageId) && isValidCakeImage(incoming()) && incoming().uploadedBy == request.auth.uid;
       allow update: if isAdmin() && isValidId(cakeImageId) && isValidCakeImage(incoming());
       allow delete: if isAdmin() && isValidId(cakeImageId);
+    }
+
+    // 7. Coupons collection
+    match /coupons/{couponId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['usersUsed']));
+    }
+
+    // 8. Reviews collection
+    match /reviews/{reviewId} {
+      allow read: if true; // Public verified reviews
+      allow create: if isSignedIn() && isValidId(reviewId) && isValidReview(incoming());
+      allow update, delete: if isAdmin();
     }
   }
 }

@@ -4,12 +4,12 @@
  */
 
 import React, { useState } from 'react';
-import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration } from '../types';
+import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon } from '../types';
 import { 
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Download
+  Truck, Phone, Mail, Download, Tag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
@@ -19,6 +19,10 @@ interface DashboardSectionProps {
   orders: Order[];
   allCakes: CakeItem[];
   kioskInventory: KioskCake[];
+  coupons?: Coupon[];
+  onAddCoupon?: (c: Coupon) => void;
+  onUpdateCouponStatus?: (id: string, active: boolean) => void;
+  onDeleteCoupon?: (id: string) => void;
   onRepeatOrder: (orderId: string) => void;
   onUpdateKioskStock: (id: string, newStock: number) => void;
   onUpdateOrderStatus: (orderId: string, status: any) => void;
@@ -43,6 +47,10 @@ export default function DashboardSection({
   orders,
   allCakes,
   kioskInventory,
+  coupons = [],
+  onAddCoupon,
+  onUpdateCouponStatus,
+  onDeleteCoupon,
   onRepeatOrder,
   onUpdateKioskStock,
   onUpdateOrderStatus,
@@ -111,8 +119,15 @@ export default function DashboardSection({
   // Admin section: new campus state
   const [newCampusName, setNewCampusName] = useState('');
   const [newCampusLocation, setNewCampusLocation] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'kiosk' | 'catalog' | 'campus'>('analytics');
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'kiosk' | 'catalog' | 'campus' | 'coupons'>('analytics');
   const [adminOrderFilter, setAdminOrderFilter] = useState<'all' | 'placed' | 'preparing' | 'delivery' | 'ready'>('all');
+
+  // Admin section: coupons
+  const [newCouponCode, setNewCouponCode] = useState('');
+  const [newCouponOccasion, setNewCouponOccasion] = useState('');
+  const [newCouponType, setNewCouponType] = useState<'percentage'|'flat'>('percentage');
+  const [newCouponValue, setNewCouponValue] = useState('');
+  const [newCouponLimit, setNewCouponLimit] = useState('');
 
   // Real-time dynamic business startup calculations
   const todayStr = new Date().toISOString().split('T')[0];
@@ -270,6 +285,33 @@ export default function DashboardSection({
         onShowToast("Hub Added", `New campus "${newCampusName}" added successfully!`);
       } else {
         alert('New campus added successfully!');
+      }
+    }
+  };
+
+  const handleAddCouponSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCouponCode || !newCouponOccasion || !newCouponValue || !newCouponLimit) return;
+    if (onAddCoupon) {
+      onAddCoupon({
+        id: 'coupon-' + Date.now().toString(),
+        code: newCouponCode,
+        occasion: newCouponOccasion,
+        discountType: newCouponType,
+        discountValue: parseFloat(newCouponValue),
+        usageLimit: parseInt(newCouponLimit),
+        usersUsed: [],
+        isActive: true,
+        createdAt: new Date().toISOString()
+      });
+      setNewCouponCode('');
+      setNewCouponOccasion('');
+      setNewCouponValue('');
+      setNewCouponLimit('');
+      if (onShowToast) {
+        onShowToast("Coupon Generated", `Discount code "${newCouponCode}" is now live!`);
+      } else {
+        alert("Coupon Generated!");
       }
     }
   };
@@ -830,6 +872,14 @@ export default function DashboardSection({
                   >
                     <MapPin className="w-4 h-4" />
                     <span className="text-[11px] font-bold">Campus Expansion</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => setActiveAdminTab('coupons')}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${activeAdminTab === 'coupons' ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700' : 'text-gray-600 dark:text-[#d4d4d8] hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80'}`}
+                  >
+                    <Tag className="w-4 h-4" />
+                    <span className="text-[11px] font-bold">Discount Codes</span>
                   </button>
                 </div>
 
@@ -2160,6 +2210,142 @@ export default function DashboardSection({
                        ))}
                        {campuses.length === 0 && (
                          <div className="p-4 text-center text-xs text-gray-500 dark:text-[#a1a1aa] font-medium">No campuses active.</div>
+                       )}
+                    </div>
+                </div>
+                </div>
+              )}
+
+              {/* Discount Coupons Admin Control */}
+              {activeAdminTab === 'coupons' && (
+                <div className="grid grid-cols-1 gap-5">
+                  <div className="p-5 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] shadow-sm dark:shadow-none flex flex-col">
+                  <h4 className="font-extrabold text-xs text-rose-950 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5 text-rose-600" /> Coupon Generation Hub
+                  </h4>
+                  <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] mb-4 leading-normal">
+                    Generate discount codes for different occasions and events. New discounts will pop up for users automatically.
+                  </p>
+                  <form onSubmit={handleAddCouponSubmit} className="grid grid-cols-1 gap-3 flex-1">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="pl-1 text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Discount Code</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. DIWALI20"
+                          value={newCouponCode}
+                          onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
+                          className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] focus:bg-white focus:dark:bg-[#120709] focus:outline-none focus:ring-2 focus:ring-rose-100 transition-colors uppercase"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="pl-1 text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Occasion/Reason</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Navratri Special Offer"
+                          value={newCouponOccasion}
+                          onChange={(e) => setNewCouponOccasion(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] focus:bg-white focus:dark:bg-[#120709] focus:outline-none focus:ring-2 focus:ring-rose-100 transition-colors"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                       <div className="space-y-1">
+                        <label className="pl-1 text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Discount Type</label>
+                        <select
+                          value={newCouponType}
+                          onChange={(e) => setNewCouponType(e.target.value as 'percentage' | 'flat')}
+                          className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] focus:bg-white focus:dark:bg-[#120709] focus:outline-none focus:ring-2 focus:ring-rose-100 transition-colors"
+                        >
+                          <option value="percentage">Percentage (%)</option>
+                          <option value="flat">Flat Amount (₹)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="pl-1 text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Value</label>
+                        <input
+                          type="number"
+                          placeholder={newCouponType === 'percentage' ? "e.g. 15 (for 15%)" : "e.g. 50 (for ₹50)"}
+                          value={newCouponValue}
+                          onChange={(e) => setNewCouponValue(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] focus:bg-white focus:dark:bg-[#120709] focus:outline-none focus:ring-2 focus:ring-rose-100 transition-colors"
+                          required
+                          min="1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 mt-2">
+                      <label className="pl-1 text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Usage Limit (Max users)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 100"
+                        value={newCouponLimit}
+                        onChange={(e) => setNewCouponLimit(e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-50 dark:bg-[#1a0d0f]/80 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] focus:bg-white focus:dark:bg-[#120709] focus:outline-none focus:ring-2 focus:ring-rose-100 transition-colors"
+                        required
+                        min="1"
+                      />
+                    </div>
+                    
+                    <button
+                      type="submit"
+                      className="mt-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/20 transition-all active:scale-[0.98]"
+                    >
+                      Generate Discount Code
+                    </button>
+                  </form>
+                </div>
+                
+                {/* List of Active Coupons */}
+                <div className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] shadow-sm dark:shadow-none overflow-hidden flex flex-col">
+                    <div className="border-b border-gray-100 dark:border-[#291316] p-4">
+                      <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest flex items-center justify-between">
+                        <span>Active Discount Coupons</span>
+                        <span className="text-[10px] text-gray-400 bg-gray-50 dark:bg-[#1a0d0f]/80 px-2.5 py-1 rounded-full">{coupons.filter(c => c.isActive).length} Live</span>
+                      </h4>
+                    </div>
+                    <div className="divide-y divide-gray-100 p-3 space-y-2">
+                       {coupons.map(coupon => (
+                         <div key={coupon.id} className={`flex items-center justify-between p-3 rounded-xl border ${coupon.isActive ? 'bg-rose-50 dark:bg-[#1a0d0f] border-rose-100' : 'bg-gray-50 dark:bg-black/40 border-gray-200/50'}`}>
+                            <div className={!coupon.isActive ? "opacity-60" : ""}>
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-black text-xs text-rose-700">{coupon.code}</h5>
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded">
+                                  {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
+                                </span>
+                              </div>
+                              <p className="text-[10px] font-bold text-gray-800 dark:text-gray-300 mt-1">{coupon.occasion}</p>
+                              <p className="text-[9px] text-gray-500 font-medium mt-1">
+                                Used: {coupon.usersUsed.length} / {coupon.usageLimit}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {onUpdateCouponStatus && (
+                                <button
+                                  onClick={() => onUpdateCouponStatus(coupon.id, !coupon.isActive)}
+                                  className={`p-2 rounded-xl transition-colors text-[10px] font-bold text-white shrink-0 cursor-pointer ${coupon.isActive ? 'bg-amber-600 hover:bg-amber-700' : 'bg-green-600 hover:bg-green-700'}`}
+                                >
+                                  {coupon.isActive ? 'DEACTIVATE' : 'ACTIVATE'}
+                                </button>
+                              )}
+                              {onDeleteCoupon && (
+                                <button
+                                  onClick={() => onDeleteCoupon(coupon.id)}
+                                  className="p-2 text-rose-500 hover:bg-rose-100 hover:text-rose-700 rounded-xl transition-colors shrink-0 cursor-pointer"
+                                  title="Delete Coupon"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                         </div>
+                       ))}
+                       {coupons.length === 0 && (
+                         <div className="p-4 text-center text-xs text-gray-500 dark:text-[#a1a1aa] font-medium">No coupons generated yet.</div>
                        )}
                     </div>
                 </div>

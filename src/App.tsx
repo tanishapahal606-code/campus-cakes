@@ -17,6 +17,7 @@ import KioskSection from './components/KioskSection';
 import CustomOrderModal from './components/CustomOrderModal';
 import DashboardSection from './components/DashboardSection';
 import SupportSection from './components/SupportSection';
+import OffersInstagramCarousel from './components/OffersInstagramCarousel';
 import { DarkModeToggle } from './components/DarkModeToggle';
 import CelebrationConfetti from './components/CelebrationConfetti';
 
@@ -26,7 +27,7 @@ import {
   HelpCircle, MessageSquare, ChevronRight, CheckCircle2, Phone, ShieldCheck, 
   ArrowRight, X, AlertTriangle, CreditCard, Check, Compass, Info, Send,
   LogOut, GraduationCap, MapPin, User, Zap, Trash2, Download, Gift,
-  Bell, BellOff, BellRing
+  Bell, BellOff, BellRing, Tag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, authenticateWithGoogle, isRealFirebase } from './firebase';
@@ -34,12 +35,14 @@ import {
   testFirestoreConnection, getCampuses, writeCampus, removeCampus, 
   getProducts, writeProduct, removeProduct, getKioskProducts, writeKioskProduct, 
   removeKioskProduct, getUserProfile, writeUserProfile, getAllUserProfiles, getUserOrders, writeOrder, 
-  writeCakeImage, getAllOrders, removeOrder,
-  subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders, clearAllFirestoreCaches
+  writeCakeImage, getAllOrders, removeOrder, subscribeToCoupons, writeCoupon, removeCoupon,
+  subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders, clearAllFirestoreCaches,
+  subscribeToReviews, writeReview, removeReview
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
 import { safeStorage } from './lib/safeStorage';
 import brandLogo from './assets/images/brand_logo_1781589358418.jpg';
+import { Coupon } from './types';
 
 export default function App() {
   // --- 0. FIREBASE AUTHENTICATION FLOW STATE ---
@@ -639,6 +642,53 @@ export default function App() {
   }, [activeOrders, profileLoaded, isAdmin, firebaseUser]);
 
   const [reviews, setReviews] = useState<FeedbackReview[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [lastSeenCouponId, setLastSeenCouponId] = useState<string | null>(safeStorage.getItem('lastSeenCouponId'));
+  const [activeCouponPopup, setActiveCouponPopup] = useState<Coupon | null>(null);
+
+  useEffect(() => {
+    if (!firebaseUser) {
+      setCoupons([]);
+      return;
+    }
+    const unsub = subscribeToCoupons((data) => {
+      setCoupons(data);
+    });
+    return () => unsub();
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    if (!isRealFirebase) {
+      // Seed some default reviews if user is working offline
+      setReviews([
+        {
+          id: 'mock-1',
+          userName: 'Arjun Mehta',
+          userImage: 'https://ui-avatars.com/api/?name=Arjun+Mehta&background=random',
+          rating: 5,
+          comment: 'The chocolate hazelnut cake was absolutely heavenly. Kept us awake during midnight exam prep!',
+          cakeName: 'Gourmet Chocolate Hazelnut Dream',
+          date: '2 hours ago'
+        },
+        {
+          id: 'mock-2',
+          userName: 'Sneha Sharma',
+          userImage: 'https://ui-avatars.com/api/?name=Sneha+Sharma&background=random',
+          rating: 4,
+          comment: 'Cutest bento cake layout ever! Made our roommate anniversary celebration perfect.',
+          cakeName: 'Korean Pastel Bento Cake',
+          date: 'Yesterday'
+        }
+      ]);
+      return;
+    }
+    const unsub = subscribeToReviews((data) => {
+      setReviews(data);
+    });
+    return () => unsub();
+  }, [isRealFirebase]);
+
+
 
   // Search, Filters & AI occasions
   const [selectedCategory, setSelectedCategory] = useState<string>('All Cakes');
@@ -665,18 +715,49 @@ export default function App() {
   const [redeemPoints, setRedeemPoints] = useState(false);
   const [useWallet, setUseWallet] = useState<boolean>(false);
   const [couponInput, setCouponInput] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, pct: number} | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, pct?: number, flat?: number, id?: string, isBday?: boolean} | null>(null);
 
-  const handleApplyCoupon = () => {
-    if (!couponInput) return;
+  const handleApplyCoupon = (codeOverride?: string) => {
+    const input = codeOverride || couponInput;
+    if (!input) return;
+    
+    // First check dynamic coupons
+    const match = coupons.find(c => c.code.toUpperCase() === input.trim().toUpperCase());
+    if (match) {
+      if (!match.isActive) {
+        addInAppToast("Coupon Expired", "This discount code is no longer active.");
+        return;
+      }
+      if (match.usageLimit > 0 && match.usersUsed.length >= match.usageLimit) {
+        addInAppToast("Coupon Limit Reached", "This discount code usage limit has been reached.");
+        return;
+      }
+      if (match.usersUsed.includes(studentUser.uid)) {
+        addInAppToast("Coupon Used", "You have already used this discount code.");
+        return;
+      }
+
+      setAppliedCoupon({ 
+        code: match.code, 
+        pct: match.discountType === 'percentage' ? match.discountValue : undefined,
+        flat: match.discountType === 'flat' ? match.discountValue : undefined,
+        id: match.id,
+        isBday: false
+      });
+      addInAppToast("Discount Applied!", `${match.discountType === 'percentage' ? match.discountValue + '%' : '₹' + match.discountValue} off for ${match.occasion}. Enjoy!`);
+      setCouponInput('');
+      return;
+    }
+
+    // Default birthday check logic
     const storedCoupon = safeStorage.getItem(`campus_cakes_bday_coupon_${studentUser.uid || 'anon'}`);
-    if (storedCoupon === couponInput.trim() && studentUser?.dob) {
+    if (storedCoupon === input.trim() && studentUser?.dob) {
       const today = new Date();
       const dobDate = new Date(studentUser.dob);
       if (today.getMonth() === dobDate.getMonth() && today.getDate() === dobDate.getDate()) {
         const isUsed = safeStorage.getItem(`campus_cakes_bday_used_${storedCoupon}`);
         if (!isUsed) {
-          setAppliedCoupon({ code: storedCoupon, pct: 10 });
+          setAppliedCoupon({ code: storedCoupon, pct: 10, isBday: true });
           addInAppToast("Birthday Discount Applied!", "10% off on your special day. Enjoy!");
           setCouponInput('');
           return;
@@ -1131,12 +1212,32 @@ export default function App() {
     
     const effectiveRedeemPoints = redeemPoints;
     const pointsDiscount = effectiveRedeemPoints ? (studentUser.rewardPoints || 0) : 0;
-    const couponDiscount = appliedCoupon ? Math.floor(subtotal * (appliedCoupon.pct / 100)) : 0;
+    
+    let couponDiscount = 0;
+    if (appliedCoupon) {
+      if (appliedCoupon.pct) {
+        couponDiscount = Math.floor(subtotal * (appliedCoupon.pct / 100));
+      } else if (appliedCoupon.flat) {
+        couponDiscount = appliedCoupon.flat;
+      }
+    }
+
     const total = Math.max(0, subtotal + surchargeTotal - pointsDiscount - couponDiscount);
     const pointsDeducted = effectiveRedeemPoints ? Math.min((studentUser.rewardPoints || 0), subtotal + surchargeTotal - couponDiscount) : 0;
 
     if (appliedCoupon) {
-      safeStorage.setItem(`campus_cakes_bday_used_${appliedCoupon.code}`, 'used');
+      if (appliedCoupon.isBday) {
+        safeStorage.setItem(`campus_cakes_bday_used_${appliedCoupon.code}`, 'used');
+      } else if (appliedCoupon.id) {
+        // Find existing coupon and update uses
+        const match = coupons.find(c => c.id === appliedCoupon.id);
+        if (match) {
+          writeCoupon({
+            ...match,
+            usersUsed: [...match.usersUsed, studentUser.uid]
+          });
+        }
+      }
     }
 
     // Generated ID
@@ -1218,17 +1319,29 @@ export default function App() {
 
     const newRev: FeedbackReview = {
       id: 'rev-' + Date.now(),
-      userName: studentUser.name,
-      userImage: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(studentUser.name) + '&background=random',
+      userName: firebaseUser?.displayName || studentUser.name || 'Anonymous Student',
+      userImage: firebaseUser?.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(studentUser.name) + '&background=random',
       rating: submittingRating,
       comment: submittingComment,
-      cakeName: selectedReviewCake,
-      date: 'Just now',
+      cakeName: selectedReviewCake || 'Gourmet Chocolate Hazelnut Dream',
+      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' • Just now',
     };
 
-    setReviews(prev => [newRev, ...prev]);
-    setSubmittingComment('');
-    addInAppToast("Review Contribution", "Thank you! Your verified student review was successfully published.");
+    if (isRealFirebase) {
+      writeReview(newRev)
+        .then(() => {
+          setSubmittingComment('');
+          addInAppToast("Review Contribution", "Thank you! Your verified student review was successfully published.");
+        })
+        .catch(err => {
+          console.error("Error writing review:", err);
+          addInAppToast("Failed to post feedback", err instanceof Error ? err.message : "Error saving to cloud");
+        });
+    } else {
+      setReviews(prev => [newRev, ...prev]);
+      setSubmittingComment('');
+      addInAppToast("Review Contribution", "Thank you! Your verified student review was successfully published.");
+    }
   };
 
   // Toggle wishlist cake
@@ -2025,6 +2138,14 @@ export default function App() {
               </div>
             </motion.div>
 
+            {/* INSTAGRAM STYLE OFFER COMMUNITY CAROUSEL */}
+            <OffersInstagramCarousel 
+              coupons={coupons}
+              user={studentUser}
+              onApplyCoupon={handleApplyCoupon}
+              onShowToast={addInAppToast}
+            />
+
             {/* PRE-ORDER CATALOGUE SECTION */}
             <section id="marketplace-shelf" className="scroll-mt-20">
               
@@ -2199,9 +2320,9 @@ export default function App() {
                       <motion.div
                         key={cake.id}
                         layoutId={`card-layout-${cake.id}`}
-                        whileHover={{ y: -6, scale: 1.01 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                        className="bg-[#FCFAF7] dark:bg-[#0C0405] rounded-[28px] border border-[#D4AF37]/15 dark:border-[#3C2216]/50 overflow-hidden hover:shadow-2xl group flex flex-col justify-between p-4 transition-all duration-300 hover:border-[#D4AF37]/45 dark:hover:border-[#D4AF37]/45 shadow-sm"
+                        whileHover={{ y: -8, scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 350, damping: 22 }}
+                        className="bg-[#FCFAF7] dark:bg-[#0C0405] rounded-[28px] border border-[#D4AF37]/15 dark:border-[#3C2216]/50 overflow-hidden group flex flex-col justify-between p-4 transition-all duration-350 hover:border-[#D4AF37] hover:shadow-[0_0_25px_rgba(212,175,55,0.25)] shadow-sm"
                       >
                         {/* Progressive Card aspect-ratio and Zoom hover */}
                         <div className="relative aspect-[4/3] rounded-[20px] overflow-hidden bg-[#FAF6F0]">
@@ -2313,6 +2434,19 @@ export default function App() {
               orders={activeOrders}
               allCakes={activeProducts}
               kioskInventory={kioskInventory}
+              coupons={coupons}
+              onAddCoupon={async (c) => {
+                await writeCoupon(c);
+              }}
+              onUpdateCouponStatus={async (id, active) => {
+                const c = coupons.find(x => x.id === id);
+                if (c) {
+                  await writeCoupon({ ...c, isActive: active });
+                }
+              }}
+              onDeleteCoupon={async (id) => {
+                await removeCoupon(id);
+              }}
               onRepeatOrder={handleRepeatPastOrder}
               onUpdateKioskStock={handleUpdateKioskStock}
               onUpdateOrderStatus={handleUpdateOrderStatus}
@@ -2366,8 +2500,30 @@ export default function App() {
               {reviews.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   {reviews.map((rev) => (
-                    <div key={rev.id} className="bg-white dark:bg-[#120709] rounded-3xl p-5 border border-gray-100 dark:border-[#291316] shadow-sm dark:shadow-none flex flex-col justify-between hover:border-red-100 transition-colors">
+                    <div key={rev.id} className="bg-white dark:bg-[#120709] rounded-3xl p-5 border border-gray-100 dark:border-[#291316] shadow-sm dark:shadow-none flex flex-col justify-between hover:border-red-100 transition-colors relative group">
                       <div>
+                        {isAdmin && (
+                          <button
+                            onClick={async () => {
+                              if (confirm("Are you sure you want to delete this verified student review note?")) {
+                                try {
+                                  if (isRealFirebase) {
+                                    await removeReview(rev.id);
+                                  } else {
+                                    setReviews(prev => prev.filter(r => r.id !== rev.id));
+                                  }
+                                  addInAppToast("Moderation Action", "Verified experience review deleted successfully.");
+                                } catch (err) {
+                                  console.error("Error deleting review:", err);
+                                }
+                              }
+                            }}
+                            className="absolute top-4 right-4 p-1.5 rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                            title="Delete Review"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <div className="flex items-center gap-2.5 mb-3">
                           <img src={rev.userImage} className="w-9 h-9 rounded-full object-cover border" referrerPolicy="no-referrer" />
                           <div>
@@ -2992,7 +3148,14 @@ export default function App() {
                     </button>
                   )}
                 </div>
-                {appliedCoupon && <p className="text-[10px] text-pink-600 font-bold">{appliedCoupon.pct}% Birthday Discount applied!</p>}
+                {appliedCoupon && (
+                  <p className="text-[10px] text-pink-600 font-bold">
+                    {appliedCoupon.pct 
+                      ? `${appliedCoupon.pct}% ${appliedCoupon.isBday ? 'Birthday ' : ''}Discount applied!`
+                      : `₹${appliedCoupon.flat} Discount applied!`
+                    }
+                  </p>
+                )}
               </div>
 
               {/* Segment calculations totals */}
@@ -3009,7 +3172,7 @@ export default function App() {
                       Math.max(0, Math.round(
                         (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)
                         - (redeemPoints ? studentUser.rewardPoints : 0)
-                        - (appliedCoupon ? (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (appliedCoupon.pct / 100)) : 0)
+                        - (appliedCoupon ? (appliedCoupon.pct ? (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (appliedCoupon.pct / 100)) : (appliedCoupon.flat || 0)) : 0)
                       ))
                     }
                   </span>
@@ -3287,6 +3450,83 @@ export default function App() {
                   <span>Claim & Continue</span>
                   <ArrowRight className="w-4 h-4 text-pink-200 group-hover:translate-x-1 transition-transform" />
                 </span>
+              </motion.button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- NEW DISCOUNT COUPON POPUP MODAL --- */}
+      <AnimatePresence>
+        {activeCouponPopup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={() => setActiveCouponPopup(null)}
+            />
+
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 30 }}
+              animate={{ 
+                scale: 1, 
+                opacity: 1, 
+                y: 0,
+                transition: { type: 'spring', damping: 20, stiffness: 200 }
+              }}
+              exit={{ scale: 0.9, opacity: 0, y: 15 }}
+              className="relative w-full max-w-sm bg-gradient-to-br from-[#1c0817] via-[#0b0103] to-[#12040b] rounded-[36px] overflow-hidden shadow-[0_0_50px_rgba(225,29,72,0.25)] border-2 border-rose-500/40 text-center p-8 z-30"
+            >
+              <div className="absolute top-4 right-4 flex p-1">
+                 <button 
+                  onClick={() => setActiveCouponPopup(null)}
+                  className="bg-zinc-800/50 hover:bg-zinc-700/80 p-2 rounded-full text-zinc-400 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mx-auto w-16 h-16 bg-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center mb-5 border border-rose-500/30">
+                <Tag className="w-8 h-8" />
+              </div>
+
+              <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-500 font-display leading-none uppercase tracking-tight mb-3">
+                {activeCouponPopup.discountType === 'percentage' ? `${activeCouponPopup.discountValue}% OFF` : `₹${activeCouponPopup.discountValue} OFF`}
+              </h2>
+              
+              <p className="text-xs font-semibold text-rose-200/80 tracking-wide mb-6">
+                <span className="opacity-70">Special Offer for</span><br/>
+                <span className="font-extrabold text-white text-sm mt-1 block">{activeCouponPopup.occasion}</span>
+              </p>
+
+              <div className="bg-black/40 rounded-3xl p-5 border border-rose-500/20 mb-6">
+                <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold mb-2">Use Promo Code</p>
+                <div className="bg-gradient-to-r from-rose-500/10 to-pink-500/10 border-2 border-dashed border-rose-500/40 rounded-2xl p-3 flex flex-col items-center justify-center">
+                  <span className="font-mono text-xl font-black text-rose-400 tracking-[0.1em] select-all">
+                    {activeCouponPopup.code}
+                  </span>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(activeCouponPopup.code);
+                      addInAppToast("Coupon Copied", "Discount code ready to paste at checkout.");
+                    }}
+                    className="text-[9px] font-black text-rose-300 hover:text-white uppercase tracking-widest mt-2 bg-rose-500/20 hover:bg-rose-500/40 px-3 py-1.5 rounded-md transition-all active:scale-95"
+                  >
+                    Copy Code
+                  </button>
+                </div>
+              </div>
+
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setActiveCouponPopup(null)}
+                className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-rose-600/30 transition-all duration-300 cursor-pointer"
+              >
+                Claim Now
               </motion.button>
             </motion.div>
           </div>

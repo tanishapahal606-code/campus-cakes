@@ -108,6 +108,18 @@ export interface UserProfile {
   dob?: string;
 }
 
+export interface Coupon {
+  id: string;
+  code: string;
+  occasion: string;
+  discountType: 'percentage' | 'flat';
+  discountValue: number;
+  usageLimit: number;
+  usersUsed: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface FeedbackReview {
   id: string;
   userName: string;
