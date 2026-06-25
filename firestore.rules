@@ -40,7 +40,7 @@ service cloud.firestore {
     // --- ENTITY SCHEMA VALIDATORS ---
     function isValidUserProfile(data) {
       return data.keys().hasAll(['uid', 'email']) &&
-        data.uid == request.auth.uid &&
+        (data.uid == request.auth.uid || isAdmin()) &&
         data.email is string && data.email.size() <= 200 &&
         (!data.keys().contains('name') || (data.name is string && data.name.size() <= 100)) &&
         (!data.keys().contains('phone') || (data.phone is string && data.phone.size() <= 30)) &&
