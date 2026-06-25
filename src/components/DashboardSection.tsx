@@ -9,7 +9,7 @@ import {
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Download, Tag
+  Truck, Phone, Mail, Download, Tag, QrCode
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
@@ -87,6 +87,8 @@ export default function DashboardSection({
   const [newCakeWeights, setNewCakeWeights] = useState<number[]>([0.5, 1.0, 1.5, 2.0]);
   const [newCakeWeightPrices, setNewCakeWeightPrices] = useState<Record<number, number>>({});
   const [newCakeCampusIds, setNewCakeCampusIds] = useState<string[]>([]);
+  const [newCakeIsDineIn, setNewCakeIsDineIn] = useState<boolean>(true);
+  const [newCakeIsDelivery, setNewCakeIsDelivery] = useState<boolean>(true);
 
   // Admin section: editing product state
   const [editingCakeId, setEditingCakeId] = useState<string | null>(null);
@@ -98,6 +100,8 @@ export default function DashboardSection({
   const [editingCakeWeights, setEditingCakeWeights] = useState<number[]>([]);
   const [editingCakeWeightPrices, setEditingCakeWeightPrices] = useState<Record<number, number>>({});
   const [editingCakeCampusIds, setEditingCakeCampusIds] = useState<string[]>([]);
+  const [editingCakeIsDineIn, setEditingCakeIsDineIn] = useState<boolean>(true);
+  const [editingCakeIsDelivery, setEditingCakeIsDelivery] = useState<boolean>(true);
 
   // Admin section: new kiosk product state
   const [newKioskName, setNewKioskName] = useState('');
@@ -119,8 +123,9 @@ export default function DashboardSection({
   // Admin section: new campus state
   const [newCampusName, setNewCampusName] = useState('');
   const [newCampusLocation, setNewCampusLocation] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'kiosk' | 'catalog' | 'campus' | 'coupons'>('analytics');
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'kiosk' | 'catalog' | 'campus' | 'coupons' | 'qrcodes'>('analytics');
   const [adminOrderFilter, setAdminOrderFilter] = useState<'all' | 'placed' | 'preparing' | 'delivery' | 'ready'>('all');
+  const [adminServiceModeFilter, setAdminServiceModeFilter] = useState<'all' | 'delivery' | 'dinein'>('all');
 
   // Admin section: coupons
   const [newCouponCode, setNewCouponCode] = useState('');
@@ -128,6 +133,10 @@ export default function DashboardSection({
   const [newCouponType, setNewCouponType] = useState<'percentage'|'flat'>('percentage');
   const [newCouponValue, setNewCouponValue] = useState('');
   const [newCouponLimit, setNewCouponLimit] = useState('');
+
+  // Admin section: qr codes
+  const [qrTableCount, setQrTableCount] = useState<number>(4);
+  const [qrBaseUrl, setQrBaseUrl] = useState<string>(`${window.location.origin}${window.location.pathname}`);
 
   // Real-time dynamic business startup calculations
   const todayStr = new Date().toISOString().split('T')[0];
@@ -259,6 +268,8 @@ export default function DashboardSection({
       weightPrices: newCakeWeightPrices,
       flavors: ['Vanilla Cream', 'Dark Ganache Swirl'],
       campusIds: newCakeCampusIds,
+      isDineIn: newCakeIsDineIn,
+      isDelivery: newCakeIsDelivery,
     });
     setNewCakeName('');
     setNewCakePrice('499');
@@ -267,6 +278,8 @@ export default function DashboardSection({
     setNewCakeWeights([0.5, 1.0, 1.5, 2.0]);
     setNewCakeWeightPrices({});
     setNewCakeCampusIds([]);
+    setNewCakeIsDineIn(true);
+    setNewCakeIsDelivery(true);
     if (onShowToast) {
       onShowToast("Catalog Updated", "Artisan cake added to pre-order menu successfully!");
     } else {
@@ -407,6 +420,8 @@ export default function DashboardSection({
         weightPrices: editingCakeWeightPrices,
         flavors: ['Vanilla Cream', 'Dark Ganache Swirl'],
         campusIds: editingCakeCampusIds,
+        isDineIn: editingCakeIsDineIn,
+        isDelivery: editingCakeIsDelivery,
       });
       setEditingCakeId(null);
       setEditingCakeCampusIds([]);
@@ -881,6 +896,14 @@ export default function DashboardSection({
                     <Tag className="w-4 h-4" />
                     <span className="text-[11px] font-bold">Discount Codes</span>
                   </button>
+
+                  <button 
+                    onClick={() => setActiveAdminTab('qrcodes')}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${activeAdminTab === 'qrcodes' ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700' : 'text-gray-600 dark:text-[#d4d4d8] hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80'}`}
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span className="text-[11px] font-bold">Table QR Codes</span>
+                  </button>
                 </div>
 
                 {/* Main Admin Content */}
@@ -1036,15 +1059,33 @@ export default function DashboardSection({
                 const countDelivered = orders.filter(o => o.status === 'ready' || o.status === 'completed').length;
 
                 const filteredOrdersByFilter = orders.filter(o => {
-                  if (adminOrderFilter === 'all') return true;
-                  if (adminOrderFilter === 'ready') return o.status === 'ready' || o.status === 'completed';
-                  return o.status === adminOrderFilter;
+                  // 1. Status Filter
+                  let matchesStatus = true;
+                  if (adminOrderFilter !== 'all') {
+                    if (adminOrderFilter === 'ready') {
+                      matchesStatus = o.status === 'ready' || o.status === 'completed';
+                    } else {
+                      matchesStatus = o.status === adminOrderFilter;
+                    }
+                  }
+
+                  // 2. Service Mode Filter
+                  let matchesServiceMode = true;
+                  if (adminServiceModeFilter !== 'all') {
+                    if (adminServiceModeFilter === 'delivery') {
+                      matchesServiceMode = !o.serviceMode || o.serviceMode === 'delivery';
+                    } else if (adminServiceModeFilter === 'dinein') {
+                      matchesServiceMode = o.serviceMode === 'dinein';
+                    }
+                  }
+
+                  return matchesStatus && matchesServiceMode;
                 });
 
                 return (
                   <div className="space-y-6 animate-fadeIn">
                     {/* Header Controls */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-[#120709] p-5 rounded-3xl border border-gray-150 dark:border-[#291316] shadow-sm dark:shadow-none">
+                    <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 bg-white dark:bg-[#120709] p-5 rounded-3xl border border-gray-150 dark:border-[#291316] shadow-sm dark:shadow-none">
                       <div>
                         <h4 className="font-black text-sm text-[#C49A25] dark:text-[#D4AF37] uppercase tracking-wider font-display">📦 Start-up Order Central</h4>
                         <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] mt-0.5">
@@ -1052,59 +1093,96 @@ export default function DashboardSection({
                         </p>
                       </div>
 
-                      {/* Filter Badges / Tabs */}
-                      <div className="flex flex-wrap gap-1.5 p-1 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-100 dark:border-[#291316]">
-                        <button
-                          onClick={() => setAdminOrderFilter('all')}
-                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                            adminOrderFilter === 'all'
-                              ? 'bg-[#1a080a] border border-[#D4AF37]/35 text-amber-200 shadow-sm dark:shadow-none'
-                              : 'text-gray-500 dark:text-[#a1a1aa] hover:text-gray-900 hover:dark:text-white hover:bg-gray-100 hover:dark:bg-slate-800/50'
-                          }`}
-                        >
-                          All ({countAll})
-                        </button>
-                        <button
-                          onClick={() => setAdminOrderFilter('placed')}
-                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                            adminOrderFilter === 'placed'
-                              ? 'bg-amber-500 text-white shadow-sm dark:shadow-none'
-                              : 'text-amber-600 hover:text-amber-900 hover:bg-amber-50/50'
-                          }`}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
-                          Pending ({countPending})
-                        </button>
-                        <button
-                          onClick={() => setAdminOrderFilter('preparing')}
-                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                            adminOrderFilter === 'preparing'
-                              ? 'bg-blue-600 text-white shadow-sm dark:shadow-none'
-                              : 'text-blue-600 hover:text-blue-950 hover:bg-blue-50 hover:dark:bg-blue-500/10/50'
-                          }`}
-                        >
-                          Packed ({countPacked})
-                        </button>
-                        <button
-                          onClick={() => setAdminOrderFilter('delivery')}
-                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                            adminOrderFilter === 'delivery'
-                              ? 'bg-[#E23744] text-white shadow-sm dark:shadow-none'
-                              : 'text-[#E23744] hover:text-red-950 hover:bg-red-50 hover:dark:bg-[#1a0d0f]'
-                          }`}
-                        >
-                          Runner Out ({countDelivery})
-                        </button>
-                        <button
-                          onClick={() => setAdminOrderFilter('ready')}
-                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                            adminOrderFilter === 'ready'
-                              ? 'bg-emerald-600 text-white shadow-sm dark:shadow-none'
-                              : 'text-emerald-600 hover:text-emerald-950 hover:bg-emerald-50 hover:dark:bg-emerald-500/10/50'
-                          }`}
-                        >
-                          Delivered ({countDelivered})
-                        </button>
+                      {/* Filter Badges / Tabs Stack */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        {/* Row 1: Workflow States */}
+                        <div className="flex flex-wrap gap-1 p-1 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-100 dark:border-[#291316] h-fit">
+                          <button
+                            onClick={() => setAdminOrderFilter('all')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              adminOrderFilter === 'all'
+                                ? 'bg-[#1a080a] border border-[#D4AF37]/35 text-amber-200 shadow-sm dark:shadow-none'
+                                : 'text-gray-500 dark:text-[#a1a1aa] hover:text-gray-900 hover:dark:text-white hover:bg-gray-100 hover:dark:bg-slate-800/50'
+                            }`}
+                          >
+                            All ({countAll})
+                          </button>
+                          <button
+                            onClick={() => setAdminOrderFilter('placed')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                              adminOrderFilter === 'placed'
+                                ? 'bg-amber-500 text-white shadow-sm dark:shadow-none'
+                                : 'text-amber-600 hover:text-amber-900 hover:bg-amber-50/50'
+                            }`}
+                          >
+                            <span className="w-1 h-1 rounded-full bg-current animate-ping" />
+                            Pending ({countPending})
+                          </button>
+                          <button
+                            onClick={() => setAdminOrderFilter('preparing')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              adminOrderFilter === 'preparing'
+                                ? 'bg-blue-600 text-white shadow-sm dark:shadow-none'
+                                : 'text-blue-600 hover:text-blue-950 hover:bg-blue-50 hover:dark:bg-blue-500/10/50'
+                            }`}
+                          >
+                            Packed ({countPacked})
+                          </button>
+                          <button
+                            onClick={() => setAdminOrderFilter('delivery')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              adminOrderFilter === 'delivery'
+                                ? 'bg-[#E23744] text-white shadow-sm dark:shadow-none'
+                                : 'text-[#E23744] hover:text-red-950 hover:bg-red-50 hover:dark:bg-[#1a0d0f]'
+                            }`}
+                          >
+                            Runner Out ({countDelivery})
+                          </button>
+                          <button
+                            onClick={() => setAdminOrderFilter('ready')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              adminOrderFilter === 'ready'
+                                ? 'bg-emerald-600 text-white shadow-sm dark:shadow-none'
+                                : 'text-emerald-600 hover:text-emerald-950 hover:bg-emerald-50 hover:dark:bg-emerald-500/10/50'
+                            }`}
+                          >
+                            Delivered ({countDelivered})
+                          </button>
+                        </div>
+
+                        {/* Row 2: Service Modes */}
+                        <div className="flex flex-wrap gap-1 p-1 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-100 dark:border-[#291316] h-fit">
+                          <button
+                            onClick={() => setAdminServiceModeFilter('all')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              adminServiceModeFilter === 'all'
+                                ? 'bg-purple-700 text-white shadow-sm'
+                                : 'text-gray-500 dark:text-[#a1a1aa] hover:text-purple-700 hover:bg-purple-50 hover:dark:bg-purple-500/10'
+                            }`}
+                          >
+                            All Modes ({orders.length})
+                          </button>
+                          <button
+                            onClick={() => setAdminServiceModeFilter('delivery')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                              adminServiceModeFilter === 'delivery'
+                                ? 'bg-[#E23744] text-white shadow-sm'
+                                : 'text-[#E23744] hover:bg-red-50 hover:dark:bg-red-950/20'
+                            }`}
+                          >
+                            🚚 Deliv ({orders.filter(o => !o.serviceMode || o.serviceMode === 'delivery').length})
+                          </button>
+                          <button
+                            onClick={() => setAdminServiceModeFilter('dinein')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                              adminServiceModeFilter === 'dinein'
+                                ? 'bg-emerald-600 text-white shadow-sm'
+                                : 'text-emerald-600 hover:bg-emerald-50 hover:dark:bg-emerald-950/20'
+                            }`}
+                          >
+                            🍽️ Dine ({orders.filter(o => o.serviceMode === 'dinein').length})
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -1153,6 +1231,15 @@ export default function DashboardSection({
                                     <span className="text-[9px] font-bold bg-gray-100 dark:bg-[#1a0d0f] text-gray-600 dark:text-[#d4d4d8] px-2 py-0.5 rounded-full border border-gray-200 dark:border-[#3c1a1e] capitalize">
                                       {or.orderType === 'instant-pickup' ? '⚡ Instant Kiosk' : '📅 Pre-Order'}
                                     </span>
+                                    {or.serviceMode === 'dinein' ? (
+                                      <span className="text-[9px] font-extrabold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-250 dark:border-emerald-800/40 flex items-center gap-1">
+                                        🍽️ Dine-In
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-extrabold bg-[#E23744]/5 dark:bg-[#E23744]/10 text-[#E23744] dark:text-[#f472b6] px-2 py-0.5 rounded-full border border-[#E23744]/20 flex items-center gap-1">
+                                        🚚 Room Delivery
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
                                     <Clock className="w-3 h-3 text-gray-400" /> Received: {or.timestamp ? new Date(or.timestamp).toLocaleString() : or.date}
@@ -1872,6 +1959,37 @@ export default function DashboardSection({
                             )}
                           </div>
 
+                          <div className="sm:col-span-2 space-y-2">
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase px-1">Service Availability Modes (Edit)</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 dark:bg-[#1a0d0f]/80 p-2.5 rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-xs font-semibold hover:bg-gray-100 dark:hover:bg-slate-800 transition-all select-none">
+                                <input 
+                                  type="checkbox" 
+                                  className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-600 focus:ring-1 w-4 h-4 cursor-pointer"
+                                  checked={editingCakeIsDelivery}
+                                  onChange={(e) => setEditingCakeIsDelivery(e.target.checked)}
+                                />
+                                <div className="flex flex-col text-left">
+                                  <span className="text-gray-800 dark:text-[#fafafa] flex items-center gap-1 font-extrabold">🚚 Room Delivery</span>
+                                  <span className="text-[9px] text-gray-400 font-medium font-sans">Deliverable to room/hostels</span>
+                                </div>
+                              </label>
+
+                              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 dark:bg-[#1a0d0f]/80 p-2.5 rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-xs font-semibold hover:bg-gray-100 dark:hover:bg-slate-800 transition-all select-none">
+                                <input 
+                                  type="checkbox" 
+                                  className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-600 focus:ring-1 w-4 h-4 cursor-pointer"
+                                  checked={editingCakeIsDineIn}
+                                  onChange={(e) => setEditingCakeIsDineIn(e.target.checked)}
+                                />
+                                <div className="flex flex-col text-left">
+                                  <span className="text-gray-800 dark:text-[#fafafa] flex items-center gap-1 font-extrabold">🍽️ Dine-In Canteen</span>
+                                  <span className="text-[9px] text-gray-400 font-medium font-sans">Available for Canteen dining</span>
+                                </div>
+                              </label>
+                            </div>
+                          </div>
+
                           <div className="sm:col-span-2 bg-white dark:bg-[#120709] rounded-xl border border-dashed dark:border-[#3c1a1e] border-purple-200 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-purple-700 uppercase">Artwork Override</label>
                             <input
@@ -2039,6 +2157,37 @@ export default function DashboardSection({
                             )}
                           </div>
 
+                          <div className="sm:col-span-2 space-y-2">
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase px-1">Service Availability Modes</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 dark:bg-[#1a0d0f]/80 p-2.5 rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-xs font-semibold hover:bg-gray-100 dark:hover:bg-slate-800 transition-all select-none">
+                                <input 
+                                  type="checkbox" 
+                                  className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-600 focus:ring-1 w-4 h-4 cursor-pointer"
+                                  checked={newCakeIsDelivery}
+                                  onChange={(e) => setNewCakeIsDelivery(e.target.checked)}
+                                />
+                                <div className="flex flex-col text-left">
+                                  <span className="text-gray-800 dark:text-[#fafafa] flex items-center gap-1 font-extrabold">🚚 Room Delivery</span>
+                                  <span className="text-[9px] text-gray-400 font-medium font-sans">Deliverable to room/hostels</span>
+                                </div>
+                              </label>
+
+                              <label className="flex items-center gap-2 cursor-pointer bg-gray-50 dark:bg-[#1a0d0f]/80 p-2.5 rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-xs font-semibold hover:bg-gray-100 dark:hover:bg-slate-800 transition-all select-none">
+                                <input 
+                                  type="checkbox" 
+                                  className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-600 focus:ring-1 w-4 h-4 cursor-pointer"
+                                  checked={newCakeIsDineIn}
+                                  onChange={(e) => setNewCakeIsDineIn(e.target.checked)}
+                                />
+                                <div className="flex flex-col text-left">
+                                  <span className="text-gray-800 dark:text-[#fafafa] flex items-center gap-1 font-extrabold">🍽️ Dine-In Canteen</span>
+                                  <span className="text-[9px] text-gray-400 font-medium font-sans">Available for Canteen dining</span>
+                                </div>
+                              </label>
+                            </div>
+                          </div>
+
                           <div className="sm:col-span-2 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-xl border border-dashed dark:border-[#3c1a1e] border-gray-300 dark:border-slate-600 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Featured Artwork</label>
                             <input
@@ -2109,6 +2258,8 @@ export default function DashboardSection({
                                   setEditingCakeWeights(item.weights || []);
                                   setEditingCakeWeightPrices(item.weightPrices || {});
                                   setEditingCakeCampusIds(item.campusIds || []);
+                                  setEditingCakeIsDineIn(item.isDineIn !== false);
+                                  setEditingCakeIsDelivery(item.isDelivery !== false);
                                   window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                                 className="px-2.5 py-1.5 bg-white dark:bg-[#120709] text-gray-500 dark:text-[#a1a1aa] hover:text-purple-700 hover:bg-purple-50 hover:dark:bg-purple-500/10 rounded-lg border border-gray-250 dark:border-[#3c1a1e] hover:border-purple-200 transition-colors text-[10px] font-bold flex items-center gap-1 active:scale-95"
@@ -2349,6 +2500,82 @@ export default function DashboardSection({
                        )}
                     </div>
                 </div>
+                </div>
+              )}
+
+              {activeAdminTab === 'qrcodes' && (
+                <div className="space-y-6">
+                  {/* QR Codes Header */}
+                  <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 p-6 rounded-3xl border border-purple-500/20">
+                    <h3 className="font-extrabold text-sm text-purple-900 dark:text-purple-300 uppercase tracking-widest mb-1 flex items-center gap-2">
+                      <QrCode className="w-5 h-5" /> Dine-In Table QR Codes
+                    </h3>
+                    <p className="text-xs text-purple-700/80 dark:text-purple-300/70 font-medium max-w-2xl">
+                      Print these QR codes and place them on the canteen tables. When students scan them, the app will automatically open in Dine-In mode with their table number pre-selected.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-white dark:bg-[#120709] p-4 rounded-2xl border border-gray-200 dark:border-[#3c1a1e]">
+                    <div className="flex-1 w-full">
+                      <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">App Domain / Base URL</label>
+                      <input 
+                        type="text"
+                        value={qrBaseUrl}
+                        onChange={(e) => setQrBaseUrl(e.target.value)}
+                        placeholder="e.g., https://my-canteen-app.vercel.app/"
+                        className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
+                      />
+                    </div>
+                    <div className="w-full md:w-48">
+                      <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">Number of Tables</label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={qrTableCount}
+                          onChange={(e) => setQrTableCount(parseInt(e.target.value) || 1)}
+                          className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
+                        />
+                        <button onClick={() => setQrTableCount(Math.max(1, qrTableCount - 1))} className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 rounded-xl transition-colors cursor-pointer text-gray-600 dark:text-gray-300 font-bold">-</button>
+                        <button onClick={() => setQrTableCount(qrTableCount + 1)} className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 rounded-xl transition-colors cursor-pointer text-gray-600 dark:text-gray-300 font-bold">+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* QR Code Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    {Array.from({ length: qrTableCount }, (_, i) => i + 1).map((tableNum) => {
+                      const qrDataUrl = `${qrBaseUrl.replace(/\/$/, '')}?mode=dinein&table=${tableNum}`;
+                      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrDataUrl)}`;
+                      
+                      return (
+                        <div key={tableNum} className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 flex flex-col items-center justify-center text-center shadow-sm">
+                          <h4 className="font-black text-lg text-gray-900 dark:text-white mb-4">Table {tableNum}</h4>
+                          <div className="bg-white p-2 rounded-xl shadow-inner border border-gray-100 mb-4">
+                            <img 
+                              src={qrImageUrl} 
+                              alt={`QR Code for Table ${tableNum}`} 
+                              className="w-32 h-32 object-contain"
+                              crossOrigin="anonymous"
+                            />
+                          </div>
+                          <p className="text-[10px] text-gray-500 break-all font-mono">
+                            {qrDataUrl}
+                          </p>
+                          <a 
+                            href={qrImageUrl}
+                            download={`table-${tableNum}-qr.png`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-4 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold transition-colors w-full cursor-pointer"
+                          >
+                            Save QR Code
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

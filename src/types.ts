@@ -25,6 +25,8 @@ export interface CakeItem {
   weightPrices?: Record<number, number>; // Maps weight to its specific price
   flavors: string[];
   campusIds?: string[];
+  isDineIn?: boolean;
+  isDelivery?: boolean;
 }
 
 export interface KioskCake {
@@ -82,6 +84,7 @@ export interface Order {
   customerName?: string;
   customerPhone?: string;
   deliveryAddress?: string;
+  serviceMode?: 'delivery' | 'dinein';
 }
 
 export interface SavedCelebration {

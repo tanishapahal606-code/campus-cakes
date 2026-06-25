@@ -27,7 +27,7 @@ import {
   HelpCircle, MessageSquare, ChevronRight, CheckCircle2, Phone, ShieldCheck, 
   ArrowRight, X, AlertTriangle, CreditCard, Check, Compass, Info, Send,
   LogOut, GraduationCap, MapPin, User, Zap, Trash2, Download, Gift,
-  Bell, BellOff, BellRing, Tag
+  Bell, BellOff, BellRing, Tag, Coffee, Utensils
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, authenticateWithGoogle, isRealFirebase } from './firebase';
@@ -716,10 +716,20 @@ export default function App() {
   const [useWallet, setUseWallet] = useState<boolean>(false);
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{code: string, pct?: number, flat?: number, id?: string, isBday?: boolean} | null>(null);
+  const [serviceMode, setServiceMode] = useState<'delivery' | 'dinein'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const modeParam = params.get('mode');
+    return modeParam === 'dinein' ? 'dinein' : 'delivery';
+  });
+  const [tableNumber, setTableNumber] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('table');
+  });
 
-  const handleApplyCoupon = (codeOverride?: string) => {
-    const input = codeOverride || couponInput;
-    if (!input) return;
+  const handleApplyCoupon = (codeOverride?: string | any) => {
+    const override = typeof codeOverride === 'string' ? codeOverride : undefined;
+    const input = override || couponInput;
+    if (!input || typeof input !== 'string') return;
     
     // First check dynamic coupons
     const match = coupons.find(c => c.code.toUpperCase() === input.trim().toUpperCase());
@@ -1207,8 +1217,8 @@ export default function App() {
 
     const subtotal = cart.reduce((acc, c) => acc + (c.price * c.quantity), 0);
     const tax = 30; // standard tax & packaging
-    const deliveryFee = 20; // standard delivery surcharge
-    const surchargeTotal = 50;
+    const deliveryFee = serviceMode === 'dinein' ? 0 : 20; // standard delivery surcharge
+    const surchargeTotal = tax + deliveryFee;
     
     const effectiveRedeemPoints = redeemPoints;
     const pointsDiscount = effectiveRedeemPoints ? (studentUser.rewardPoints || 0) : 0;
@@ -1256,7 +1266,8 @@ export default function App() {
       paymentMethod: paymentMode === 'upi' ? `UPI (${upiIdInput})` : 'Credit Card',
       pointsEarned: Math.floor(subtotal / 10),
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      serviceMode
     };
 
     const userOrderRecord: Order = {
@@ -1265,7 +1276,7 @@ export default function App() {
       userEmail: firebaseUser?.email || 'unverified@campus-cakes.com',
       customerName: studentUser?.name || firebaseUser?.displayName || 'Campus Student',
       customerPhone: studentUser?.phone || '',
-      deliveryAddress: studentUser?.address || 'Campus Domain'
+      deliveryAddress: serviceMode === 'dinein' ? (tableNumber ? `Dine-In Canteen Venue / Table ${tableNumber}` : 'Dine-In Canteen Venue / Hall') : (studentUser?.address || 'Campus Domain')
     };
 
     setActiveOrders(prev => [userOrderRecord, ...prev]);
@@ -1369,6 +1380,7 @@ export default function App() {
 
     // 2. Select Category
     const matchesCategory = 
+      serviceMode === 'dinein' ||
       selectedCategory === 'All Cakes' || 
       cake.category.toLowerCase() === selectedCategory.toLowerCase() ||
       (selectedCategory === 'Eggless Cakes' && cake.isEggless);
@@ -1394,7 +1406,13 @@ export default function App() {
     // 7. Campus filter (products are campus-specific if associated)
     const matchesCampus = !cake.campusIds || cake.campusIds.length === 0 || cake.campusIds.includes(selectedCampus.id);
 
-    return matchesSearch && matchesCategory && matchesEggless && matchesPrice && matchesTrending && matchesOccasion && matchesCampus;
+    // 8. Service mode availability filter
+    const matchesServiceMode = 
+      serviceMode === 'delivery' 
+        ? cake.isDelivery !== false 
+        : cake.isDineIn !== false;
+
+    return matchesSearch && matchesCategory && matchesEggless && matchesPrice && matchesTrending && matchesOccasion && matchesCampus && matchesServiceMode;
   });
 
   // occasion recommend trigger
@@ -1896,32 +1914,7 @@ export default function App() {
           <span className="text-[8px] bg-gradient-to-r from-[#D4AF37]/15 to-transparent text-[#C49A25] ring-1 ring-[#D4AF37]/45 px-2 py-0.5 rounded-md font-black uppercase tracking-[0.2em] hidden sm:inline-block shadow-xs">Dorm Dispatch</span>
         </div>
 
-        {/* Combined Location + Dish Search Bar (Like Classic Zomato) */}
-        <div className="hidden md:flex items-center bg-[#FAF6F0] dark:bg-[#120708] border border-[#D4AF37]/25 dark:border-[#3C2216] rounded-2xl px-3.5 py-1.5 shadow-sm max-w-xl flex-1 mx-6 h-11 transition-all focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/10">
-          {/* Location Picker display */}
-          <div className="flex items-center gap-1.5 text-zinc-750 dark:text-[#FEFAF6] text-xs font-bold max-w-[180px] truncate">
-            <MapPin className="w-4 h-4 text-[#C49A25] flex-shrink-0" />
-            <span>{selectedCampus.name.split('(')[0]}</span>
-          </div>
-          
-          {/* Central Divider */}
-          <div className="w-[1px] h-5 bg-[#D4AF37]/35 dark:bg-[#3C2216]/50 mx-3"></div>
-          
-          {/* Culinary and flavour input search */}
-          <div className="flex items-center flex-1 gap-2">
-            <Search className="w-4 h-4 text-zinc-400 dark:text-zinc-550" />
-            <input
-              type="text"
-              placeholder="Search for cakes, toppings, bento, flavors..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setActiveZomatoTab('delivery');
-              }}
-              className="bg-transparent border-none text-xs w-full focus:outline-none placeholder-zinc-455 dark:placeholder-zinc-500 font-semibold text-zinc-900 dark:text-[#FEFAF6]"
-            />
-          </div>
-        </div>
+
 
         {/* Global Controls Side */}
         <div className="flex items-center gap-2.5">
@@ -1963,28 +1956,94 @@ export default function App() {
         </div>
       </header>
 
-      {/* MOBILE COMBINED SEARCH BAR (Rendered on phones for high fidelity) */}
-      <div className="block md:hidden px-4 pt-3.5 pb-2 bg-[#FCFAF7] dark:bg-[#0B0405] border-b border-[#D4AF37]/15 dark:border-[#3C2216]/40">
-        <div className="flex items-center bg-[#FAF6F0] dark:bg-[#120708]/80 border border-[#D4AF37]/25 dark:border-[#3C2216] rounded-xl px-3 py-2 flex-1 h-10 shadow-inner">
-          <Search className="w-4 h-4 text-zinc-450 mr-2 flex-shrink-0" />
-          <input
-            type="text"
-            placeholder="Search toppings, chocolate, cupcakes..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setActiveZomatoTab('delivery');
-            }}
-            className="bg-transparent border-none text-xs w-full focus:outline-none placeholder-zinc-455 font-semibold text-zinc-900"
-          />
+      {/* SERVICE SELECTOR DONGLE & SEARCH BAR (CLASSIC ZOMATO SUB-NAV REGION) */}
+      <div className="w-full bg-[#FCFAF7] dark:bg-[#0B0405] border-b border-[#D4AF37]/15 dark:border-[#3C2216]/45 py-5 px-4 flex flex-col items-center gap-4 relative z-10">
+        
+        {/* THE DONGLE (High-Fidelity Bluetooth Styled Toggle Switch) */}
+        <div className="w-full max-w-sm bg-white dark:bg-[#120708] p-4 rounded-[24px] border border-[#D4AF37]/20 dark:border-[#3C2216]/50 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-2xl transition-all duration-300 ${serviceMode === 'dinein' ? 'bg-[#FAF3D9] dark:bg-[#251D0B] text-[#C49A25]' : 'bg-[#FCECEF] dark:bg-[#200A0D] text-[#E23744]'}`}>
+              {serviceMode === 'dinein' ? <Utensils className="w-4 h-4 animate-pulse" /> : <ShoppingBag className="w-4 h-4" />}
+            </div>
+            <div className="text-left font-sans">
+              <p className="text-xs font-black uppercase tracking-wider text-zinc-800 dark:text-[#FEFAF6]">
+                {serviceMode === 'dinein' ? (tableNumber ? `🍽️ Dine-In (Table ${tableNumber})` : '🍽️ Dine-In Canteen') : '🚚 Room Delivery'}
+              </p>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-550 font-bold">
+                {serviceMode === 'dinein' ? 'Table booking & dining active' : 'Direct hostel dispatch active'}
+              </p>
+            </div>
+          </div>
+          
+          {/* THE BLUETOOTH STYLE SWITCH BUTTON */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              id="service-mode-toggle-button"
+              onClick={() => {
+                const nextMode = serviceMode === 'delivery' ? 'dinein' : 'delivery';
+                setServiceMode(nextMode);
+                if (nextMode === 'dinein' && activeZomatoTab === 'kiosk') {
+                  setActiveZomatoTab('delivery');
+                }
+                addInAppToast(
+                  "Service Mode Updated", 
+                  nextMode === 'dinein' 
+                    ? "Changed to Canteen Dine-In table service mode." 
+                    : "Switched to Dorm Delivery dispatch mode."
+                );
+              }}
+              className={`w-13 h-7.5 rounded-full p-1 transition-all duration-300 relative focus:outline-none cursor-pointer border ${
+                serviceMode === 'dinein' 
+                  ? 'bg-blue-500 border-blue-500' 
+                  : 'bg-zinc-200 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700'
+              }`}
+            >
+              <motion.div
+                className="w-5.5 h-5.5 bg-white rounded-full shadow-md"
+                animate={{ x: serviceMode === 'dinein' ? 20 : 0 }}
+                transition={{ type: "spring", stiffness: 500, damping: 25 }}
+              />
+            </button>
+          </div>
         </div>
+
+        {/* UNIFIED RESPONSIVE SEARCH BAR */}
+        <div className="w-full max-w-xl">
+          <div className="flex items-center bg-[#FAF6F0] dark:bg-[#120708] border border-[#D4AF37]/25 dark:border-[#3C2216] rounded-2xl px-3.5 py-1.5 shadow-sm h-11 transition-all focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/10">
+            {/* Location Picker display */}
+            <div className="flex items-center gap-1.5 text-zinc-750 dark:text-[#FEFAF6] text-xs font-bold max-w-[130px] sm:max-w-[180px] truncate">
+              <MapPin className="w-4 h-4 text-[#C49A25] flex-shrink-0" />
+              <span className="truncate">{selectedCampus.name.split('(')[0]}</span>
+            </div>
+            
+            {/* Central Divider */}
+            <div className="w-[1px] h-5 bg-[#D4AF37]/35 dark:bg-[#3C2216]/50 mx-3"></div>
+            
+            {/* Culinary and flavour input search */}
+            <div className="flex items-center flex-1 gap-2">
+              <Search className="w-4 h-4 text-zinc-400 dark:text-zinc-550" />
+              <input
+                type="text"
+                placeholder="Search for cakes, toppings, bento, flavors..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setActiveZomatoTab('delivery');
+                }}
+                className="bg-transparent border-none text-xs w-full focus:outline-none placeholder-zinc-455 dark:placeholder-zinc-500 font-semibold text-zinc-900 dark:text-[#FEFAF6]"
+              />
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* TRIPLE TAB NAVIGATION SELECTOR (ZOMATO STYLE HOME TABS) */}
       <div id="main-tabs-anchor" className="bg-[#FAF7F2] dark:bg-[#0B0405] border-b border-[#D4AF37]/25 dark:border-[#3C2216]/65 shadow-[0_5px_15px_-10px_rgba(212,175,55,0.1)] relative z-10">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex gap-4 md:gap-10 overflow-x-auto scrollbar-none py-1">
           
-          {/* Tab 1: Delivery */}
+          {/* Tab 1: Delivery / Dine-In Menu */}
           <button
             onClick={() => setActiveZomatoTab('delivery')}
             className={`pb-4 pt-4 text-sm md:text-base font-bold flex items-center gap-3 transition-all cursor-pointer relative select-none shrink-0 group ${
@@ -1994,11 +2053,15 @@ export default function App() {
             }`}
           >
             <div className={`p-2.5 rounded-2xl transition-all duration-300 ${activeZomatoTab === 'delivery' ? 'bg-gradient-to-br from-[#FCFAF7] to-[#FCECEF] dark:from-[#200A0D] dark:to-[#0C0405] text-[#E23744] dark:text-[#FEFAF6] shadow-sm scale-105 border border-[#E23744]/20' : 'bg-[#FAF6F0] dark:bg-[#120708]/85 text-zinc-400 border border-transparent'}`}>
-              <ShoppingBag className="w-4 h-4" />
+              {serviceMode === 'dinein' ? <Utensils className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
             </div>
             <div className="text-left font-display">
-              <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Delivery Pantry</p>
-              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">Guaranteed dispatch</p>
+              <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">
+                {serviceMode === 'dinein' ? 'Dine-In Menu' : 'Delivery Pantry'}
+              </p>
+              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">
+                {serviceMode === 'dinein' ? 'Explore Canteen offerings' : 'Guaranteed dispatch'}
+              </p>
             </div>
             {activeZomatoTab === 'delivery' && (
               <motion.div 
@@ -2010,29 +2073,31 @@ export default function App() {
           </button>
 
           {/* Tab 2: Campus Kiosk Fridge */}
-          <button
-            onClick={() => setActiveZomatoTab('kiosk')}
-            className={`pb-4 pt-4 text-sm md:text-base font-bold flex items-center gap-3 transition-all cursor-pointer relative select-none shrink-0 group ${
-              activeZomatoTab === 'kiosk'
-                ? 'text-[#E23744] dark:text-[#F3E5AB] font-black'
-                : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-[#FEFAF6]'
-            }`}
-          >
-            <div className={`p-2.5 rounded-2xl transition-all duration-300 ${activeZomatoTab === 'kiosk' ? 'bg-gradient-to-br from-[#FFFDF0] to-[#FAF3D9] dark:from-[#251D0B] dark:to-[#0C0405] text-amber-600 dark:text-[#F3E5AB] shadow-sm scale-105 border border-[#D4AF37]/30' : 'bg-[#FAF6F0] dark:bg-[#120708]/85 text-zinc-400 border border-transparent'}`}>
-              <Zap className="w-4 h-4 text-[#D4AF37] animate-pulse" />
-            </div>
-            <div className="text-left font-display">
-              <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Instant Kiosk</p>
-              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">Pick up in 10 mins today</p>
-            </div>
-            {activeZomatoTab === 'kiosk' && (
-              <motion.div 
-                layoutId="activeZomatoUnderline" 
-                className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] rounded-t-full shadow-[0_-2px_10px_rgba(212,175,55,0.4)]"
-                transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              />
-            )}
-          </button>
+          {serviceMode !== 'dinein' && (
+            <button
+              onClick={() => setActiveZomatoTab('kiosk')}
+              className={`pb-4 pt-4 text-sm md:text-base font-bold flex items-center gap-3 transition-all cursor-pointer relative select-none shrink-0 group ${
+                activeZomatoTab === 'kiosk'
+                  ? 'text-[#E23744] dark:text-[#F3E5AB] font-black'
+                  : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-[#FEFAF6]'
+              }`}
+            >
+              <div className={`p-2.5 rounded-2xl transition-all duration-300 ${activeZomatoTab === 'kiosk' ? 'bg-gradient-to-br from-[#FFFDF0] to-[#FAF3D9] dark:from-[#251D0B] dark:to-[#0C0405] text-amber-600 dark:text-[#F3E5AB] shadow-sm scale-105 border border-[#D4AF37]/30' : 'bg-[#FAF6F0] dark:bg-[#120708]/85 text-zinc-400 border border-transparent'}`}>
+                <Zap className="w-4 h-4 text-[#D4AF37] animate-pulse" />
+              </div>
+              <div className="text-left font-display">
+                <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Instant Kiosk</p>
+                <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">Pick up in 10 mins today</p>
+              </div>
+              {activeZomatoTab === 'kiosk' && (
+                <motion.div 
+                  layoutId="activeZomatoUnderline" 
+                  className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] rounded-t-full shadow-[0_-2px_10px_rgba(212,175,55,0.4)]"
+                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                />
+              )}
+            </button>
+          )}
 
           {/* Tab 3: Student Portal Logs */}
           <button
@@ -2067,6 +2132,16 @@ export default function App() {
         {activeZomatoTab === 'delivery' && (
           <div className="space-y-6">
             
+
+
+            {/* INSTAGRAM STYLE OFFER COMMUNITY CAROUSEL */}
+            <OffersInstagramCarousel 
+              coupons={coupons}
+              user={studentUser}
+              onApplyCoupon={handleApplyCoupon}
+              onShowToast={addInAppToast}
+            />
+
             {/* BRAND LUXURY SHOWCASE HERO BANNER - GOLD & ROYAL VELVET */}
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
@@ -2138,14 +2213,6 @@ export default function App() {
               </div>
             </motion.div>
 
-            {/* INSTAGRAM STYLE OFFER COMMUNITY CAROUSEL */}
-            <OffersInstagramCarousel 
-              coupons={coupons}
-              user={studentUser}
-              onApplyCoupon={handleApplyCoupon}
-              onShowToast={addInAppToast}
-            />
-
             {/* PRE-ORDER CATALOGUE SECTION */}
             <section id="marketplace-shelf" className="scroll-mt-20">
               
@@ -2162,77 +2229,82 @@ export default function App() {
               {/* VERTICAL FILTER CONTROLS */}
               <div className="bg-[#FCFAF7] dark:bg-[#0B0405] rounded-[28px] p-4 md:p-6 border border-[#D4AF37]/15 dark:border-[#3C2216]/50 shadow-md mb-6 space-y-5">
                 
-                {/* Occasion / Celebration Filters */}
-                <div className="flex flex-col gap-2.5">
-                  <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.16em] flex items-center gap-1.5 font-display">
-                    <Sparkles className="w-3.5 h-3.5 text-[#C49A25]" /> FILTER BY CELEBRATION OCCASION:
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    <motion.button
-                      key="all-celebrations"
-                      type="button"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleSelectOccasion(null)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
-                        activeOccasionId === null
-                          ? 'bg-gradient-to-r from-[#D01C2B] to-[#E23744] text-white border-[#E23744]'
-                          : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/25 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
-                      }`}
-                    >
-                      All Celebrations
-                    </motion.button>
-                    {AI_RECOMMENDATION_TEMPLATES.map((item) => {
-                      const active = activeOccasionId === item.occasionId;
-                      return (
-                        <motion.button
-                          key={item.occasionId}
-                          type="button"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleSelectOccasion(active ? null : item.occasionId)}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
-                            active
-                              ? 'bg-gradient-to-r from-[#AF2430] to-[#C49A25] text-white border-[#D4AF37] font-black shadow-md'
-                              : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/20 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
-                          }`}
-                        >
-                          {item.title}
-                        </motion.button>
-                      );
-                    })}
+                {serviceMode !== 'dinein' && (
+                  <div className="flex flex-col gap-2.5">
+                    <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.16em] flex items-center gap-1.5 font-display">
+                      <Sparkles className="w-3.5 h-3.5 text-[#C49A25]" /> FILTER BY CELEBRATION OCCASION:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <motion.button
+                        key="all-celebrations"
+                        type="button"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleSelectOccasion(null)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
+                          activeOccasionId === null
+                            ? 'bg-gradient-to-r from-[#D01C2B] to-[#E23744] text-white border-[#E23744]'
+                            : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/25 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
+                        }`}
+                      >
+                        All Celebrations
+                      </motion.button>
+                      {AI_RECOMMENDATION_TEMPLATES.map((item) => {
+                        const active = activeOccasionId === item.occasionId;
+                        return (
+                          <motion.button
+                            key={item.occasionId}
+                            type="button"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleSelectOccasion(active ? null : item.occasionId)}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
+                              active
+                                ? 'bg-gradient-to-r from-[#AF2430] to-[#C49A25] text-white border-[#D4AF37] font-black shadow-md'
+                                : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/20 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
+                            }`}
+                          >
+                            {item.title}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="w-full h-[1px] bg-[#D4AF37]/15 dark:bg-[#3C2216]/50"></div>
+                {serviceMode !== 'dinein' && (
+                  <>
+                    <div className="w-full h-[1px] bg-[#D4AF37]/15 dark:bg-[#3C2216]/50"></div>
 
-                {/* Category Filters */}
-                <div className="flex flex-col gap-2.5">
-                  <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.16em] font-display">
-                    CATEGORIES:
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {CATEGORIES.map((category) => {
-                      const active = selectedCategory === category;
-                      return (
-                        <motion.button
-                          key={category}
-                          type="button"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setSelectedCategory(category)}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
-                            active
-                              ? 'bg-[#E23744] text-white border-[#E23744]'
-                              : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/20 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
-                          }`}
-                        >
-                          {category}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </div>
+                    {/* Category Filters */}
+                    <div className="flex flex-col gap-2.5">
+                      <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.16em] font-display">
+                        CATEGORIES:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {CATEGORIES.map((category) => {
+                          const active = selectedCategory === category;
+                          return (
+                            <motion.button
+                              key={category}
+                              type="button"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => setSelectedCategory(category)}
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
+                                active
+                                  ? 'bg-[#E23744] text-white border-[#E23744]'
+                                  : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/20 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
+                              }`}
+                            >
+                              {category}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="w-full h-[1px] bg-[#D4AF37]/15 dark:bg-[#3C2216]/50"></div>
 
@@ -2376,11 +2448,13 @@ export default function App() {
                               </span>
                             </div>
 
-                            <p className="text-[10px] tracking-widest text-[#C49A25] uppercase font-bold mt-1 mb-2 font-mono">
-                              {cake.category}
-                            </p>
+                            {serviceMode !== 'dinein' && (
+                              <p className="text-[10px] tracking-widest text-[#C49A25] uppercase font-bold mt-1 mb-2 font-mono">
+                                {cake.category}
+                              </p>
+                            )}
 
-                            <p className="text-zinc-600 dark:text-zinc-300 text-[13px] leading-relaxed line-clamp-2 font-serif italic">
+                            <p className="text-zinc-600 dark:text-zinc-300 text-[13px] leading-relaxed line-clamp-2 font-serif italic mt-1">
                               {cake.description}
                             </p>
                           </div>
@@ -2966,6 +3040,18 @@ export default function App() {
               Campus Cakes manages secure terminal simulations. Pick your transaction mode to dispatch orders into our active bakery queue.
             </p>
 
+            <div className="bg-gray-50 dark:bg-[#1a0d0f] border border-gray-200 dark:border-[#3c1a1e] rounded-xl p-3 flex items-center gap-3">
+              <MapPin className="w-4 h-4 text-pink-600 dark:text-pink-400 shrink-0" />
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Delivery Destination</p>
+                <p className="text-xs font-extrabold text-gray-900 dark:text-white">
+                  {serviceMode === 'dinein' 
+                    ? (tableNumber ? `Dine-In Canteen • Table ${tableNumber}` : 'Dine-In Canteen (Pick any empty table)')
+                    : `Dorm Delivery • ${studentUser?.address || 'Your Room'}`}
+                </p>
+              </div>
+            </div>
+
             <form onSubmit={handleCompletePayment} className="space-y-4 text-xs">
               
               {/* Payment Mode choices */}
@@ -3141,7 +3227,7 @@ export default function App() {
                   ) : (
                     <button
                       type="button"
-                      onClick={handleApplyCoupon}
+                      onClick={() => handleApplyCoupon()}
                       className="px-3 py-1.5 bg-pink-600 text-white text-[10px] font-bold rounded-lg uppercase hover:bg-pink-700"
                     >
                       Apply
@@ -3162,20 +3248,29 @@ export default function App() {
               <div className="border-t border-dashed dark:border-[#3c1a1e] pt-3 text-xs flex justify-between font-extrabold text-gray-800 dark:text-[#fafafa] items-end">
                 <span>Amount to Pay</span>
                 <div className="text-right">
-                  {(redeemPoints || appliedCoupon) && (
-                    <span className="text-[10px] text-gray-400 line-through mr-2 font-mono">
-                      ₹{Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)}
-                    </span>
-                  )}
-                  <span className="text-pink-600 dark:text-pink-400 font-mono text-sm">
-                    ₹{
-                      Math.max(0, Math.round(
-                        (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 50)
-                        - (redeemPoints ? studentUser.rewardPoints : 0)
-                        - (appliedCoupon ? (appliedCoupon.pct ? (cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (appliedCoupon.pct / 100)) : (appliedCoupon.flat || 0)) : 0)
-                      ))
-                    }
-                  </span>
+                  {(() => {
+                    const sub = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    const fee = serviceMode === 'dinein' ? 0 : 20;
+                    const taxAndFee = 30 + fee;
+                    return (
+                      <>
+                        {(redeemPoints || appliedCoupon) && (
+                          <span className="text-[10px] text-gray-400 line-through mr-2 font-mono">
+                            ₹{Math.round(sub + taxAndFee)}
+                          </span>
+                        )}
+                        <span className="text-pink-600 dark:text-pink-400 font-mono text-sm">
+                          ₹{
+                            Math.max(0, Math.round(
+                              (sub + taxAndFee)
+                              - (redeemPoints ? studentUser.rewardPoints : 0)
+                              - (appliedCoupon ? (appliedCoupon.pct ? (sub * (appliedCoupon.pct / 100)) : (appliedCoupon.flat || 0)) : 0)
+                            ))
+                          }
+                        </span>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
