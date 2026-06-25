@@ -1062,6 +1062,17 @@ export default function App() {
       addInAppToast("Operation Blocked", "Unauthorized operational request: Administrative rights needed to wipe records.");
       return;
     }
+    if (isRealFirebase) {
+      if (!auth || !auth.currentUser) {
+        addInAppToast("Auth Session Inactive", "⚠️ Firebase Auth session is inactive. Please sign out and sign in again with your Admin Google account! (Note: If on Vercel, make sure 'campus-cakes.vercel.app' is added to Firebase console -> Auth -> Authorized Domains).");
+        return;
+      }
+      const adminEmails = ['saransh1860@gmail.com', 'tanishapahal606@gmail.com'];
+      if (!adminEmails.includes(auth.currentUser.email || '')) {
+        addInAppToast("Access Denied", `⚠️ Your active Firebase account (${auth.currentUser.email}) does not have database Admin privileges.`);
+        return;
+      }
+    }
     if (!window.confirm("⚠️ DANGER: Are you absolutely sure you want to permanently delete ALL order data from the remote Firestore database and reset analytics for all active users? This cannot be undone.")) {
       return;
     }
@@ -1109,7 +1120,8 @@ export default function App() {
       addInAppToast("Clean Slate Success", "🎉 All test orders have been purged, all user profile XP metrics have been reset, and startup analytics are cleared!");
     } catch (err) {
       console.error("Critical error while purging deployment database:", err);
-      addInAppToast("Operational Error", "Failure resetting database records on live server. Please inspect connectivity logs.");
+      const errMsg = err instanceof Error ? err.message : String(err);
+      addInAppToast("Operational Error", `Failure resetting database records: ${errMsg.slice(0, 150)}`);
     }
   };
 
