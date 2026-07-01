@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon } from '../types';
+import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon, CustomQuestion } from '../types';
 import { 
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
@@ -89,6 +89,12 @@ export default function DashboardSection({
   const [newCakeCampusIds, setNewCakeCampusIds] = useState<string[]>([]);
   const [newCakeIsDineIn, setNewCakeIsDineIn] = useState<boolean>(true);
   const [newCakeIsDelivery, setNewCakeIsDelivery] = useState<boolean>(true);
+  const [newCakeQuestions, setNewCakeQuestions] = useState<CustomQuestion[]>([]);
+  const [newCakeHideWeight, setNewCakeHideWeight] = useState(false);
+  const [newCakeHideFlavor, setNewCakeHideFlavor] = useState(false);
+  const [newCakeHideMessage, setNewCakeHideMessage] = useState(false);
+  const [newCakeHideAddons, setNewCakeHideAddons] = useState(false);
+  const [newCakeHideQuantity, setNewCakeHideQuantity] = useState(false);
 
   // Admin section: editing product state
   const [editingCakeId, setEditingCakeId] = useState<string | null>(null);
@@ -102,6 +108,12 @@ export default function DashboardSection({
   const [editingCakeCampusIds, setEditingCakeCampusIds] = useState<string[]>([]);
   const [editingCakeIsDineIn, setEditingCakeIsDineIn] = useState<boolean>(true);
   const [editingCakeIsDelivery, setEditingCakeIsDelivery] = useState<boolean>(true);
+  const [editingCakeQuestions, setEditingCakeQuestions] = useState<CustomQuestion[]>([]);
+  const [editingCakeHideWeight, setEditingCakeHideWeight] = useState(false);
+  const [editingCakeHideFlavor, setEditingCakeHideFlavor] = useState(false);
+  const [editingCakeHideMessage, setEditingCakeHideMessage] = useState(false);
+  const [editingCakeHideAddons, setEditingCakeHideAddons] = useState(false);
+  const [editingCakeHideQuantity, setEditingCakeHideQuantity] = useState(false);
 
   // Admin section: new kiosk product state
   const [newKioskName, setNewKioskName] = useState('');
@@ -270,6 +282,12 @@ export default function DashboardSection({
       campusIds: newCakeCampusIds,
       isDineIn: newCakeIsDineIn,
       isDelivery: newCakeIsDelivery,
+      customQuestions: newCakeQuestions,
+      hideWeightSelection: newCakeHideWeight,
+      hideFlavorSelection: newCakeHideFlavor,
+      hideMessageOnCake: newCakeHideMessage,
+      hideEventAddons: newCakeHideAddons,
+      hideQuantitySelection: newCakeHideQuantity,
     });
     setNewCakeName('');
     setNewCakePrice('499');
@@ -280,6 +298,12 @@ export default function DashboardSection({
     setNewCakeCampusIds([]);
     setNewCakeIsDineIn(true);
     setNewCakeIsDelivery(true);
+    setNewCakeQuestions([]);
+    setNewCakeHideWeight(false);
+    setNewCakeHideFlavor(false);
+    setNewCakeHideMessage(false);
+    setNewCakeHideAddons(false);
+    setNewCakeHideQuantity(false);
     if (onShowToast) {
       onShowToast("Catalog Updated", "Artisan cake added to pre-order menu successfully!");
     } else {
@@ -422,9 +446,21 @@ export default function DashboardSection({
         campusIds: editingCakeCampusIds,
         isDineIn: editingCakeIsDineIn,
         isDelivery: editingCakeIsDelivery,
+        customQuestions: editingCakeQuestions,
+        hideWeightSelection: editingCakeHideWeight,
+        hideFlavorSelection: editingCakeHideFlavor,
+        hideMessageOnCake: editingCakeHideMessage,
+        hideEventAddons: editingCakeHideAddons,
+        hideQuantitySelection: editingCakeHideQuantity,
       });
       setEditingCakeId(null);
       setEditingCakeCampusIds([]);
+      setEditingCakeQuestions([]);
+      setEditingCakeHideWeight(false);
+      setEditingCakeHideFlavor(false);
+      setEditingCakeHideMessage(false);
+      setEditingCakeHideAddons(false);
+      setEditingCakeHideQuantity(false);
       if (onShowToast) {
         onShowToast("Product Edited", "Advance cake product details updated successfully!");
       } else {
@@ -1357,6 +1393,15 @@ export default function DashboardSection({
                                                   ⏰ <strong>Scheduled:</strong> {item.customization.pickupTime}
                                                 </p>
                                               )}
+                                              {item.customization.customAnswers && Object.entries(item.customization.customAnswers).map(([qId, answer]) => {
+                                                  const c = allCakes.find(x => x.id === item.cakeId);
+                                                  const qText = c?.customQuestions?.find(q => q.id === qId)?.question || 'Custom Question';
+                                                  return (
+                                                    <p key={qId} className="sm:col-span-2 text-indigo-700 font-semibold bg-indigo-50 dark:bg-indigo-500/10/30 px-1.5 py-0.5 rounded border border-indigo-100/35 mt-0.5">
+                                                      💬 <strong>{qText}:</strong> {typeof answer === 'boolean' ? (answer ? 'Yes' : 'No') : answer}
+                                                    </p>
+                                                  );
+                                              })}
                                               
                                               {/* Custom Reference Image Uploaded preview */}
                                               {item.customization.photoUrl && (
@@ -1758,7 +1803,7 @@ export default function DashboardSection({
                                     setEditingKioskId(item.id);
                                     setEditingKioskName(item.name);
                                     setEditingKioskPrice(item.price.toString());
-                                    setEditingKioskFlavor(item.flavor);
+                                    setEditingKioskFlavor(item.flavor || '');
                                     setEditingKioskStock(item.totalStock.toString());
                                     setEditingKioskImage(item.image);
                                     setEditingKioskCampusIds(item.campusIds || []);
@@ -1990,6 +2035,77 @@ export default function DashboardSection({
                             </div>
                           </div>
 
+                          <div className="sm:col-span-2 space-y-2 pt-2 border-t border-gray-100 dark:border-[#3c1a1e]">
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase px-1">Standard Customizations (Uncheck to Hide)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!editingCakeHideWeight} onChange={(e) => setEditingCakeHideWeight(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Weight / Size</span>
+                              </label>
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!editingCakeHideFlavor} onChange={(e) => setEditingCakeHideFlavor(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Flavor / Variant</span>
+                              </label>
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!editingCakeHideMessage} onChange={(e) => setEditingCakeHideMessage(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Custom Message</span>
+                              </label>
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!editingCakeHideAddons} onChange={(e) => setEditingCakeHideAddons(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Event Add-ons</span>
+                              </label>
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!editingCakeHideQuantity} onChange={(e) => setEditingCakeHideQuantity(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Quantity</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="sm:col-span-2 space-y-2">
+                            <div className="flex items-center justify-between px-1">
+                              <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Custom Order Questions (Edit)</label>
+                              <button
+                                type="button"
+                                onClick={() => setEditingCakeQuestions([...editingCakeQuestions, { id: Date.now().toString(), question: '', type: 'text', options: [] }])}
+                                className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline"
+                              >
+                                + Add Question
+                              </button>
+                            </div>
+                            {editingCakeQuestions.map((q, idx) => (
+                              <div key={q.id} className="p-3 bg-white dark:bg-[#120709] border border-gray-200 dark:border-[#3c1a1e] rounded-xl flex flex-col gap-2 relative">
+                                <button type="button" onClick={() => setEditingCakeQuestions(editingCakeQuestions.filter(x => x.id !== q.id))} className="absolute top-2 right-2 text-red-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <input
+                                  type="text" placeholder="Question Title" value={q.question}
+                                  onChange={(e) => { const n = [...editingCakeQuestions]; n[idx].question = e.target.value; setEditingCakeQuestions(n); }}
+                                  className="px-2 py-1.5 text-xs border rounded-md dark:bg-[#1a0d0f] dark:border-[#3c1a1e] dark:text-white"
+                                />
+                                <div className="flex gap-2 items-center">
+                                  <select
+                                    value={q.type}
+                                    onChange={(e) => { const n = [...editingCakeQuestions]; n[idx].type = e.target.value as any; setEditingCakeQuestions(n); }}
+                                    className="px-2 py-1.5 text-xs border rounded-md dark:bg-[#1a0d0f] dark:border-[#3c1a1e] dark:text-white"
+                                  >
+                                    <option value="text">Text Input</option>
+                                    <option value="dropdown">Dropdown Options</option>
+                                    <option value="checkbox">Checkbox (Yes/No)</option>
+                                  </select>
+                                  <label className="text-[10px] flex items-center gap-1 cursor-pointer dark:text-gray-300">
+                                    <input type="checkbox" checked={q.required || false} onChange={(e) => { const n = [...editingCakeQuestions]; n[idx].required = e.target.checked; setEditingCakeQuestions(n); }} /> Required
+                                  </label>
+                                </div>
+                                {q.type === 'dropdown' && (
+                                  <input
+                                    type="text" placeholder="Comma separated options"
+                                    value={q.options?.join(', ') || ''}
+                                    onChange={(e) => { const n = [...editingCakeQuestions]; n[idx].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean); setEditingCakeQuestions(n); }}
+                                    className="px-2 py-1.5 text-xs border rounded-md dark:bg-[#1a0d0f] dark:border-[#3c1a1e] dark:text-white"
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
                           <div className="sm:col-span-2 bg-white dark:bg-[#120709] rounded-xl border border-dashed dark:border-[#3c1a1e] border-purple-200 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-purple-700 uppercase">Artwork Override</label>
                             <input
@@ -2188,6 +2304,77 @@ export default function DashboardSection({
                             </div>
                           </div>
 
+                          <div className="sm:col-span-2 space-y-2 pt-2 border-t border-gray-100 dark:border-[#3c1a1e]">
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase px-1">Standard Customizations (Uncheck to Hide)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!newCakeHideWeight} onChange={(e) => setNewCakeHideWeight(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Weight / Size</span>
+                              </label>
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!newCakeHideFlavor} onChange={(e) => setNewCakeHideFlavor(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Flavor / Variant</span>
+                              </label>
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!newCakeHideMessage} onChange={(e) => setNewCakeHideMessage(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Custom Message</span>
+                              </label>
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!newCakeHideAddons} onChange={(e) => setNewCakeHideAddons(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Event Add-ons</span>
+                              </label>
+                              <label className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#1a0d0f] rounded-lg border border-gray-200 dark:border-[#3c1a1e] cursor-pointer">
+                                <input type="checkbox" checked={!newCakeHideQuantity} onChange={(e) => setNewCakeHideQuantity(!e.target.checked)} className="rounded text-purple-600 focus:ring-purple-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Quantity</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="sm:col-span-2 space-y-2">
+                            <div className="flex items-center justify-between px-1">
+                              <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Custom Order Questions</label>
+                              <button
+                                type="button"
+                                onClick={() => setNewCakeQuestions([...newCakeQuestions, { id: Date.now().toString(), question: '', type: 'text', options: [] }])}
+                                className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline"
+                              >
+                                + Add Question
+                              </button>
+                            </div>
+                            {newCakeQuestions.map((q, idx) => (
+                              <div key={q.id} className="p-3 bg-white dark:bg-[#120709] border border-gray-200 dark:border-[#3c1a1e] rounded-xl flex flex-col gap-2 relative">
+                                <button type="button" onClick={() => setNewCakeQuestions(newCakeQuestions.filter(x => x.id !== q.id))} className="absolute top-2 right-2 text-red-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <input
+                                  type="text" placeholder="Question Title (e.g. Write message on cake?)" value={q.question}
+                                  onChange={(e) => { const n = [...newCakeQuestions]; n[idx].question = e.target.value; setNewCakeQuestions(n); }}
+                                  className="px-2 py-1.5 text-xs border rounded-md dark:bg-[#1a0d0f] dark:border-[#3c1a1e] dark:text-white"
+                                />
+                                <div className="flex gap-2 items-center">
+                                  <select
+                                    value={q.type}
+                                    onChange={(e) => { const n = [...newCakeQuestions]; n[idx].type = e.target.value as any; setNewCakeQuestions(n); }}
+                                    className="px-2 py-1.5 text-xs border rounded-md dark:bg-[#1a0d0f] dark:border-[#3c1a1e] dark:text-white"
+                                  >
+                                    <option value="text">Text Input</option>
+                                    <option value="dropdown">Dropdown Options</option>
+                                    <option value="checkbox">Checkbox (Yes/No)</option>
+                                  </select>
+                                  <label className="text-[10px] flex items-center gap-1 cursor-pointer dark:text-gray-300">
+                                    <input type="checkbox" checked={q.required || false} onChange={(e) => { const n = [...newCakeQuestions]; n[idx].required = e.target.checked; setNewCakeQuestions(n); }} /> Required
+                                  </label>
+                                </div>
+                                {q.type === 'dropdown' && (
+                                  <input
+                                    type="text" placeholder="Comma separated options (e.g. Red, Blue, Green)"
+                                    value={q.options?.join(', ') || ''}
+                                    onChange={(e) => { const n = [...newCakeQuestions]; n[idx].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean); setNewCakeQuestions(n); }}
+                                    className="px-2 py-1.5 text-xs border rounded-md dark:bg-[#1a0d0f] dark:border-[#3c1a1e] dark:text-white"
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
                           <div className="sm:col-span-2 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-xl border border-dashed dark:border-[#3c1a1e] border-gray-300 dark:border-slate-600 p-3 flex flex-col gap-2">
                             <label className="block text-[10px] font-bold text-gray-500 dark:text-[#a1a1aa] uppercase">Featured Artwork</label>
                             <input
@@ -2260,6 +2447,12 @@ export default function DashboardSection({
                                   setEditingCakeCampusIds(item.campusIds || []);
                                   setEditingCakeIsDineIn(item.isDineIn !== false);
                                   setEditingCakeIsDelivery(item.isDelivery !== false);
+                                  setEditingCakeQuestions(item.customQuestions || []);
+                                  setEditingCakeHideWeight(item.hideWeightSelection || false);
+                                  setEditingCakeHideFlavor(item.hideFlavorSelection || false);
+                                  setEditingCakeHideMessage(item.hideMessageOnCake || false);
+                                  setEditingCakeHideAddons(item.hideEventAddons || false);
+                                  setEditingCakeHideQuantity(item.hideQuantitySelection || false);
                                   window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
                                 className="px-2.5 py-1.5 bg-white dark:bg-[#120709] text-gray-500 dark:text-[#a1a1aa] hover:text-purple-700 hover:bg-purple-50 hover:dark:bg-purple-500/10 rounded-lg border border-gray-250 dark:border-[#3c1a1e] hover:border-purple-200 transition-colors text-[10px] font-bold flex items-center gap-1 active:scale-95"

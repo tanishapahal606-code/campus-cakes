@@ -2483,7 +2483,7 @@ export default function App() {
                               onClick={() => setActiveCustomizingCake(cake)}
                               className="px-4 py-2 bg-gradient-to-r from-[#D01C2B] to-[#E23744] hover:brightness-110 text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#E23744]/15 transition-all cursor-pointer active:scale-95 font-display"
                             >
-                              Customize
+                              Add to Cart
                             </button>
                           </div>
 
@@ -2931,9 +2931,19 @@ export default function App() {
                           
                           {item.customization && (
                             <div className="mt-1 space-y-0.5 text-[9px] text-zinc-500 dark:text-zinc-400">
-                              <p>✓ Msg: <strong className="text-[#E23744] dark:text-[#D4AF37] font-black">"{item.customization.messageOnCake}"</strong></p>
-                              <p>✓ Weight: {item.customization.weight} kg • {item.customization.flavor}</p>
+                              {item.category !== 'Cupcakes' && item.customization.messageOnCake && (
+                                <p>✓ Msg: <strong className="text-[#E23744] dark:text-[#D4AF37] font-black">"{item.customization.messageOnCake}"</strong></p>
+                              )}
+                              <p>✓ {item.category === 'Cupcakes' ? 'Size: ' + (item.customization.weight === 0.5 ? '6 Pcs' : Math.round(item.customization.weight * 12) + ' Pcs') : 'Weight: ' + item.customization.weight + ' kg'} • {item.customization.flavor}</p>
                               <p>✓ Slot: {item.customization.pickupTime}</p>
+                              {item.customization.customAnswers && Object.entries(item.customization.customAnswers).map(([qId, answer]) => {
+                                // Find question text if possible
+                                const cakeForQ = activeProducts.find(c => c.id === item.cakeId);
+                                const qText = cakeForQ?.customQuestions?.find(q => q.id === qId)?.question || 'Custom Question';
+                                return (
+                                  <p key={qId}>✓ {qText}: <span className="font-semibold">{typeof answer === 'boolean' ? (answer ? 'Yes' : 'No') : answer}</span></p>
+                                );
+                              })}
                             </div>
                           )}
 
@@ -3390,6 +3400,7 @@ export default function App() {
             onClose={() => setActiveCustomizingCake(null)}
             onAddToCart={handleAddCustomCakeToCart}
             onShowToast={addInAppToast}
+            serviceMode={serviceMode}
           />
         )}
       </AnimatePresence>

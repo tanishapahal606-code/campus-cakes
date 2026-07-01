@@ -10,6 +10,14 @@ export interface Campus {
   active: boolean;
 }
 
+export interface CustomQuestion {
+  id: string;
+  question: string;
+  type: 'text' | 'dropdown' | 'checkbox';
+  options?: string[];
+  required?: boolean;
+}
+
 export interface CakeItem {
   id: string;
   name: string;
@@ -27,6 +35,12 @@ export interface CakeItem {
   campusIds?: string[];
   isDineIn?: boolean;
   isDelivery?: boolean;
+  customQuestions?: CustomQuestion[];
+  hideWeightSelection?: boolean;
+  hideFlavorSelection?: boolean;
+  hideMessageOnCake?: boolean;
+  hideEventAddons?: boolean;
+  hideQuantitySelection?: boolean;
 }
 
 export interface KioskCake {
@@ -49,6 +63,7 @@ export interface OrderItemCustomization {
   addKnife: boolean;
   pickupTime: string;
   specialInstructions?: string;
+  customAnswers?: Record<string, any>;
 }
 
 export interface CartItem {
@@ -61,6 +76,7 @@ export interface CartItem {
   quantity: number;
   customization?: OrderItemCustomization;
   isInstantKiosk?: boolean;
+  category?: string;
 }
 
 export type OrderStatus = 'placed' | 'preparing' | 'delivery' | 'ready' | 'completed';
