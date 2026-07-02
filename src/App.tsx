@@ -2478,13 +2478,22 @@ export default function App() {
                               <p className="text-sm font-black text-zinc-900 dark:text-[#FEFAF6] mt-1 font-mono">₹{cake.price} <span className="text-[9px] text-zinc-400 font-medium not-mono font-serif">/ tier</span></p>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => setActiveCustomizingCake(cake)}
-                              className="px-4 py-2 bg-gradient-to-r from-[#D01C2B] to-[#E23744] hover:brightness-110 text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#E23744]/15 transition-all cursor-pointer active:scale-95 font-display"
-                            >
-                              Add to Cart
-                            </button>
+                            {serviceMode === 'dinein' && !tableNumber ? (
+                              <button
+                                type="button"
+                                className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 font-extrabold text-xs rounded-xl cursor-not-allowed font-display border border-zinc-200 dark:border-zinc-700/60 transition-all opacity-70"
+                              >
+                                QR Scan Required
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setActiveCustomizingCake(cake)}
+                                className="px-4 py-2 bg-gradient-to-r from-[#D01C2B] to-[#E23744] hover:brightness-110 text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#E23744]/15 transition-all cursor-pointer active:scale-95 font-display"
+                              >
+                                Add to Cart
+                              </button>
+                            )}
                           </div>
 
                         </div>
@@ -3401,6 +3410,7 @@ export default function App() {
             onAddToCart={handleAddCustomCakeToCart}
             onShowToast={addInAppToast}
             serviceMode={serviceMode}
+            tableNumber={tableNumber}
           />
         )}
       </AnimatePresence>

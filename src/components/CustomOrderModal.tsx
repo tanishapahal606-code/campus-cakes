@@ -14,9 +14,10 @@ interface CustomOrderModalProps {
   onAddToCart: (cartItem: CartItem) => void;
   onShowToast?: (title: string, body: string) => void;
   serviceMode?: 'delivery' | 'dinein';
+  tableNumber?: string | null;
 }
 
-export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToast, serviceMode }: CustomOrderModalProps) {
+export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToast, serviceMode, tableNumber }: CustomOrderModalProps) {
   // Setup default state based on cake properties
   const [selectedFlavor, setSelectedFlavor] = useState(cake.flavors[0]);
   const [selectedWeight, setSelectedWeight] = useState(cake.weights[0]);
@@ -67,6 +68,11 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
 
   // SMART ORDER RULES CHECKER
   useEffect(() => {
+    if (serviceMode === 'dinein') {
+      setIsExpress(false);
+      setTimeWarning(null);
+      return;
+    }
     if (!deliveryDate) return;
 
     // Use actual browser local time reference
@@ -87,7 +93,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
       setIsExpress(false);
       setTimeWarning(null);
     }
-  }, [deliveryDate, deliveryTime]);
+  }, [deliveryDate, deliveryTime, serviceMode]);
 
   const handlePhotoSimulation = () => {
     setIsUploadingPhoto(true);
@@ -191,6 +197,19 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
         {/* Scrollable customizing forms */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 md:p-6 space-y-6">
           
+          {serviceMode === 'dinein' && !tableNumber && (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-[#1a0f02] border border-amber-200 dark:border-amber-900/30 text-amber-800 dark:text-amber-200 text-xs flex flex-col gap-2">
+              <div className="flex items-center gap-2 font-black uppercase tracking-wider">
+                <AlertTriangle className="w-4 h-4 text-amber-600 animate-bounce" />
+                <span>Dine-In Table QR Scan Required</span>
+              </div>
+              <p className="font-medium leading-relaxed opacity-90">
+                To order delicious bakes directly to your table, please scan the table's unique QR code first! 
+                You can print and scan table QR codes from the <strong className="font-bold">Admin Dashboard</strong> section in the top menu.
+              </p>
+            </div>
+          )}
+
           {/* Sizing/Weight and Quantity options section */}
           {(!cake.hideWeightSelection || !cake.hideQuantitySelection) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -576,14 +595,15 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!!timeWarning}
+              disabled={(serviceMode !== 'dinein' && !!timeWarning) || (serviceMode === 'dinein' && !tableNumber)}
               className={`px-6 py-2.5 rounded-xl font-black text-xs flex items-center gap-1.5 transition-all ${
-                timeWarning
+                (serviceMode !== 'dinein' && timeWarning) || (serviceMode === 'dinein' && !tableNumber)
                   ? 'bg-gray-200 dark:bg-[#1a0d0f] text-gray-400 cursor-not-allowed'
                   : 'bg-[#E23744] hover:bg-red-750 text-white shadow-xl shadow-red-600/20 hover:scale-[1.03] active:scale-95'
               }`}
             >
-              <ShoppingCart className="w-4 h-4" /> Add to Campus Cart
+              <ShoppingCart className="w-4 h-4" /> 
+              {serviceMode === 'dinein' && !tableNumber ? 'QR Scan Required' : 'Add to Campus Cart'}
             </button>
           </div>
         </div>
