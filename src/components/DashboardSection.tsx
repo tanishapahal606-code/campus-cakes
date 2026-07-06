@@ -9,7 +9,7 @@ import {
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Download, Tag, QrCode
+  Truck, Phone, Mail, Download, Tag, QrCode, Edit
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
@@ -89,6 +89,8 @@ export default function DashboardSection({
 
   // Inline directory employee editing states
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+  const [editingEmployeePost, setEditingEmployeePost] = useState<Employee['post']>('Campus Manager');
+  const [editingEmployeeCampusId, setEditingEmployeeCampusId] = useState('');
   const [editingPromoCode, setEditingPromoCode] = useState('');
   const [editingDiscountType, setEditingDiscountType] = useState<'percentage' | 'flat'>('percentage');
   const [editingDiscountValue, setEditingDiscountValue] = useState('');
@@ -185,6 +187,7 @@ export default function DashboardSection({
   const [newEmpEmail, setNewEmpEmail] = useState('');
   const [newEmpPost, setNewEmpPost] = useState<Employee['post']>('Campus Manager');
   const [newEmpCampusId, setNewEmpCampusId] = useState('');
+
   const [empSearch, setEmpSearch] = useState('');
   const [deletingEmpId, setDeletingEmpId] = useState<string | null>(null);
   const [adminOrderFilter, setAdminOrderFilter] = useState<'all' | 'placed' | 'preparing' | 'delivery' | 'ready'>('all');
@@ -319,12 +322,22 @@ export default function DashboardSection({
       email: newEmpEmail.trim(),
       post: newEmpPost,
       campusId: newEmpCampusId || undefined,
-      dateJoined: new Date().toISOString().split('T')[0]
+      dateJoined: new Date().toISOString().split('T')[0],
+      promoCode: newEmpPromoCode.trim().toUpperCase() || undefined,
+      discountType: newEmpDiscountType,
+      discountValue: Number(newEmpDiscountValue),
+      commissionType: newEmpCommissionType,
+      commissionValue: Number(newEmpCommissionValue),
     });
     setNewEmpName('');
     setNewEmpEmail('');
     setNewEmpPost('Campus Manager');
     setNewEmpCampusId('');
+    setNewEmpPromoCode('');
+    setNewEmpDiscountType('percentage');
+    setNewEmpDiscountValue('10');
+    setNewEmpCommissionType('percentage');
+    setNewEmpCommissionValue('5');
     if (onShowToast) {
       onShowToast("Hiring Complete", `${newEmpName} has been registered as ${newEmpPost}!`);
     }
@@ -2845,6 +2858,67 @@ export default function DashboardSection({
                           </select>
                         </div>
 
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Custom Promo Code (Optional)</label>
+                          <input 
+                            type="text"
+                            placeholder="e.g. ANANYA10 (Leave blank to use ID)"
+                            value={newEmpPromoCode}
+                            onChange={(e) => setNewEmpPromoCode(e.target.value)}
+                            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">User Discount Type</label>
+                            <select 
+                              value={newEmpDiscountType}
+                              onChange={(e) => setNewEmpDiscountType(e.target.value as 'percentage' | 'flat')}
+                              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none cursor-pointer"
+                            >
+                              <option value="percentage">Percentage (%)</option>
+                              <option value="flat">Flat Cash (₹)</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Discount Value</label>
+                            <input 
+                              type="number"
+                              min="0"
+                              value={newEmpDiscountValue}
+                              onChange={(e) => setNewEmpDiscountValue(e.target.value)}
+                              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Employee Commission Type</label>
+                            <select 
+                              value={newEmpCommissionType}
+                              onChange={(e) => setNewEmpCommissionType(e.target.value as 'percentage' | 'flat')}
+                              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none cursor-pointer"
+                            >
+                              <option value="percentage">Percentage (%)</option>
+                              <option value="flat">Flat Cash (₹)</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Commission Value</label>
+                            <input 
+                              type="number"
+                              min="0"
+                              value={newEmpCommissionValue}
+                              onChange={(e) => setNewEmpCommissionValue(e.target.value)}
+                              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none"
+                              required
+                            />
+                          </div>
+                        </div>
+
                         {/* Dynamic Role Description Card */}
                         <div className="p-3 bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 rounded-2xl">
                           <span className="block text-[9px] text-purple-700 dark:text-purple-400 font-extrabold uppercase tracking-widest">Role Objectives & Duties</span>
@@ -2931,11 +3005,156 @@ export default function DashboardSection({
                             }
 
                             const empCampus = campuses.find(c => c.id === emp.campusId);
+                            
+                            if (editingEmployeeId === emp.id) {
+                              return (
+                                <div 
+                                  key={emp.id}
+                                  className="bg-purple-50/40 dark:bg-[#1a0c0e]/80 rounded-2xl border-2 border-purple-400 p-4 space-y-3 shadow-md transition-colors"
+                                >
+                                  <div className="flex justify-between items-center border-b border-purple-100 dark:border-[#2b1215] pb-2 mb-1">
+                                    <h5 className="font-extrabold text-xs text-purple-900 dark:text-purple-300 uppercase tracking-widest flex items-center gap-1.5">
+                                      <span>⚙️ Edit Employee Rates:</span> <span className="text-gray-900 dark:text-white normal-case font-black">{emp.name}</span>
+                                    </h5>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingEmployeeId(null)}
+                                      className="text-[10px] font-black text-gray-400 hover:text-gray-600 dark:hover:text-[#fafafa] uppercase cursor-pointer"
+                                    >
+                                      cancel
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <label className="pl-1 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Post Designation</label>
+                                      <select 
+                                        value={editingEmployeePost}
+                                        onChange={(e) => setEditingEmployeePost(e.target.value as Employee['post'])}
+                                        className="w-full bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold cursor-pointer"
+                                      >
+                                        <option value="Campus Manager">Campus Manager</option>
+                                        <option value="Customer Experience Executive">Customer Experience Executive</option>
+                                        <option value="Packaging & Branding Executive">Packaging & Branding Executive</option>
+                                        <option value="Delivery Executive (Boys' Hostel)">Delivery Executive (Boys' Hostel)</option>
+                                        <option value="Delivery Executive (Girls' Hostel)">Delivery Executive (Girls' Hostel)</option>
+                                      </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="pl-1 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Campus Hub</label>
+                                      <select 
+                                        value={editingEmployeeCampusId}
+                                        onChange={(e) => setEditingEmployeeCampusId(e.target.value)}
+                                        className="w-full bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold cursor-pointer"
+                                      >
+                                        <option value="">Global Hub</option>
+                                        {campuses.map(c => (
+                                          <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <label className="pl-1 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Custom Promo Code</label>
+                                    <input 
+                                      type="text"
+                                      placeholder="e.g. CUSTOM10"
+                                      value={editingPromoCode}
+                                      onChange={(e) => setEditingPromoCode(e.target.value)}
+                                      className="w-full bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3 border-t border-purple-100/30 dark:border-[#2b1215] pt-2">
+                                    <div className="space-y-1">
+                                      <label className="pl-1 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">User Discount Type</label>
+                                      <select 
+                                        value={editingDiscountType}
+                                        onChange={(e) => setEditingDiscountType(e.target.value as 'percentage' | 'flat')}
+                                        className="w-full bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold cursor-pointer"
+                                      >
+                                        <option value="percentage">Percentage (%)</option>
+                                        <option value="flat">Flat Cash (₹)</option>
+                                      </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="pl-1 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Discount Value</label>
+                                      <input 
+                                        type="number"
+                                        min="0"
+                                        value={editingDiscountValue}
+                                        onChange={(e) => setEditingDiscountValue(e.target.value)}
+                                        className="w-full bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
+                                        required
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <label className="pl-1 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Employee Commission Type</label>
+                                      <select 
+                                        value={editingCommissionType}
+                                        onChange={(e) => setEditingCommissionType(e.target.value as 'percentage' | 'flat')}
+                                        className="w-full bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold cursor-pointer"
+                                      >
+                                        <option value="percentage">Percentage (%)</option>
+                                        <option value="flat">Flat Cash (₹)</option>
+                                      </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="pl-1 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Commission Value</label>
+                                      <input 
+                                        type="number"
+                                        min="0"
+                                        value={editingCommissionValue}
+                                        onChange={(e) => setEditingCommissionValue(e.target.value)}
+                                        className="w-full bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
+                                        required
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="flex gap-2 pt-1.5 justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingEmployeeId(null)}
+                                      className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-zinc-900 dark:text-zinc-300 text-[10px] font-black rounded-xl uppercase tracking-wider cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onAddEmployee?.({
+                                          ...emp,
+                                          post: editingEmployeePost,
+                                          campusId: editingEmployeeCampusId || undefined,
+                                          promoCode: editingPromoCode.trim().toUpperCase() || undefined,
+                                          discountType: editingDiscountType,
+                                          discountValue: Number(editingDiscountValue || 0),
+                                          commissionType: editingCommissionType,
+                                          commissionValue: Number(editingCommissionValue || 0),
+                                        });
+                                        setEditingEmployeeId(null);
+                                        if (onShowToast) {
+                                          onShowToast("Rates Updated", `${emp.name}'s commission and discount configuration saved successfully!`);
+                                        }
+                                      }}
+                                      className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-black rounded-xl uppercase tracking-wider cursor-pointer"
+                                    >
+                                      Save Rates
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
 
                             return (
                               <div 
                                 key={emp.id}
-                                className="bg-white dark:bg-[#120709] rounded-2xl border border-gray-200 dark:border-[#3c1a1e] p-4 flex items-center justify-between gap-4 shadow-sm hover:border-purple-200 transition-colors"
+                                className="bg-white dark:bg-[#120709] rounded-2xl border border-gray-200 dark:border-[#3c1a1e] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm hover:border-purple-200 transition-colors"
                               >
                                 <div className="flex items-center gap-3 min-w-0 w-full">
                                   <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-100 to-indigo-50 dark:from-purple-950/40 dark:to-indigo-950/40 flex items-center justify-center text-purple-700 dark:text-purple-400 font-extrabold text-xs shrink-0 border border-purple-200/25">
@@ -2961,43 +3180,78 @@ export default function DashboardSection({
                                       )}
                                       <span className="text-[9px] text-gray-400 font-medium pl-0.5">Joined: {emp.dateJoined}</span>
                                     </div>
+
+                                    {/* Custom QR Discount and Commission Rates display */}
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-2 border-t border-gray-100 dark:border-[#1a0c0e] text-[10px]">
+                                      <span className="text-gray-500 dark:text-zinc-400 font-semibold">
+                                        🎟️ Code: <strong className="text-purple-600 dark:text-purple-400 font-bold">{emp.promoCode || emp.id}</strong>
+                                      </span>
+                                      <span className="text-gray-500 dark:text-zinc-400 font-semibold">
+                                        🏷️ User Discount: <strong className="text-gray-800 dark:text-gray-200 font-bold">{emp.discountValue !== undefined ? emp.discountValue : 10}{emp.discountType === 'flat' ? '₹' : '%'}</strong>
+                                      </span>
+                                      <span className="text-gray-500 dark:text-zinc-400 font-semibold">
+                                        💰 Comm: <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{emp.commissionValue !== undefined ? emp.commissionValue : 5}{emp.commissionType === 'flat' ? '₹' : '%'}</strong>
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
-                                {deletingEmpId === emp.id ? (
-                                  <div className="flex items-center gap-1.5 shrink-0 bg-red-50 dark:bg-red-950/20 p-1.5 rounded-xl border border-red-200 dark:border-red-900/40">
-                                    <span className="text-[9px] font-black uppercase text-red-600 dark:text-red-400 px-1">Sure?</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        onDeleteEmployee?.(emp.id);
-                                        setDeletingEmpId(null);
-                                        if (onShowToast) {
-                                          onShowToast("Offboarding Complete", `${emp.name} has been removed from the registry.`);
-                                        }
-                                      }}
-                                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-[9px] font-black rounded-lg uppercase tracking-wider cursor-pointer"
-                                    >
-                                      Yes
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeletingEmpId(null)}
-                                      className="px-2 py-1 bg-gray-200 dark:bg-[#1a0d0f] hover:bg-gray-300 text-gray-700 dark:text-gray-300 text-[9px] font-black rounded-lg uppercase tracking-wider cursor-pointer"
-                                    >
-                                      No
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button 
-                                    type="button"
-                                    onClick={() => setDeletingEmpId(emp.id)}
-                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all shrink-0 cursor-pointer"
-                                    title="Offboard Employee & Revoke Access"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                )}
+                                <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                                  {deletingEmpId === emp.id ? (
+                                    <div className="flex items-center gap-1.5 shrink-0 bg-red-50 dark:bg-red-950/20 p-1.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                                      <span className="text-[9px] font-black uppercase text-red-600 dark:text-red-400 px-1">Sure?</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          onDeleteEmployee?.(emp.id);
+                                          setDeletingEmpId(null);
+                                          if (onShowToast) {
+                                            onShowToast("Offboarding Complete", `${emp.name} has been removed from the registry.`);
+                                          }
+                                        }}
+                                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-[9px] font-black rounded-lg uppercase tracking-wider cursor-pointer"
+                                      >
+                                        Yes
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeletingEmpId(null)}
+                                        className="px-2 py-1 bg-gray-200 dark:bg-[#1a0d0f] hover:bg-gray-300 text-gray-700 dark:text-gray-300 text-[9px] font-black rounded-lg uppercase tracking-wider cursor-pointer"
+                                      >
+                                        No
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <button 
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingEmployeeId(emp.id);
+                                          setEditingEmployeePost(emp.post);
+                                          setEditingEmployeeCampusId(emp.campusId || '');
+                                          setEditingPromoCode(emp.promoCode || '');
+                                          setEditingDiscountType(emp.discountType || 'percentage');
+                                          setEditingDiscountValue(String(emp.discountValue !== undefined ? emp.discountValue : 10));
+                                          setEditingCommissionType(emp.commissionType || 'percentage');
+                                          setEditingCommissionValue(String(emp.commissionValue !== undefined ? emp.commissionValue : 5));
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/20 rounded-xl transition-all cursor-pointer"
+                                        title="Edit Rates & Role Assignment"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                      
+                                      <button 
+                                        type="button"
+                                        onClick={() => setDeletingEmpId(emp.id)}
+                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all cursor-pointer"
+                                        title="Offboard Employee & Revoke Access"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             );
                           })}

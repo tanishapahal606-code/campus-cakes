@@ -128,6 +128,7 @@ export interface UserProfile {
   didWalletReset2026?: boolean;
   didDeploymentReset2026?: boolean;
   dob?: string;
+  employeeId?: string;
 }
 
 export interface Coupon {

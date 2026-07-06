@@ -376,6 +376,18 @@ export function subscribeToUserOrders(userId: string, onUpdate: (orders: Order[]
   });
 }
 
+export function subscribeToReferredOrders(employeeId: string, onUpdate: (orders: Order[]) => void) {
+  if (!isRealFirebase) return () => {};
+  const q = query(collection(db, 'orders'), where('employeeReferral', '==', employeeId));
+  return onSnapshot(q, (snap) => {
+    const orders: Order[] = [];
+    snap.forEach((d) => orders.push({ id: d.id, ...(d.data() as any) } as Order));
+    onUpdate(orders);
+  }, (err) => {
+    console.error("Error listening to referred orders:", err);
+  });
+}
+
 export function subscribeToAllOrders(onUpdate: (orders: Order[]) => void) {
   if (!isRealFirebase) return () => {};
   const q = collection(db, 'orders');

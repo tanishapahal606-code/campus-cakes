@@ -37,7 +37,7 @@ import {
   getProducts, writeProduct, removeProduct, getKioskProducts, writeKioskProduct, 
   removeKioskProduct, getUserProfile, writeUserProfile, getAllUserProfiles, getUserOrders, writeOrder, 
   writeCakeImage, getAllOrders, removeOrder, subscribeToCoupons, writeCoupon, removeCoupon,
-  subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders, clearAllFirestoreCaches,
+  subscribeToUserProfile, subscribeToUserOrders, subscribeToReferredOrders, subscribeToAllOrders, clearAllFirestoreCaches,
   subscribeToReviews, writeReview, removeReview, getEmployees, writeEmployee, removeEmployee
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
@@ -320,6 +320,19 @@ export default function App() {
           healedProfile.walletBalance = 0;
           profileChanged = true;
         }
+
+        // Sync employeeId
+        const matchedEmp = employees.find(emp => emp.email.toLowerCase().trim() === firebaseUser.email?.toLowerCase().trim());
+        if (matchedEmp) {
+          if (healedProfile.employeeId !== matchedEmp.id) {
+            healedProfile.employeeId = matchedEmp.id;
+            profileChanged = true;
+          }
+        } else if (healedProfile.employeeId) {
+          delete healedProfile.employeeId;
+          profileChanged = true;
+        }
+
         if (profileChanged) {
           await writeUserProfile(healedProfile).catch(err => console.error("Error auto-writing reset profile:", err));
         }
@@ -354,6 +367,12 @@ export default function App() {
           didWalletReset2026: true
         };
         (defaultProfile as any).uid = firebaseUser.uid;
+
+        const matchedEmp = employees.find(emp => emp.email.toLowerCase().trim() === firebaseUser.email?.toLowerCase().trim());
+        if (matchedEmp) {
+          defaultProfile.employeeId = matchedEmp.id;
+        }
+
         setStudentUser(defaultProfile);
         await writeUserProfile(defaultProfile);
         setProfileLoaded(true);
@@ -372,8 +391,38 @@ export default function App() {
       }));
     };
 
+    const matchedEmployee = employees.find(emp => emp.email.toLowerCase().trim() === firebaseUser.email?.toLowerCase().trim());
+
     if (isAdmin) {
       unsubOrders = subscribeToAllOrders(ordersCallback);
+    } else if (matchedEmployee) {
+      let ownOrders: Order[] = [];
+      let referredOrders: Order[] = [];
+
+      const mergeAndSetOrders = () => {
+        const combined = [...ownOrders];
+        referredOrders.forEach(ro => {
+          if (!combined.some(o => o.id === ro.id)) {
+            combined.push(ro);
+          }
+        });
+        ordersCallback(combined);
+      };
+
+      const unsubOwn = subscribeToUserOrders(firebaseUser.uid, (orders) => {
+        ownOrders = orders;
+        mergeAndSetOrders();
+      });
+
+      const unsubReferred = subscribeToReferredOrders(matchedEmployee.id, (orders) => {
+        referredOrders = orders;
+        mergeAndSetOrders();
+      });
+
+      unsubOrders = () => {
+        unsubOwn();
+        unsubReferred();
+      };
     } else {
       unsubOrders = subscribeToUserOrders(firebaseUser.uid, ordersCallback);
     }
@@ -382,7 +431,7 @@ export default function App() {
       if (unsubProfile) unsubProfile();
       if (unsubOrders) unsubOrders();
     };
-  }, [firebaseUser, isRealFirebase, selectedCampus, isAdmin, campuses]);
+  }, [firebaseUser, isRealFirebase, selectedCampus, isAdmin, campuses, employees]);
 
   // Fallback Sync profile details when user authenticates using simulation mode
   useEffect(() => {
@@ -931,8 +980,8 @@ export default function App() {
             isBday: false
           });
           
-          // Clear it from temporary storage once successfully processed
-          safeStorage.removeItem('cc_pending_referral');
+          // Retain pending referral in storage until checkout completes for maximum reliability
+          // safeStorage.removeItem('cc_pending_referral');
           
           // Push a toast to notify them that the referral discount is applied!
           setTimeout(() => {
@@ -1473,6 +1522,7 @@ export default function App() {
     setRedeemPoints(false);
     setUseWallet(false);
     setAppliedCoupon(null);
+    safeStorage.removeItem('cc_pending_referral');
   };
 
   // Review submission
