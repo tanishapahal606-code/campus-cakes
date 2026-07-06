@@ -8,7 +8,7 @@ import {
   deleteDoc, collection, query, where, onSnapshot 
 } from 'firebase/firestore';
 import { db, auth, isRealFirebase } from '../firebase';
-import { Campus, CakeItem, KioskCake, Order, UserProfile, FeedbackReview, Coupon } from '../types';
+import { Campus, CakeItem, KioskCake, Order, UserProfile, FeedbackReview, Coupon, Employee } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -581,4 +581,56 @@ export async function removeReview(reviewId: string): Promise<void> {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
+
+// ==========================================
+// 9. EMPLOYEES COLLECTION OPERATIONS
+// ==========================================
+export async function getEmployees(): Promise<Employee[]> {
+  if (!isRealFirebase) return [];
+  const colPath = 'employees';
+  
+  const cached = getFromLocalCache<Employee[]>(colPath);
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+
+  try {
+    const q = collection(db, colPath);
+    const snap = await getDocs(q);
+    const items: Employee[] = [];
+    snap.forEach((d) => {
+      items.push(d.data() as Employee);
+    });
+    
+    if (items.length > 0) {
+      setToLocalCache(colPath, items);
+    }
+    return items;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, colPath);
+  }
+}
+
+export async function writeEmployee(employee: Employee): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `employees/${employee.id}`;
+  try {
+    await setDoc(doc(db, 'employees', employee.id), sanitizeFirestoreData(employee));
+    clearLocalCache('employees');
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function removeEmployee(employeeId: string): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `employees/${employeeId}`;
+  try {
+    await deleteDoc(doc(db, 'employees', employeeId));
+    clearLocalCache('employees');
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
 

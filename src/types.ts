@@ -101,6 +101,9 @@ export interface Order {
   customerPhone?: string;
   deliveryAddress?: string;
   serviceMode?: 'delivery' | 'dinein';
+  employeeReferral?: string;
+  employeeCommission?: number;
+  discountCode?: string;
 }
 
 export interface SavedCelebration {
@@ -149,3 +152,18 @@ export interface FeedbackReview {
   date: string;
   image?: string;
 }
+
+export interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  post: 'Campus Manager' | 'Customer Experience Executive' | 'Packaging & Branding Executive' | 'Delivery Executive (Boys\' Hostel)' | 'Delivery Executive (Girls\' Hostel)';
+  campusId?: string;
+  dateJoined: string;
+  discountType?: 'percentage' | 'flat';
+  discountValue?: number;
+  commissionType?: 'percentage' | 'flat';
+  commissionValue?: number;
+  promoCode?: string;
+}
+

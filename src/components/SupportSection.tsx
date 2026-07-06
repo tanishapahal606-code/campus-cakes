@@ -3,10 +3,14 @@ import {
   MessageSquare, Send, Headphones, Sparkles, Compass, AlertCircle, HelpCircle, User, Bot, Loader2, ArrowRight 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile } from '../types';
+import ReactMarkdown from 'react-markdown';
+import { UserProfile, Campus } from '../types';
+import brandLogo from '../assets/images/brand_logo_1781589358418.jpg';
+import { CAMPUSES, CAKE_PRODUCTS, KIOSK_INVENTORY } from '../data';
 
 interface SupportSectionProps {
   user: UserProfile;
+  selectedCampus: Campus;
 }
 
 interface Message {
@@ -16,7 +20,7 @@ interface Message {
   timestamp: string;
 }
 
-export default function SupportSection({ user }: SupportSectionProps) {
+export default function SupportSection({ user, selectedCampus }: SupportSectionProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome-msg',
@@ -66,7 +70,23 @@ export default function SupportSection({ user }: SupportSectionProps) {
       const res = await fetch('/api/support/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: backendHistory }),
+        body: JSON.stringify({ 
+          messages: backendHistory,
+          user: {
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            address: user.address,
+            campusId: user.campusId,
+            rewardPoints: user.rewardPoints,
+            savedCelebrationsCount: user.savedCelebrations?.length || 0,
+            walletBalance: user.walletBalance || 0
+          },
+          selectedCampus,
+          campuses: CAMPUSES,
+          cakeProducts: CAKE_PRODUCTS,
+          kioskInventory: KIOSK_INVENTORY
+        }),
       });
 
       if (!res.ok) {
@@ -153,11 +173,16 @@ export default function SupportSection({ user }: SupportSectionProps) {
           
           {/* Header */}
           <div className="px-4 py-3 border-b border-gray-100 dark:border-[#291316] bg-gray-50 dark:bg-[#1a0d0f]/50 flex justify-between items-center bg-radial">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <span className="absolute bottom-0 right-0 z-10 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <div className="w-8 h-8 rounded-full border border-[#D4AF37]/30 bg-black overflow-hidden flex items-center justify-center p-[1px]">
+                  <img src={brandLogo} className="w-full h-full object-cover rounded-full" alt="Campus Cakes Logo" />
+                </div>
+              </div>
               <div>
                 <h4 className="text-xs font-black text-gray-800 dark:text-white leading-none flex items-center gap-1.5">
                   Bakery Coordinator
@@ -179,12 +204,35 @@ export default function SupportSection({ user }: SupportSectionProps) {
                     animate={{ opacity: 1, y: 0 }}
                     className={`flex gap-2.5 max-w-[85%] ${isModel ? 'mr-auto' : 'ml-auto flex-row-reverse'}`}
                   >
-                    <div className={`p-1.5 rounded-xl h-7 w-7 flex items-center justify-center border text-xs shrink-0 ${isModel ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 border-purple-100 dark:border-[#291316]' : 'bg-red-50 dark:bg-red-500/10 text-[#E23744] border-red-100 dark:border-[#291316]'}`}>
-                      {isModel ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                    <div className={`h-7 w-7 flex items-center justify-center shrink-0 overflow-hidden ${isModel ? 'rounded-full border border-[#D4AF37]/25 bg-black p-[0.5px]' : 'p-1.5 rounded-xl border bg-red-50 dark:bg-red-500/10 text-[#E23744] border-red-100 dark:border-[#291316]'}`}>
+                      {isModel ? (
+                        <img src={brandLogo} className="w-full h-full object-cover rounded-full" alt="Bakery Coordinator" />
+                      ) : (
+                        <User className="w-4 h-4" />
+                      )}
                     </div>
                     <div>
                       <div className={`p-3 rounded-2xl text-[11.5px] leading-relaxed font-medium ${isModel ? 'bg-gray-50 dark:bg-[#1a0d0f]/50 text-gray-700 dark:text-gray-300' : 'bg-[#E23744] text-white'}`}>
-                        {msg.text}
+                        {isModel ? (
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="mb-1.5 last:mb-0 leading-relaxed">{children}</p>,
+                              ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+                              li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                              strong: ({ children }) => <strong className="font-extrabold text-[#E23744] dark:text-rose-400">{children}</strong>,
+                              table: ({ children }) => <div className="overflow-x-auto my-2 border border-gray-200 dark:border-zinc-800 rounded-lg"><table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-[10.5px]">{children}</table></div>,
+                              th: ({ children }) => <th className="px-3 py-1.5 bg-gray-100 dark:bg-zinc-800/50 font-bold text-left">{children}</th>,
+                              td: ({ children }) => <td className="px-3 py-1.5 border-t border-gray-100 dark:border-zinc-800/30">{children}</td>,
+                              h3: ({ children }) => <h3 className="text-sm font-black text-gray-950 dark:text-white mt-3 mb-1">{children}</h3>,
+                              h4: ({ children }) => <h4 className="text-xs font-black text-gray-950 dark:text-white mt-2 mb-1">{children}</h4>,
+                            }}
+                          >
+                            {msg.text}
+                          </ReactMarkdown>
+                        ) : (
+                          msg.text
+                        )}
                       </div>
                       <p className={`text-[8px] text-gray-400 mt-1 uppercase ${isModel ? 'text-left' : 'text-right'}`}>
                         {msg.timestamp}
@@ -201,8 +249,8 @@ export default function SupportSection({ user }: SupportSectionProps) {
                   exit={{ opacity: 0 }}
                   className="flex gap-2.5 mr-auto"
                 >
-                  <div className="p-1.5 rounded-xl h-7 w-7 flex items-center justify-center border text-xs shrink-0 bg-purple-50 dark:bg-purple-500/10 text-purple-600 border-purple-100 dark:border-[#291316]">
-                    <Bot className="w-4 h-4 animate-pulse" />
+                  <div className="h-7 w-7 flex items-center justify-center shrink-0 overflow-hidden rounded-full border border-[#D4AF37]/25 bg-black p-[0.5px]">
+                    <img src={brandLogo} className="w-full h-full object-cover rounded-full animate-pulse" alt="Typing" />
                   </div>
                   <div className="flex items-center gap-1 bg-gray-50 dark:bg-[#1a0d0f]/50 p-3 rounded-2xl text-xs text-gray-400">
                     <Loader2 className="w-3 h-3 animate-spin text-[#E23744]" />

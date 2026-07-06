@@ -17,6 +17,7 @@ import KioskSection from './components/KioskSection';
 import CustomOrderModal from './components/CustomOrderModal';
 import DashboardSection from './components/DashboardSection';
 import SupportSection from './components/SupportSection';
+import AboutSection from './components/AboutSection';
 import OffersInstagramCarousel from './components/OffersInstagramCarousel';
 import { DarkModeToggle } from './components/DarkModeToggle';
 import CelebrationConfetti from './components/CelebrationConfetti';
@@ -27,7 +28,7 @@ import {
   HelpCircle, MessageSquare, ChevronRight, CheckCircle2, Phone, ShieldCheck, 
   ArrowRight, X, AlertTriangle, CreditCard, Check, Compass, Info, Send,
   LogOut, GraduationCap, MapPin, User, Zap, Trash2, Download, Gift,
-  Bell, BellOff, BellRing, Tag, Coffee, Utensils
+  Bell, BellOff, BellRing, Tag, Coffee, Utensils, FileText, Lock, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, authenticateWithGoogle, isRealFirebase } from './firebase';
@@ -37,12 +38,12 @@ import {
   removeKioskProduct, getUserProfile, writeUserProfile, getAllUserProfiles, getUserOrders, writeOrder, 
   writeCakeImage, getAllOrders, removeOrder, subscribeToCoupons, writeCoupon, removeCoupon,
   subscribeToUserProfile, subscribeToUserOrders, subscribeToAllOrders, clearAllFirestoreCaches,
-  subscribeToReviews, writeReview, removeReview
+  subscribeToReviews, writeReview, removeReview, getEmployees, writeEmployee, removeEmployee
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
 import { safeStorage } from './lib/safeStorage';
 import brandLogo from './assets/images/brand_logo_1781589358418.jpg';
-import { Coupon } from './types';
+import { Coupon, Employee } from './types';
 
 export default function App() {
   // --- 0. FIREBASE AUTHENTICATION FLOW STATE ---
@@ -52,7 +53,7 @@ export default function App() {
   const [campusSelected, setCampusSelected] = useState<boolean>(() => {
     return safeStorage.getItem('campus_cakes_selected_campus') !== null;
   });
-  const [activeZomatoTab, setActiveZomatoTab] = useState<'delivery' | 'kiosk' | 'portal' | 'support'>('delivery');
+  const [activeZomatoTab, setActiveZomatoTab] = useState<'delivery' | 'kiosk' | 'portal' | 'support' | 'about'>('delivery');
   const [tempSelectedCampus, setTempSelectedCampus] = useState<Campus | null>(null);
   const [tempAddressDetails, setTempAddressDetails] = useState<{hostelBlock: string, roomNo: string, instructions: string} | null>(null);
   const [tempDob, setTempDob] = useState<string>('');
@@ -81,6 +82,7 @@ export default function App() {
   const [kioskInventory, setKioskInventory] = useState<KioskCake[]>(() => {
     return isRealFirebase ? [] : KIOSK_INVENTORY;
   });
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   // Student Account Simulation State
   const [studentUser, setStudentUser] = useState<UserProfile>({
@@ -143,6 +145,26 @@ export default function App() {
   useEffect(() => {
     async function initDatabaseCatalog() {
       if (!isRealFirebase) {
+        const cachedEmp = safeStorage.getItem('_local_employees');
+        if (cachedEmp) {
+          try {
+            const parsed = JSON.parse(cachedEmp);
+            const filtered = Array.isArray(parsed) ? parsed.filter(
+              (emp: any) => !['saransh1860@gmail.com', 'tanishapahal606@gmail.com', 'tanishapahal606@gmal.com'].includes(emp.email?.toLowerCase()?.trim())
+            ) : [];
+            setEmployees(filtered);
+          } catch (e) {
+            setEmployees([
+              { id: 'emp-1', name: 'Kabir Verma', email: 'kabir.verma@campus.edu', post: 'Delivery Executive (Boys\' Hostel)', dateJoined: '2026-03-01' },
+              { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' }
+            ]);
+          }
+        } else {
+          setEmployees([
+            { id: 'emp-1', name: 'Kabir Verma', email: 'kabir.verma@campus.edu', post: 'Delivery Executive (Boys\' Hostel)', dateJoined: '2026-03-01' },
+            { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' }
+          ]);
+        }
         setLoadingCatalog(false);
         return;
       }
@@ -207,6 +229,35 @@ export default function App() {
         } catch (e) {
           console.error("Error syncing kiosk products:", e);
           setKioskInventory(KIOSK_INVENTORY);
+        }
+
+        // 4. Sync Employees
+        try {
+          const dbEmployees = await getEmployees();
+          const hasEmp = safeStorage.getItem('_has_bootstrapped_employees');
+          if ((dbEmployees && dbEmployees.length > 0) || hasEmp) {
+            const filteredEmps = (dbEmployees || []).filter(
+              emp => !['saransh1860@gmail.com', 'tanishapahal606@gmail.com', 'tanishapahal606@gmal.com'].includes(emp.email.toLowerCase().trim())
+            );
+            setEmployees(filteredEmps);
+            if (!hasEmp) safeStorage.setItem('_has_bootstrapped_employees', 'true');
+          } else {
+            const initialEmployees: Employee[] = [
+              { id: 'emp-1', name: 'Kabir Verma', email: 'kabir.verma@campus.edu', post: 'Delivery Executive (Boys\' Hostel)', dateJoined: '2026-03-01' },
+              { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' }
+            ];
+            for (const emp of initialEmployees) {
+              await writeEmployee(emp).catch(e => console.warn("Admin rights needed to bootstrap employees", e));
+            }
+            safeStorage.setItem('_has_bootstrapped_employees', 'true');
+            setEmployees(initialEmployees);
+          }
+        } catch (e) {
+          console.error("Error syncing employees:", e);
+          setEmployees([
+            { id: 'emp-1', name: 'Kabir Verma', email: 'kabir.verma@campus.edu', post: 'Delivery Executive (Boys\' Hostel)', dateJoined: '2026-03-01' },
+            { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' }
+          ]);
         }
       } catch (err) {
         console.error("Error connecting to Firestore database:", err);
@@ -759,6 +810,29 @@ export default function App() {
       return;
     }
 
+    // Check employee promo codes or IDs
+    const matchingEmployee = employees.find(emp => 
+      (emp.promoCode && emp.promoCode.toUpperCase() === input.trim().toUpperCase()) ||
+      emp.id.toUpperCase() === input.trim().toUpperCase()
+    );
+
+    if (matchingEmployee) {
+      const discType = matchingEmployee.discountType || 'percentage';
+      const discVal = matchingEmployee.discountValue !== undefined ? matchingEmployee.discountValue : 10;
+      
+      setAppliedCoupon({
+        code: matchingEmployee.promoCode || matchingEmployee.id,
+        pct: discType === 'percentage' ? discVal : undefined,
+        flat: discType === 'flat' ? discVal : undefined,
+        id: `emp-promo-${matchingEmployee.id}`,
+        isBday: false
+      });
+      
+      addInAppToast("Referral Applied!", `Applied referral discount: ${discType === 'percentage' ? discVal + '%' : '₹' + discVal} off! referred by ${matchingEmployee.name}`);
+      setCouponInput('');
+      return;
+    }
+
     // Default birthday check logic
     const storedCoupon = safeStorage.getItem(`campus_cakes_bday_coupon_${studentUser.uid || 'anon'}`);
     if (storedCoupon === input.trim() && studentUser?.dob) {
@@ -825,6 +899,49 @@ export default function App() {
       }
     }
   }, [campusSelected, studentUser?.dob, studentUser?.uid]);
+
+  // Automatically apply referral code from URL or safeStorage
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refParam = params.get('ref') || params.get('promo');
+    if (refParam) {
+      safeStorage.setItem('cc_pending_referral', refParam);
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refParam = params.get('ref') || params.get('promo') || safeStorage.getItem('cc_pending_referral');
+    if (refParam && employees.length > 0) {
+      const matchingEmployee = employees.find(emp => 
+        (emp.promoCode && emp.promoCode.toUpperCase() === refParam.toUpperCase()) ||
+        emp.id.toUpperCase() === refParam.toUpperCase()
+      );
+      if (matchingEmployee) {
+        const discType = matchingEmployee.discountType || 'percentage';
+        const discVal = matchingEmployee.discountValue !== undefined ? matchingEmployee.discountValue : 10;
+        const expectedCode = matchingEmployee.promoCode || matchingEmployee.id;
+        
+        if (!appliedCoupon || appliedCoupon.code !== expectedCode) {
+          setAppliedCoupon({
+            code: expectedCode,
+            pct: discType === 'percentage' ? discVal : undefined,
+            flat: discType === 'flat' ? discVal : undefined,
+            id: `emp-promo-${matchingEmployee.id}`,
+            isBday: false
+          });
+          
+          // Clear it from temporary storage once successfully processed
+          safeStorage.removeItem('cc_pending_referral');
+          
+          // Push a toast to notify them that the referral discount is applied!
+          setTimeout(() => {
+            addInAppToast("Employee Discount Added!", `Welcome! Enjoy a special ${discType === 'percentage' ? discVal + '%' : '₹' + discVal} discount referred by ${matchingEmployee.name}!`);
+          }, 1500);
+        }
+      }
+    }
+  }, [employees, profileLoaded, appliedCoupon]);
 
   // --- 2. LOGICAL SIDE-EFFECTS & UPDATES ---
   // Handle Campus Select resets
@@ -1265,6 +1382,26 @@ export default function App() {
     // Generated ID
     const genOrderNo = 'CK-' + Math.floor(1000 + Math.random() * 9000);
     
+    let employeeReferral: string | undefined = undefined;
+    let employeeCommission: number | undefined = undefined;
+    let discountCode: string | undefined = undefined;
+
+    if (appliedCoupon && appliedCoupon.id && appliedCoupon.id.startsWith('emp-promo-')) {
+      const referralEmpId = appliedCoupon.id.replace('emp-promo-', '');
+      const referredEmployee = employees.find(e => e.id === referralEmpId);
+      if (referredEmployee) {
+        employeeReferral = referredEmployee.id;
+        discountCode = appliedCoupon.code;
+        const commType = referredEmployee.commissionType || 'percentage';
+        const commVal = referredEmployee.commissionValue !== undefined ? referredEmployee.commissionValue : 5;
+        if (commType === 'percentage') {
+          employeeCommission = Math.floor(subtotal * (commVal / 100));
+        } else {
+          employeeCommission = commVal;
+        }
+      }
+    }
+
     const newOrderRecord: Order = {
       id: genOrderNo,
       campusId: selectedCampus.id,
@@ -1279,7 +1416,10 @@ export default function App() {
       pointsEarned: Math.floor(subtotal / 10),
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       timestamp: new Date().toISOString(),
-      serviceMode
+      serviceMode,
+      employeeReferral,
+      employeeCommission,
+      discountCode
     };
 
     const userOrderRecord: Order = {
@@ -2135,6 +2275,8 @@ export default function App() {
               />
             )}
           </button>
+
+
         </div>
       </div>
 
@@ -2232,7 +2374,8 @@ export default function App() {
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-2xl md:text-3xl font-black font-serif text-gray-950 dark:text-[#FEFAF6] tracking-tight leading-none">
-                    Order for Tomorrow at <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#C5A02B] italic">{selectedCampus.name.split(' ')[0]}</span>
+                    {serviceMode === 'dinein' ? 'Order to Your Table at ' : 'Order for Tomorrow at '}
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#C5A02B] italic">{selectedCampus.name.split(' ')[0]}</span>
                   </h2>
                   <div className="w-20 h-[3px] bg-gradient-to-r from-[#D4AF37] to-transparent mt-2.5 rounded-full" />
                 </div>
@@ -2530,6 +2673,42 @@ export default function App() {
               allCakes={activeProducts}
               kioskInventory={kioskInventory}
               coupons={coupons}
+              employees={employees}
+              onAddEmployee={async (emp) => {
+                try {
+                  if (isRealFirebase) {
+                    await writeEmployee(emp);
+                  }
+                  setEmployees(prev => {
+                    const exists = prev.some(e => e.id === emp.id);
+                    const next = exists
+                      ? prev.map(e => e.id === emp.id ? emp : e)
+                      : [...prev, emp];
+                    if (!isRealFirebase) {
+                      safeStorage.setItem('_local_employees', JSON.stringify(next));
+                    }
+                    return next;
+                  });
+                } catch (err) {
+                  console.error("Error adding/updating employee:", err);
+                }
+              }}
+              onDeleteEmployee={async (id) => {
+                try {
+                  if (isRealFirebase) {
+                    await removeEmployee(id);
+                  }
+                  setEmployees(prev => {
+                    const next = prev.filter(e => e.id !== id);
+                    if (!isRealFirebase) {
+                      safeStorage.setItem('_local_employees', JSON.stringify(next));
+                    }
+                    return next;
+                  });
+                } catch (err) {
+                  console.error("Error deleting employee:", err);
+                }
+              }}
               onAddCoupon={async (c) => {
                 await writeCoupon(c);
               }}
@@ -2754,19 +2933,24 @@ export default function App() {
 
         {/* --- STATE 4: AI CUSTOMER SUPPORT CHAT HUB --- */}
         {activeZomatoTab === 'support' && (
-          <SupportSection user={studentUser} />
+          <SupportSection user={studentUser} selectedCampus={selectedCampus} />
+        )}
+
+        {/* --- STATE 5: ABOUT US PAGE --- */}
+        {activeZomatoTab === 'about' && (
+          <AboutSection />
         )}
 
       </main>
 
       {/* FOOTER */}
-      <footer className="relative bg-[#67613f] text-zinc-100 mt-20 border-t border-zinc-800/10 overflow-hidden">
+      <footer id="about-us-footer" className="relative bg-[#67613f] text-zinc-100 mt-20 border-t border-zinc-800/10 overflow-hidden">
         {/* Decorative Top Accent Line */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-500 via-[#E23744] to-amber-500" />
         
         {/* Subtle Background Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-[#E23744]/10 blur-[100px] pointer-events-none" />
-        
+
         <div className="max-w-7xl mx-auto px-6 md:px-12 py-20 grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 relative z-10">
           
           {/* Brand Column */}
@@ -2819,6 +3003,19 @@ export default function App() {
               <div className="pt-3 flex flex-col gap-2.5">
                 <button 
                   onClick={() => {
+                    setActiveZomatoTab('about');
+                    setTimeout(() => {
+                      document.getElementById('main-tabs-anchor')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 bg-gradient-to-r from-amber-950/40 to-yellow-950/40 hover:from-[#D4AF37]/20 hover:to-[#D4AF37]/30 border border-[#D4AF37]/30 hover:border-[#D4AF37] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer group shadow-[0_0_15px_rgba(212,175,55,0.15)] active:scale-98"
+                >
+                  <Compass className="w-3.5 h-3.5 text-[#D4AF37] group-hover:rotate-45 transition-transform duration-300" />
+                  About Us (Story & Founders)
+                </button>
+
+                <button 
+                  onClick={() => {
                     setActiveZomatoTab('support');
                     setTimeout(() => {
                       document.getElementById('main-tabs-anchor')?.scrollIntoView({ behavior: 'smooth' });
@@ -2836,32 +3033,55 @@ export default function App() {
         </div>
 
         {/* Premium Bottom Bar */}
-        <div className="bg-[#67613f] border-t border-zinc-800/10 px-6 md:px-12 py-6 text-center text-xs text-zinc-300">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4">
-            <p className="text-xs leading-relaxed max-w-2xl text-left text-zinc-200 md:max-w-xl font-medium">
+        <div className="bg-[#67613f] border-t border-zinc-800/10 px-6 md:px-12 py-8 text-center text-xs text-zinc-300">
+          <div className="max-w-7xl mx-auto flex flex-col items-center gap-6">
+            
+            {/* Centered Grid for Links with Icons */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 max-w-3xl w-full justify-center">
+              <button 
+                onClick={() => {
+                  setActiveZomatoTab('about');
+                  setTimeout(() => {
+                    document.getElementById('main-tabs-anchor')?.scrollIntoView({ behavior: 'smooth' });
+                  }, 100);
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-black/20 hover:bg-black/35 text-[#F3E5AB] font-bold border border-[#D4AF37]/35 hover:border-[#D4AF37] transition-all duration-300 shadow-sm cursor-pointer group active:scale-98"
+              >
+                <Compass className="w-4 h-4 text-[#D4AF37] group-hover:rotate-45 transition-transform duration-300 shrink-0" />
+                <span className="tracking-tight">About Us</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveDocModal('terms')} 
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-black/20 hover:bg-black/35 text-zinc-100 font-bold border border-white/10 hover:border-zinc-300 transition-all duration-300 shadow-sm cursor-pointer group active:scale-98"
+              >
+                <FileText className="w-4 h-4 text-zinc-300 group-hover:scale-110 transition-transform duration-300 shrink-0" />
+                <span className="tracking-tight">Terms of Service</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveDocModal('privacy')} 
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-black/20 hover:bg-black/35 text-zinc-100 font-bold border border-white/10 hover:border-zinc-300 transition-all duration-300 shadow-sm cursor-pointer group active:scale-98"
+              >
+                <Lock className="w-4 h-4 text-zinc-300 group-hover:scale-110 transition-transform duration-300 shrink-0" />
+                <span className="tracking-tight">Privacy Policy</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveDocModal('refund')} 
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-black/20 hover:bg-black/35 text-zinc-100 font-bold border border-white/10 hover:border-zinc-300 transition-all duration-300 shadow-sm cursor-pointer group active:scale-98"
+              >
+                <RotateCcw className="w-4 h-4 text-zinc-300 group-hover:scale-110 transition-transform duration-300 shrink-0" />
+                <span className="tracking-tight">Refund Policy</span>
+              </button>
+            </div>
+
+            <div className="w-20 h-px bg-white/10 my-1" />
+
+            <p className="text-xs leading-relaxed max-w-2xl text-center text-zinc-200 font-medium">
               © {new Date().getFullYear()} Campus Cakes Inc. Operated in partnership with college student committees. 
               Baked fresh, handled on-campus, and hand-delivered securely.
             </p>
-            <div className="flex flex-wrap gap-5 text-xs text-zinc-200 font-medium justify-end">
-              <button 
-                onClick={() => setActiveDocModal('terms')} 
-                className="hover:text-white underline decoration-zinc-400/50 transition-colors duration-200 cursor-pointer"
-              >
-                Terms of Service
-              </button>
-              <button 
-                onClick={() => setActiveDocModal('privacy')} 
-                className="hover:text-white underline decoration-zinc-400/50 transition-colors duration-200 cursor-pointer"
-              >
-                Dorm Privacy
-              </button>
-              <button 
-                onClick={() => setActiveDocModal('refund')} 
-                className="hover:text-white underline decoration-zinc-400/50 transition-colors duration-200 cursor-pointer"
-              >
-                Refund Policy
-              </button>
-            </div>
           </div>
         </div>
       </footer>

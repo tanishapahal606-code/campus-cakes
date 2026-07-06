@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon, CustomQuestion } from '../types';
+import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon, CustomQuestion, Employee } from '../types';
 import { 
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
+import { safeStorage } from '../lib/safeStorage';
 
 interface DashboardSectionProps {
   user: UserProfile;
@@ -40,6 +41,9 @@ interface DashboardSectionProps {
   isAdmin?: boolean;
   onPurgeAndResetDatabase?: () => void;
   onShowToast?: (title: string, body: string) => void;
+  employees?: Employee[];
+  onAddEmployee?: (emp: Employee) => void;
+  onDeleteEmployee?: (id: string) => void;
 }
 
 export default function DashboardSection({
@@ -68,10 +72,49 @@ export default function DashboardSection({
   isAdmin = false,
   onPurgeAndResetDatabase,
   onShowToast,
+  employees = [],
+  onAddEmployee,
+  onDeleteEmployee,
 }: DashboardSectionProps) {
-  const [activeTab, setActiveTab] = useState<'student' | 'admin'>('student');
+  const [activeTab, setActiveTab] = useState<'student' | 'admin' | 'employee'>('student');
   const [addressInput, setAddressInput] = useState(user.address);
   const [isSavedAddress, setIsSavedAddress] = useState(true);
+
+  // Employee referral / commission settings states for onboarding
+  const [newEmpPromoCode, setNewEmpPromoCode] = useState('');
+  const [newEmpDiscountType, setNewEmpDiscountType] = useState<'percentage' | 'flat'>('percentage');
+  const [newEmpDiscountValue, setNewEmpDiscountValue] = useState('10');
+  const [newEmpCommissionType, setNewEmpCommissionType] = useState<'percentage' | 'flat'>('percentage');
+  const [newEmpCommissionValue, setNewEmpCommissionValue] = useState('5');
+
+  // Inline directory employee editing states
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+  const [editingPromoCode, setEditingPromoCode] = useState('');
+  const [editingDiscountType, setEditingDiscountType] = useState<'percentage' | 'flat'>('percentage');
+  const [editingDiscountValue, setEditingDiscountValue] = useState('');
+  const [editingCommissionType, setEditingCommissionType] = useState<'percentage' | 'flat'>('percentage');
+  const [editingCommissionValue, setEditingCommissionValue] = useState('');
+
+  const currentEmployee = employees.find(emp => emp.email.toLowerCase().trim() === user.email.toLowerCase().trim());
+  const isEmployee = !!currentEmployee;
+
+  // Dynamic Ambassador QR configurations
+  const [qrBaseUrlType, setQrBaseUrlType] = useState<'production' | 'editor' | 'custom'>(() => {
+    return (safeStorage.getItem('cc_qr_base_url_type') as any) || 'production';
+  });
+  const [customQrBaseUrl, setCustomQrBaseUrl] = useState(() => {
+    return safeStorage.getItem('cc_custom_qr_base_url') || '';
+  });
+
+  React.useEffect(() => {
+    if (isEmployee) {
+      setActiveTab('employee');
+    } else if (isAdmin) {
+      setActiveTab('admin');
+    } else {
+      setActiveTab('student');
+    }
+  }, [isEmployee, isAdmin, user.email]);
 
   // New celebration state
   const [newCelebName, setNewCelebName] = useState('');
@@ -135,7 +178,15 @@ export default function DashboardSection({
   // Admin section: new campus state
   const [newCampusName, setNewCampusName] = useState('');
   const [newCampusLocation, setNewCampusLocation] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'kiosk' | 'catalog' | 'campus' | 'coupons' | 'qrcodes'>('analytics');
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'kiosk' | 'catalog' | 'campus' | 'coupons' | 'qrcodes' | 'employees'>('analytics');
+  
+  // Admin section: new employee state
+  const [newEmpName, setNewEmpName] = useState('');
+  const [newEmpEmail, setNewEmpEmail] = useState('');
+  const [newEmpPost, setNewEmpPost] = useState<Employee['post']>('Campus Manager');
+  const [newEmpCampusId, setNewEmpCampusId] = useState('');
+  const [empSearch, setEmpSearch] = useState('');
+  const [deletingEmpId, setDeletingEmpId] = useState<string | null>(null);
   const [adminOrderFilter, setAdminOrderFilter] = useState<'all' | 'placed' | 'preparing' | 'delivery' | 'ready'>('all');
   const [adminServiceModeFilter, setAdminServiceModeFilter] = useState<'all' | 'delivery' | 'dinein'>('all');
 
@@ -248,6 +299,36 @@ export default function DashboardSection({
   const kioskPct = totalItemsCount > 0 ? Math.round((kioskItemsCount / totalItemsCount) * 100) : 0;
   const customPct = totalItemsCount > 0 ? Math.round((customItemsCount / totalItemsCount) * 100) : 0;
   const preOrderPct = totalItemsCount > 0 ? Math.round((regularPreOrderCount / totalItemsCount) * 100) : 0;
+
+  const handleAddEmployeeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmpName || !newEmpEmail || !newEmpPost) return;
+    
+    // Validate email is not an admin email
+    const adminEmails = ['saransh1860@gmail.com', 'tanishapahal606@gmail.com', 'tanishapahal606@gmal.com'];
+    if (adminEmails.includes(newEmpEmail.toLowerCase().trim())) {
+      if (onShowToast) {
+        onShowToast("Registration Blocked", "This email is registered to a Campus Administrator and cannot be onboarded as an employee.");
+      }
+      return;
+    }
+
+    onAddEmployee?.({
+      id: 'emp-' + Date.now(),
+      name: newEmpName,
+      email: newEmpEmail.trim(),
+      post: newEmpPost,
+      campusId: newEmpCampusId || undefined,
+      dateJoined: new Date().toISOString().split('T')[0]
+    });
+    setNewEmpName('');
+    setNewEmpEmail('');
+    setNewEmpPost('Campus Manager');
+    setNewEmpCampusId('');
+    if (onShowToast) {
+      onShowToast("Hiring Complete", `${newEmpName} has been registered as ${newEmpPost}!`);
+    }
+  };
 
   const handleAddCelebSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -517,6 +598,16 @@ export default function DashboardSection({
           >
             👤 Student Hub
           </button>
+          {isEmployee && (
+            <button
+              onClick={() => setActiveTab('employee')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 ${
+                activeTab === 'employee' ? 'bg-white dark:bg-[#120709] text-purple-700 dark:text-purple-450 shadow-sm dark:shadow-none' : 'hover:text-gray-900 hover:dark:text-white'
+              }`}
+            >
+              💼 Employee Desk
+            </button>
+          )}
           {isAdmin && (
             <button
               onClick={() => setActiveTab('admin')}
@@ -603,33 +694,8 @@ export default function DashboardSection({
                   </div>
                 </div>
 
-                {/* 2. Premium Celebration Event Schedule Hub */}
-                <div className="lg:col-span-3 bg-white dark:bg-[#120709] rounded-[32px] p-5 border border-[#D4AF37]/20 dark:border-[#291316] shadow-xl flex flex-col justify-between min-h-[210px] relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#D4AF37]/[0.06] to-transparent rounded-full blur-2xl pointer-events-none" />
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[9px] font-extrabold bg-[#FAF3D9] dark:bg-[#1E1407] text-[#C49A25] dark:text-[#F3E5AB] px-2.5 py-1 rounded-xl uppercase tracking-widest leading-none border border-[#D4AF37]/20">
-                        Milestone Reminders
-                      </span>
-                      <Calendar className="w-4 h-4 text-[#C49A25] dark:text-[#D4AF37] animate-pulse-slow" />
-                    </div>
-                    <h3 className="text-xl font-black text-gray-950 dark:text-white font-display tracking-tight leading-tight mt-3">
-                      {user.savedCelebrations.length} Active Events
-                    </h3>
-                    <p className="text-[10px] text-gray-500 dark:text-[#a1a1aa] font-semibold tracking-wide leading-relaxed mt-1.5">
-                      Your university wings are safeguarded. You will automatically receive a dispatch text 48h prior with preinstalled ideas.
-                    </p>
-                  </div>
-                  
-                  <div className="pt-3 border-t border-dashed border-gray-150 dark:border-[#291316] flex items-center justify-between text-[10px] font-bold text-[#C49A25] dark:text-[#D4AF37]">
-                    <span>SMS alert active</span>
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-                  </div>
-                </div>
-
-                {/* 3. Dorm GPS Delivery Station address picker layout */}
-                <div className="lg:col-span-3 bg-white dark:bg-[#120709] rounded-[32px] p-5 border border-amber-500/10 dark:border-[#291316] shadow-xl flex flex-col justify-between min-h-[210px] relative overflow-hidden group">
+                {/* 2. Dorm GPS Delivery Station address picker layout */}
+                <div className="lg:col-span-6 xl:col-span-7 bg-white dark:bg-[#120709] rounded-[32px] p-5 border border-amber-500/10 dark:border-[#291316] shadow-xl flex flex-col justify-between min-h-[210px] relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-500/[0.04] to-transparent rounded-full blur-2xl pointer-events-none" />
                   
                   <div>
@@ -767,93 +833,7 @@ export default function DashboardSection({
                 )}
               </div>
 
-              {/* Saved Celebrations Calendar Component */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-dashed dark:border-[#3c1a1e] border-gray-100 dark:border-[#291316] pt-5">
-                <div>
-                  <h4 className="text-xs font-black text-gray-800 dark:text-[#fafafa] uppercase tracking-widest mb-3 flex items-center gap-1">
-                    <Calendar className="w-4 h-4 text-purple-600" /> Active Celebrations
-                  </h4>
-                  <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] mb-3 leading-snug">
-                     Store upcoming birthday dates. We will automatically shoot you a custom recommendation and 
-                     promo code 48 hours beforehand to ensure you order hassle-free.
-                  </p>
 
-                  <div className="space-y-2">
-                    {user.savedCelebrations.map((celeb) => (
-                      <div key={celeb.id} className="p-3 bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-gray-100 dark:border-[#291316] flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-white dark:bg-[#120709] text-purple-600 border rounded-xl">
-                            <Gift className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-800 dark:text-[#fafafa]">{celeb.name}</p>
-                            <p className="text-[10px] text-gray-400">{celeb.relation} • {celeb.date}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
-                            Reminder Active
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => onDeleteCelebration(celeb.id)}
-                            className="text-gray-400 hover:text-red-500 text-xs transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Add new celebration */}
-                <form onSubmit={handleAddCelebSubmit} className="p-4 bg-purple-50 dark:bg-purple-500/10/40 rounded-3xl border border-purple-200/55 flex flex-col justify-between">
-                  <div>
-                    <h5 className="font-bold text-xs text-purple-950 dark:text-pink-300 dark:text-purple-300 flex items-center gap-1 mb-1">
-                      <Plus className="w-4 h-4" /> Add Event Reminder
-                    </h5>
-                    <p className="text-[10px] text-purple-900 dark:text-purple-300/50 mb-3">Save classmate milestones easily</p>
-                    
-                    <div className="space-y-2 mb-3">
-                      <input
-                        type="text"
-                        placeholder="Friend's Name (e.g. Rohini)"
-                        value={newCelebName}
-                        onChange={(e) => setNewCelebName(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-[#120709] text-xs rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-400"
-                        required
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <select
-                          value={newCelebRelation}
-                          onChange={(e) => setNewCelebRelation(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-[#120709] text-xs rounded-xl focus:outline-none"
-                        >
-                          <option value="Dorm Roommate">Roommate</option>
-                          <option value="Hostel Wingmate">Wingmate</option>
-                          <option value="Class Rep">Class CR</option>
-                          <option value="Professor Birthday">Professor</option>
-                        </select>
-                        <input
-                          type="date"
-                          value={newCelebDate}
-                          onChange={(e) => setNewCelebDate(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-[#120709] text-xs rounded-xl focus:outline-none"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl shadow-md dark:shadow-none transition-colors"
-                  >
-                    Quick Add Reminder
-                  </button>
-                </form>
-              </div>
 
             </motion.div>
           )}
@@ -939,6 +919,14 @@ export default function DashboardSection({
                   >
                     <QrCode className="w-4 h-4" />
                     <span className="text-[11px] font-bold">Table QR Codes</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setActiveAdminTab('employees')}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${activeAdminTab === 'employees' ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700' : 'text-gray-600 dark:text-[#d4d4d8] hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80'}`}
+                  >
+                    <Users className="w-4 h-4" />
+                    <span className="text-[11px] font-bold">Employees & Roles</span>
                   </button>
                 </div>
 
@@ -2772,9 +2760,578 @@ export default function DashboardSection({
                 </div>
               )}
 
+              {activeAdminTab === 'employees' && (
+                <div className="space-y-6 animate-fade-in">
+                  {/* HR Workspace Header */}
+                  <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-[#E23744]/10 p-6 rounded-3xl border border-purple-500/20 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="font-extrabold text-sm text-purple-900 dark:text-purple-300 uppercase tracking-widest mb-1 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-purple-600" /> Human Resources Workspace
+                        </h3>
+                        <p className="text-xs text-purple-700/80 dark:text-purple-300/70 font-medium max-w-2xl">
+                          Hire, register, and manage campus ambassador teams, counter hosts, branding designers, and hostel runners with secure access control.
+                        </p>
+                      </div>
+                      <div className="bg-purple-100/50 dark:bg-purple-950/40 px-4 py-2 rounded-2xl border border-purple-200/30 text-center shrink-0">
+                        <span className="block text-[10px] text-purple-700 dark:text-purple-400 font-extrabold uppercase tracking-widest">Active Staff</span>
+                        <span className="text-xl font-black text-purple-950 dark:text-white">{employees.length} Members</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* LEFT COLUMN: REGISTRATION FORM */}
+                    <div className="lg:col-span-5 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm">
+                      <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest mb-1.5 flex items-center gap-1.5 border-b border-gray-100 dark:border-[#291316] pb-2">
+                        <Plus className="w-4 h-4 text-purple-600" /> Hire New Employee
+                      </h4>
+                      <p className="text-[10px] text-gray-400 mb-4 font-semibold">
+                        Register their official campus email. This grants them secure workspace permissions and includes them in the delivery dispatcher grid.
+                      </p>
+
+                      <form onSubmit={handleAddEmployeeSubmit} className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Candidate Name</label>
+                          <input 
+                            type="text"
+                            placeholder="e.g. Ananya Nair"
+                            value={newEmpName}
+                            onChange={(e) => setNewEmpName(e.target.value)}
+                            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Registered Email</label>
+                          <input 
+                            type="email"
+                            placeholder="e.g. ananya.nair@campus.edu"
+                            value={newEmpEmail}
+                            onChange={(e) => setNewEmpEmail(e.target.value)}
+                            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Campus Hub Assignment</label>
+                          <select 
+                            value={newEmpCampusId}
+                            onChange={(e) => setNewEmpCampusId(e.target.value)}
+                            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50 cursor-pointer"
+                          >
+                            <option value="">All Campuses (Global Team)</option>
+                            {campuses.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Designated Staff Post</label>
+                          <select 
+                            value={newEmpPost}
+                            onChange={(e) => setNewEmpPost(e.target.value as Employee['post'])}
+                            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50 cursor-pointer"
+                            required
+                          >
+                            <option value="Campus Manager">Campus Manager</option>
+                            <option value="Customer Experience Executive">Customer Experience Executive</option>
+                            <option value="Packaging & Branding Executive">Packaging & Branding Executive</option>
+                            <option value="Delivery Executive (Boys' Hostel)">Delivery Executive (Boys' Hostel)</option>
+                            <option value="Delivery Executive (Girls' Hostel)">Delivery Executive (Girls' Hostel)</option>
+                          </select>
+                        </div>
+
+                        {/* Dynamic Role Description Card */}
+                        <div className="p-3 bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 rounded-2xl">
+                          <span className="block text-[9px] text-purple-700 dark:text-purple-400 font-extrabold uppercase tracking-widest">Role Objectives & Duties</span>
+                          <p className="text-[10px] text-purple-950 dark:text-gray-300 font-semibold mt-1 leading-normal">
+                            {newEmpPost === 'Campus Manager' && 'Picks up orders from partner bakeries and manages campus operations.'}
+                            {newEmpPost === 'Customer Experience Executive' && 'Manages the Dine-In Hub counter, assists customers, takes orders, and handles billing.'}
+                            {newEmpPost === 'Packaging & Branding Executive' && 'Packages orders, ensures brand presentation, and prepares orders for dispatch.'}
+                            {newEmpPost === 'Delivery Executive (Boys\' Hostel)' && 'Delivers orders directly to boys\' hostels.'}
+                            {newEmpPost === 'Delivery Executive (Girls\' Hostel)' && 'Delivers orders directly to girls\' hostels.'}
+                          </p>
+                        </div>
+
+                        <button 
+                          type="submit"
+                          className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-[0.98] cursor-pointer"
+                        >
+                          Onboard & Assign Work Credentials
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* RIGHT COLUMN: ACTIVE STAFF DIRECTORY */}
+                    <div className="lg:col-span-7 space-y-4">
+                      {/* Search Bar */}
+                      <div className="bg-white dark:bg-[#120709] rounded-2xl border border-gray-200 dark:border-[#3c1a1e] p-3 shadow-sm flex items-center gap-2.5">
+                        <Users className="w-4 h-4 text-gray-400 shrink-0" />
+                        <input 
+                          type="text"
+                          placeholder="Filter directory by name, email, or role..."
+                          value={empSearch}
+                          onChange={(e) => setEmpSearch(e.target.value)}
+                          className="w-full bg-transparent border-none focus:outline-none text-xs font-semibold placeholder:text-gray-400 text-gray-800 dark:text-[#fafafa]"
+                        />
+                        {empSearch && (
+                          <button 
+                            type="button"
+                            onClick={() => setEmpSearch('')}
+                            className="text-[10px] font-black text-gray-400 hover:text-gray-600 dark:hover:text-[#fafafa] uppercase shrink-0 px-1.5"
+                          >
+                            clear
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Employee List */}
+                      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                        {employees
+                          .filter(emp => {
+                            // Exclude admins from the employees list
+                            const adminEmails = ['saransh1860@gmail.com', 'tanishapahal606@gmail.com', 'tanishapahal606@gmal.com'];
+                            if (adminEmails.includes(emp.email.toLowerCase().trim())) {
+                              return false;
+                            }
+
+                            const query = empSearch.toLowerCase();
+                            return (
+                              emp.name.toLowerCase().includes(query) ||
+                              emp.email.toLowerCase().includes(query) ||
+                              emp.post.toLowerCase().includes(query)
+                            );
+                          })
+                          .map((emp) => {
+                            // Avatar color & initials
+                            const initials = emp.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                            
+                            // Color scheme by designation
+                            let badgeStyle = "bg-purple-50 text-purple-700 border-purple-200";
+                            let iconLabel = "📋";
+                            if (emp.post === 'Campus Manager') {
+                              badgeStyle = "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900/35";
+                              iconLabel = "👔";
+                            } else if (emp.post === 'Customer Experience Executive') {
+                              badgeStyle = "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/35";
+                              iconLabel = "🍽️";
+                            } else if (emp.post === 'Packaging & Branding Executive') {
+                              badgeStyle = "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/35";
+                              iconLabel = "🎁";
+                            } else if (emp.post === 'Delivery Executive (Boys\' Hostel)') {
+                              badgeStyle = "bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-900/35";
+                              iconLabel = "🏍️";
+                            } else if (emp.post === 'Delivery Executive (Girls\' Hostel)') {
+                              badgeStyle = "bg-pink-50 dark:bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-200 dark:border-pink-900/35";
+                              iconLabel = "🌸";
+                            }
+
+                            const empCampus = campuses.find(c => c.id === emp.campusId);
+
+                            return (
+                              <div 
+                                key={emp.id}
+                                className="bg-white dark:bg-[#120709] rounded-2xl border border-gray-200 dark:border-[#3c1a1e] p-4 flex items-center justify-between gap-4 shadow-sm hover:border-purple-200 transition-colors"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 w-full">
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-100 to-indigo-50 dark:from-purple-950/40 dark:to-indigo-950/40 flex items-center justify-center text-purple-700 dark:text-purple-400 font-extrabold text-xs shrink-0 border border-purple-200/25">
+                                    {initials}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <h5 className="font-extrabold text-xs text-gray-900 dark:text-white truncate">{emp.name}</h5>
+                                    <p className="text-[10px] text-gray-500 truncate font-semibold select-all mt-0.5">{emp.email}</p>
+                                    
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                      <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${badgeStyle} flex items-center gap-1`}>
+                                        <span>{iconLabel}</span>
+                                        <span>{emp.post}</span>
+                                      </span>
+                                      {empCampus ? (
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-gray-50 dark:bg-black/40 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded border border-gray-150">
+                                          📍 {empCampus.name}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-gray-50 dark:bg-black/40 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded border border-gray-150">
+                                          🌐 Global Hub
+                                        </span>
+                                      )}
+                                      <span className="text-[9px] text-gray-400 font-medium pl-0.5">Joined: {emp.dateJoined}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {deletingEmpId === emp.id ? (
+                                  <div className="flex items-center gap-1.5 shrink-0 bg-red-50 dark:bg-red-950/20 p-1.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                                    <span className="text-[9px] font-black uppercase text-red-600 dark:text-red-400 px-1">Sure?</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onDeleteEmployee?.(emp.id);
+                                        setDeletingEmpId(null);
+                                        if (onShowToast) {
+                                          onShowToast("Offboarding Complete", `${emp.name} has been removed from the registry.`);
+                                        }
+                                      }}
+                                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-[9px] font-black rounded-lg uppercase tracking-wider cursor-pointer"
+                                    >
+                                      Yes
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingEmpId(null)}
+                                      className="px-2 py-1 bg-gray-200 dark:bg-[#1a0d0f] hover:bg-gray-300 text-gray-700 dark:text-gray-300 text-[9px] font-black rounded-lg uppercase tracking-wider cursor-pointer"
+                                    >
+                                      No
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    type="button"
+                                    onClick={() => setDeletingEmpId(emp.id)}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all shrink-0 cursor-pointer"
+                                    title="Offboard Employee & Revoke Access"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                        {employees.filter(emp => {
+                          const query = empSearch.toLowerCase();
+                          return (
+                            emp.name.toLowerCase().includes(query) ||
+                            emp.email.toLowerCase().includes(query) ||
+                            emp.post.toLowerCase().includes(query)
+                          );
+                        }).length === 0 && (
+                          <div className="p-12 text-center bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-dashed border-gray-200 dark:border-[#3c1a1e]">
+                            <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] font-bold uppercase tracking-widest">No matching staff found</p>
+                            <p className="text-[10px] text-gray-400 mt-1">Refine your search parameters or register them on the left panel.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
                 </div>
               </div>
 
+            </motion.div>
+          )}
+
+          {/* 3. EMPLOYEE DASHBOARD CONTENT */}
+          {activeTab === 'employee' && currentEmployee && (
+            <motion.div
+              key="employee-tab"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6 animate-fade-in"
+            >
+              {/* Header Profile Badge */}
+              <div className="bg-gradient-to-r from-purple-500/10 via-[#AF2430]/10 to-[#C49A25]/10 p-6 rounded-3xl border border-purple-500/20 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white font-extrabold text-lg shadow-md border border-white/20">
+                      {currentEmployee.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-extrabold text-lg text-gray-900 dark:text-white">
+                          {currentEmployee.name}
+                        </h3>
+                        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border border-purple-200/20">
+                          Staff Account
+                        </span>
+                      </div>
+                      <p className="text-xs text-purple-700/80 dark:text-purple-300/70 font-semibold mt-0.5">
+                        Role: {currentEmployee.post} • Connected: {currentEmployee.email}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-white/50 dark:bg-black/30 px-4 py-2 rounded-2xl border border-[#D4AF37]/20 shrink-0">
+                    <span className="block text-[9px] text-[#C49A25] font-extrabold uppercase tracking-widest">Commission Settings</span>
+                    <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                      {currentEmployee.commissionValue !== undefined ? `${currentEmployee.commissionValue}${currentEmployee.commissionType === 'percentage' ? '%' : ' Rs Flat'}` : '5% Referrals'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Referral Analytics Stats Cards */}
+              {(() => {
+                const referredOrders = orders.filter(o => o.employeeReferral === currentEmployee.id);
+                const totalCommission = referredOrders.reduce((acc, o) => acc + (o.employeeCommission || 0), 0);
+                const totalSales = referredOrders.reduce((acc, o) => acc + o.subtotal, 0);
+                let resolvedBaseUrl = window.location.origin;
+                if (qrBaseUrlType === 'production' && window.location.origin.includes('ais-dev-')) {
+                  resolvedBaseUrl = window.location.origin.replace('ais-dev-', 'ais-pre-');
+                } else if (qrBaseUrlType === 'custom' && customQrBaseUrl.trim()) {
+                  resolvedBaseUrl = customQrBaseUrl.trim();
+                  if (!resolvedBaseUrl.startsWith('http://') && !resolvedBaseUrl.startsWith('https://')) {
+                    resolvedBaseUrl = 'https://' + resolvedBaseUrl;
+                  }
+                }
+                const refUrl = `${resolvedBaseUrl}${resolvedBaseUrl.endsWith('/') ? '' : '/'}?ref=${currentEmployee.promoCode || currentEmployee.id}`;
+
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Commissions Earned Card */}
+                      <div className="bg-[#FAF6F0] dark:bg-[#120708] border border-[#D4AF37]/25 dark:border-[#3C2216] p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider block mb-1">Total Payout</span>
+                            <h4 className="text-2xl font-black font-mono text-[#C49A25] dark:text-[#D4AF37]">₹{totalCommission}</h4>
+                          </div>
+                          <div className="p-2 bg-amber-100 dark:bg-amber-950/20 rounded-xl text-amber-600">
+                            <IndianRupee className="w-5 h-5" />
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-[#D4AF37]/10 flex justify-between items-center">
+                          <span className="text-[10px] text-zinc-500 font-semibold">Live Earned Surcharges</span>
+                          <span className="text-[10px] text-emerald-600 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3" /> Fully Synced
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Total Referred Orders */}
+                      <div className="bg-white dark:bg-[#120709] border border-gray-100 dark:border-[#291316] p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider block mb-1">Referral Sales</span>
+                            <h4 className="text-2xl font-black font-mono text-zinc-800 dark:text-white">{referredOrders.length} Orders</h4>
+                          </div>
+                          <div className="p-2 bg-purple-100 dark:bg-purple-950/20 rounded-xl text-purple-600">
+                            <ShoppingBag className="w-5 h-5" />
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-[#291316] flex justify-between items-center">
+                          <span className="text-[10px] text-zinc-500 font-semibold">Scanned Discount Conversions</span>
+                          <span className="text-[10px] text-zinc-650 dark:text-zinc-300 font-bold">₹{totalSales} Volume</span>
+                        </div>
+                      </div>
+
+                      {/* Your Unique Promo Code */}
+                      <div className="bg-white dark:bg-[#120709] border border-gray-100 dark:border-[#291316] p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider block mb-1">Your Promo Code</span>
+                            <h4 className="text-2xl font-black text-purple-600 dark:text-purple-400 tracking-tight font-display select-all">{currentEmployee.promoCode || currentEmployee.id}</h4>
+                          </div>
+                          <div className="p-2 bg-pink-100 dark:bg-pink-950/20 rounded-xl text-pink-600">
+                            <Tag className="w-5 h-5" />
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-[#291316] flex justify-between items-center">
+                          <span className="text-[10px] text-zinc-500 font-semibold">Active Customer Reward</span>
+                          <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">
+                            {currentEmployee.discountValue !== undefined ? `${currentEmployee.discountValue}${currentEmployee.discountType === 'percentage' ? '%' : ' Rs Flat'} off` : '10% OFF'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* QR Code and Sharing Actions Card */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                      <div className="lg:col-span-5 bg-gradient-to-tr from-purple-500/5 to-[#AF2430]/5 rounded-3xl border border-purple-500/15 p-6 shadow-sm flex flex-col items-center justify-center text-center bg-white dark:bg-[#120709]">
+                        <span className="text-[9px] font-black tracking-[0.2em] bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 px-3 py-1 rounded-full uppercase mb-4 font-display">
+                          Scan to Order & Get Discount
+                        </span>
+                        
+                        {/* QR Code Container */}
+                        <div className="bg-white p-3.5 rounded-2xl shadow-md border border-gray-150 inline-block">
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(refUrl)}`}
+                            className="w-44 h-44 object-contain"
+                            alt="Referral QR Code"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+
+                        <div className="mt-4 space-y-1">
+                          <p className="text-xs font-black text-gray-900 dark:text-white">Your Ambassador QR Code</p>
+                          <p className="text-[10px] text-gray-400 font-medium px-4">
+                            Students who order via your QR code instantly receive an ambassador discount. You earn commission on their total subtotal!
+                          </p>
+                        </div>
+
+                        <div className="mt-5 w-full flex flex-col sm:flex-row gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(refUrl);
+                              if (onShowToast) {
+                                onShowToast("Copied!", "Your dynamic referral URL is copied to clipboard.");
+                              } else {
+                                alert("Link Copied!");
+                              }
+                            }}
+                            className="flex-1 py-2 px-3.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-colors"
+                          >
+                            <Share2 className="w-3.5 h-3.5" /> Copy Link
+                          </button>
+                          <a
+                            href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(refUrl)}`}
+                            download={`referral-${currentEmployee.promoCode || currentEmployee.id}-qr.png`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-2 px-3.5 bg-white hover:bg-gray-50 dark:bg-[#120709] border border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-zinc-200 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" /> Save Image
+                          </a>
+                        </div>
+
+                        {/* Dynamic QR target configurations */}
+                        <div className="mt-5 pt-4 border-t border-gray-150 dark:border-zinc-800 w-full text-left space-y-2">
+                          <span className="block text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider">
+                            ⚙️ QR Target Link Settings
+                          </span>
+                          
+                          <div className="grid grid-cols-2 gap-1 bg-gray-50 dark:bg-[#1a0d0f] p-1 rounded-xl border border-gray-150 dark:border-[#291316]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQrBaseUrlType('production');
+                                safeStorage.setItem('cc_qr_base_url_type', 'production');
+                              }}
+                              className={`py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                                qrBaseUrlType === 'production'
+                                  ? 'bg-purple-600 text-white shadow-sm'
+                                  : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400'
+                              }`}
+                            >
+                              Live Website
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQrBaseUrlType('custom');
+                                safeStorage.setItem('cc_qr_base_url_type', 'custom');
+                              }}
+                              className={`py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                                qrBaseUrlType === 'custom'
+                                  ? 'bg-purple-600 text-white shadow-sm'
+                                  : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400'
+                              }`}
+                            >
+                              Custom Domain
+                            </button>
+                          </div>
+
+                          {qrBaseUrlType === 'production' && (
+                            <div className="p-2 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-100/50 dark:border-purple-900/30 text-[9px] text-purple-700 dark:text-purple-300 font-medium">
+                              {window.location.origin.includes('ais-dev-') ? (
+                                <p>
+                                  <strong>Automatic Rewrite:</strong> Currently in editor view. We automatically rewrite the link to your public Shared/Preview Application URL (<code className="font-mono bg-purple-100/80 dark:bg-purple-950 px-1 py-0.5 rounded text-purple-800 dark:text-purple-200">ais-pre-</code>) so customers can order directly from their mobile phones!
+                                </p>
+                              ) : (
+                                <p>
+                                  QR codes point to your live site domain: <code className="font-mono bg-purple-100/80 dark:bg-purple-950 px-1 py-0.5 rounded text-purple-800 dark:text-purple-200">{resolvedBaseUrl}</code>
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {qrBaseUrlType === 'custom' && (
+                            <div className="space-y-1.5 animate-fade-in">
+                              <input
+                                type="text"
+                                placeholder="e.g. mycampuscakes.com"
+                                value={customQrBaseUrl}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setCustomQrBaseUrl(val);
+                                  safeStorage.setItem('cc_custom_qr_base_url', val);
+                                }}
+                                className="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-[#1a0d0f] text-[11px] rounded-lg border border-gray-200 dark:border-zinc-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-400 text-gray-800 dark:text-[#fafafa] font-bold placeholder-gray-400"
+                              />
+                              <p className="text-[9px] text-gray-400">
+                                Enter your custom website address. The referral parameter <code className="font-mono text-purple-600 bg-purple-50 dark:bg-purple-950/40 px-1 py-0.5 rounded">?ref={currentEmployee.promoCode || currentEmployee.id}</code> will be added automatically.
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="mt-1 flex flex-col gap-0.5 text-[9px] text-gray-400 dark:text-zinc-500 break-all select-all font-mono p-1.5 bg-gray-50 dark:bg-[#1a0d0f]/50 border border-gray-150 dark:border-[#291316] rounded-lg">
+                            <span className="shrink-0 font-sans font-black text-gray-400 uppercase tracking-wider text-[8px]">Current QR Target URL:</span>
+                            <span className="text-purple-600 dark:text-purple-400 font-bold">{refUrl}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Referred Orders Ledger table */}
+                      <div className="lg:col-span-7 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest mb-1.5 flex items-center gap-1.5 border-b border-gray-100 dark:border-[#291316] pb-2">
+                            <BarChart2 className="w-4 h-4 text-purple-600" /> Referred Orders History
+                          </h4>
+                          
+                          <div className="overflow-x-auto text-gray-900 dark:text-white">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead>
+                                <tr className="border-b border-gray-150 dark:border-[#291316] text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-extrabold">
+                                  <th className="py-2.5 pl-1">Order ID</th>
+                                  <th className="py-2.5">Date</th>
+                                  <th className="py-2.5">Amt (Sub)</th>
+                                  <th className="py-2.5 text-right">Commission</th>
+                                  <th className="py-2.5 text-right pr-1">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100 dark:divide-[#1c0a0c]">
+                                {referredOrders.map(order => {
+                                  let statusColor = "bg-gray-100 text-gray-600";
+                                  if (order.status === 'placed') statusColor = "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400";
+                                  else if (order.status === 'preparing') statusColor = "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400";
+                                  else if (order.status === 'delivery') statusColor = "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400";
+                                  else if (order.status === 'ready') statusColor = "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400";
+                                  else if (order.status === 'completed') statusColor = "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold";
+                                  
+                                  return (
+                                    <tr key={order.id} className="hover:bg-gray-50/50 dark:hover:bg-[#150a0c]/50">
+                                      <td className="py-3 pl-1 font-mono font-black text-[#C49A25]">{order.id}</td>
+                                      <td className="py-3 text-[11px] text-gray-500 dark:text-zinc-400 font-medium">{order.date}</td>
+                                      <td className="py-3 font-mono font-bold text-gray-800 dark:text-zinc-200">₹{order.subtotal}</td>
+                                      <td className="py-3 text-right font-mono font-black text-emerald-600 dark:text-emerald-400">
+                                        +₹{order.employeeCommission || 0}
+                                      </td>
+                                      <td className="py-3 text-right pr-1">
+                                        <span className={`text-[9px] uppercase px-2 py-0.5 rounded-full ${statusColor}`}>
+                                          {order.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {referredOrders.length === 0 && (
+                            <div className="p-10 text-center bg-gray-50 dark:bg-[#1a0d0f]/50 rounded-2xl border border-dashed border-gray-150 mt-4">
+                              <QrCode className="w-8 h-8 text-zinc-350 mx-auto mb-2" />
+                              <p className="text-[11px] text-zinc-500 font-black uppercase tracking-widest">No referred transactions yet</p>
+                              <p className="text-[10px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                                Share your dynamic URL or print your QR code. Once students use it to place an order, it will appear here instantly!
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </motion.div>
           )}
 
