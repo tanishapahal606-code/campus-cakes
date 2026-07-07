@@ -504,20 +504,24 @@ export default function App() {
     return 'granted'; // Default to enabled / granted as requested!
   });
 
-  // Try to sync with native permission on mount, but respect our 'granted' default preference
+  // Try to sync with native permission on mount, and ask for permission if not already decided
   useEffect(() => {
     if ('Notification' in window) {
       try {
-        const saved = safeStorage.getItem('campus_cakes_notify_pref');
-        if (!saved) {
-          safeStorage.setItem('campus_cakes_notify_pref', 'granted');
+        // Unconditionally request permission if currently 'default' or if pref is not saved
+        if (Notification.permission === 'default' || !safeStorage.getItem('campus_cakes_notify_pref')) {
           Notification.requestPermission().then((p) => {
+            setNotificationPermission(p === 'granted' ? 'granted' : p === 'denied' ? 'denied' : 'default');
+            safeStorage.setItem('campus_cakes_notify_pref', p === 'granted' ? 'granted' : 'denied');
             if (p === 'granted') {
-              setNotificationPermission('granted');
+              addInAppToast("🔔 Live Alerts Enabled", "You will receive real-time push tracking updates!");
             }
           }).catch(() => {
             // Silence sandbox exceptions
           });
+        } else {
+          // If already decided, sync our react state with native permission
+          setNotificationPermission(Notification.permission === 'granted' ? 'granted' : Notification.permission === 'denied' ? 'denied' : 'default');
         }
       } catch (err) {
         console.warn("Permission sync issue in sandboxed environment: ", err);
