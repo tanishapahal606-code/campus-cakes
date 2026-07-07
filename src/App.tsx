@@ -628,6 +628,18 @@ export default function App() {
     } catch (_) {}
   };
 
+  const handleSavePushSubscription = async (subscription: any) => {
+    if (!studentUser) return;
+    const updatedUser = {
+      ...studentUser,
+      pushSubscription: subscription
+    };
+    setStudentUser(updatedUser);
+    if (firebaseUser) {
+      await writeUserProfile({ ...updatedUser, uid: firebaseUser.uid }).catch(e => console.error("Error saving push subscription:", e));
+    }
+  };
+
   // Comparative Order Monitor Ref track
   const prevOrdersRef = useRef<Order[]>([]);
   const notifiedEventsRef = useRef<Set<string>>(new Set());
@@ -2724,6 +2736,7 @@ export default function App() {
               kioskInventory={kioskInventory}
               coupons={coupons}
               employees={employees}
+              onSavePushSubscription={handleSavePushSubscription}
               onAddEmployee={async (emp) => {
                 try {
                   if (isRealFirebase) {

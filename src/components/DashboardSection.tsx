@@ -9,7 +9,7 @@ import {
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Download, Tag, QrCode, Edit
+  Truck, Phone, Mail, Download, Tag, QrCode, Edit, Bell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
@@ -44,6 +44,22 @@ interface DashboardSectionProps {
   employees?: Employee[];
   onAddEmployee?: (emp: Employee) => void;
   onDeleteEmployee?: (id: string) => void;
+  onSavePushSubscription?: (sub: any) => Promise<void>;
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 export default function DashboardSection({
@@ -75,10 +91,119 @@ export default function DashboardSection({
   employees = [],
   onAddEmployee,
   onDeleteEmployee,
+  onSavePushSubscription,
 }: DashboardSectionProps) {
   const [activeTab, setActiveTab] = useState<'student' | 'admin' | 'employee'>('student');
   const [addressInput, setAddressInput] = useState(user.address);
   const [isSavedAddress, setIsSavedAddress] = useState(true);
+
+  const [subscribing, setSubscribing] = useState(false);
+  const [testNotificationStatus, setTestNotificationStatus] = useState<'idle' | 'success' | 'failed'>('idle');
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+  const [isInIframe] = useState(() => {
+    try {
+      return window.self !== window.top;
+    } catch (e) {
+      return true;
+    }
+  });
+
+  const handleSubscribePush = async () => {
+    try {
+      setSubscribing(true);
+      if (!('serviceWorker' in navigator)) {
+        throw new Error('Service Workers are not supported in this browser.');
+      }
+      if (!('PushManager' in window)) {
+        throw new Error('Push Notifications are not supported in this browser.');
+      }
+
+      // Request permission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error('Notification permission was denied.');
+      }
+
+      // Register Service Worker
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered:', registration);
+
+      // Subscribe to Push
+      const vapidPublicKey = 'BGPRoIA45fmkvy9r8ZWSJ5qq9zQrRP3mR3J-QmAuZQdlsK91HwtWBP4wbEjjDLvZsLqrnF1b353KSDjLAJtxOWg';
+      const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey
+      });
+
+      console.log('Successfully subscribed to Web Push:', subscription);
+
+      // Convert Subscription to JSON for saving
+      const subscriptionJSON = subscription.toJSON();
+
+      if (onSavePushSubscription) {
+        await onSavePushSubscription(subscriptionJSON);
+      }
+      if (onShowToast) {
+        onShowToast("🔔 Web Push Activated", "You have successfully subscribed to Web Push tracking alerts.");
+      }
+    } catch (err: any) {
+      console.error('Push Subscription Error:', err);
+      if (onShowToast) {
+        onShowToast("⚠️ Activation Failed", err?.message || "Could not complete push registration.");
+      }
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  const handleUnsubscribePush = async () => {
+    try {
+      setSubscribing(true);
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          await subscription.unsubscribe();
+        }
+      }
+      if (onSavePushSubscription) {
+        await onSavePushSubscription(null);
+      }
+      if (onShowToast) {
+        onShowToast("🔕 Web Push Deactivated", "You have unsubscribed from Web Push tracking alerts.");
+      }
+    } catch (err: any) {
+      console.error('Push Unsubscription Error:', err);
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    try {
+      if (!('serviceWorker' in navigator)) return;
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        // Show a local push notification as a test
+        await registration.showNotification("🎉 Push Success!", {
+          body: "Web Push API is fully integrated with VAPID authentication!",
+          icon: '/src/assets/images/brand_logo_1781589358418.jpg',
+          badge: '/src/assets/images/brand_logo_1781589358418.jpg',
+          vibrate: [100, 50, 100],
+        } as any);
+        setTestNotificationStatus('success');
+        setTimeout(() => setTestNotificationStatus('idle'), 3000);
+      } else {
+        throw new Error("No active service worker found to trigger test notification.");
+      }
+    } catch (err: any) {
+      console.error('Test Push Error:', err);
+      setTestNotificationStatus('failed');
+      setTimeout(() => setTestNotificationStatus('idle'), 3000);
+    }
+  };
 
   // Employee referral / commission settings states for onboarding
   const [newEmpPromoCode, setNewEmpPromoCode] = useState('');
@@ -716,20 +841,56 @@ export default function DashboardSection({
                       <span className="text-[9px] font-extrabold bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2.5 py-1 rounded-xl uppercase tracking-widest leading-none">
                         GPS Landing Station
                       </span>
-                      <motion.button 
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        type="button"
-                        onClick={() => {
-                          setIsSavedAddress(!isSavedAddress);
-                          if (!isSavedAddress && onShowToast) {
-                            onShowToast("Coordinates Synchronized", "Your delivery landing spot has been registered in the startup grid.");
-                          }
-                        }}
-                        className="text-[10px] bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1d0e11] hover:dark:bg-[#2e1518] px-2.5 py-1 rounded-lg text-[#E23744] font-black transition-all"
-                      >
-                        {isSavedAddress ? "EDIT SPOT" : "LOCK IN"}
-                      </motion.button>
+                      <div className="flex gap-1.5">
+                        {/* Chrome Native Notification Trigger Button */}
+                        <motion.button 
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={async () => {
+                            if ('Notification' in window) {
+                              try {
+                                const permission = await Notification.requestPermission();
+                                if (permission === 'granted') {
+                                  if (onShowToast) {
+                                    onShowToast("🔔 Alerts Enabled", "You'll receive push tracking updates for campus cake arrivals!");
+                                  }
+                                } else {
+                                  if (onShowToast) {
+                                    onShowToast("⚠️ Alerts Blocked", "Notification permission was denied. Please reset permissions in your browser settings to allow.");
+                                  }
+                                }
+                              } catch (e: any) {
+                                if (onShowToast) {
+                                  onShowToast("⚠️ Error", e?.message || "Could not request permission.");
+                                }
+                              }
+                            } else {
+                              if (onShowToast) {
+                                onShowToast("⚠️ Unsupported", "Notifications are not supported in this browser.");
+                              }
+                            }
+                          }}
+                          className="text-[10px] bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/10 hover:dark:bg-amber-500/20 px-2.5 py-1 rounded-lg text-amber-700 dark:text-amber-400 font-black transition-all flex items-center gap-1"
+                        >
+                          <Bell className="w-3 h-3" /> ENABLE ALERTS
+                        </motion.button>
+
+                        <motion.button 
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={() => {
+                            setIsSavedAddress(!isSavedAddress);
+                            if (!isSavedAddress && onShowToast) {
+                              onShowToast("Coordinates Synchronized", "Your delivery landing spot has been registered in the startup grid.");
+                            }
+                          }}
+                          className="text-[10px] bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1d0e11] hover:dark:bg-[#2e1518] px-2.5 py-1 rounded-lg text-[#E23744] font-black transition-all"
+                        >
+                          {isSavedAddress ? "EDIT SPOT" : "LOCK IN"}
+                        </motion.button>
+                      </div>
                     </div>
 
                     <div className="mt-3.5">

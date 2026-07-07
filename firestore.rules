@@ -50,7 +50,8 @@ service cloud.firestore {
         (!data.keys().contains('referralCode') || (data.referralCode is string && data.referralCode.size() <= 100)) &&
         (!data.keys().contains('savedCelebrations') || (data.savedCelebrations is list && data.savedCelebrations.size() <= 50)) &&
         (!data.keys().contains('wishlist') || (data.wishlist is list && data.wishlist.size() <= 100)) &&
-        (!data.keys().contains('employeeId') || (data.employeeId is string && data.employeeId.size() <= 128));
+        (!data.keys().contains('employeeId') || (data.employeeId is string && data.employeeId.size() <= 128)) &&
+        (!data.keys().contains('pushSubscription') || (data.pushSubscription is map));
     }
 
     function isValidOrder(data) {

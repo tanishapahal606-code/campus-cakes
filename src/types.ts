@@ -129,6 +129,7 @@ export interface UserProfile {
   didDeploymentReset2026?: boolean;
   dob?: string;
   employeeId?: string;
+  pushSubscription?: any;
 }
 
 export interface Coupon {
