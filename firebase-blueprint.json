@@ -269,9 +269,48 @@
         "imageUrl",
         "createdAt"
       ]
+    },
+    "Vendor": {
+      "title": "Vendor",
+      "description": "Registered vendors who can manage stock and receive orders for specific or all campuses.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique vendor identifier."
+        },
+        "name": {
+          "type": "string",
+          "description": "Vendor name."
+        },
+        "email": {
+          "type": "string",
+          "description": "Vendor registered email."
+        },
+        "campusId": {
+          "type": "string",
+          "description": "Associated campus ID ('all' or specific ID)."
+        },
+        "dateRegistered": {
+          "type": "string",
+          "description": "Registration date."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "campusId"
+      ]
     }
   },
   "firestore": {
+    "vendors/{vendorId}": {
+      "schema": {
+        "$ref": "#/entities/Vendor"
+      },
+      "description": "Registered vendors mapping emails and authorized campuses."
+    },
     "users/{userId}": {
       "schema": {
         "$ref": "#/entities/UserProfile"

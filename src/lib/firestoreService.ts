@@ -8,7 +8,7 @@ import {
   deleteDoc, collection, query, where, onSnapshot 
 } from 'firebase/firestore';
 import { db, auth, isRealFirebase } from '../firebase';
-import { Campus, CakeItem, KioskCake, Order, UserProfile, FeedbackReview, Coupon, Employee } from '../types';
+import { Campus, CakeItem, KioskCake, Order, UserProfile, FeedbackReview, Coupon, Employee, Vendor } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -312,7 +312,7 @@ export function subscribeToUserProfile(userId: string, onUpdate: (profile: UserP
   const docRef = doc(db, 'users', userId);
   return onSnapshot(docRef, (snap) => {
     if (snap.exists()) {
-      onUpdate(snap.data() as UserProfile);
+      onUpdate({ uid: snap.id, ...(snap.data() as any) } as UserProfile);
     } else {
       onUpdate(null);
     }
@@ -327,7 +327,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   try {
     const snap = await getDoc(doc(db, 'users', userId));
     if (snap.exists()) {
-      return snap.data() as UserProfile;
+      return { uid: snap.id, ...(snap.data() as any) } as UserProfile;
     }
     return null;
   } catch (err) {
@@ -388,6 +388,18 @@ export function subscribeToReferredOrders(employeeId: string, onUpdate: (orders:
   });
 }
 
+export function subscribeToAssignedOrders(employeeId: string, onUpdate: (orders: Order[]) => void) {
+  if (!isRealFirebase) return () => {};
+  const q = query(collection(db, 'orders'), where('assignedEmployeeId', '==', employeeId));
+  return onSnapshot(q, (snap) => {
+    const orders: Order[] = [];
+    snap.forEach((d) => orders.push({ id: d.id, ...(d.data() as any) } as Order));
+    onUpdate(orders);
+  }, (err) => {
+    console.error("Error listening to assigned orders:", err);
+  });
+}
+
 export function subscribeToAllOrders(onUpdate: (orders: Order[]) => void) {
   if (!isRealFirebase) return () => {};
   const q = collection(db, 'orders');
@@ -397,6 +409,18 @@ export function subscribeToAllOrders(onUpdate: (orders: Order[]) => void) {
     onUpdate(orders);
   }, (err) => {
     console.error("Error listening to all orders:", err);
+  });
+}
+
+export function subscribeToCampusOrders(campusId: string, onUpdate: (orders: Order[]) => void) {
+  if (!isRealFirebase) return () => {};
+  const q = query(collection(db, 'orders'), where('campusId', '==', campusId));
+  return onSnapshot(q, (snap) => {
+    const orders: Order[] = [];
+    snap.forEach((d) => orders.push({ id: d.id, ...(d.data() as any) } as Order));
+    onUpdate(orders);
+  }, (err) => {
+    console.error("Error listening to campus orders:", err);
   });
 }
 
@@ -644,5 +668,57 @@ export async function removeEmployee(employeeId: string): Promise<void> {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
+
+// ==========================================
+// 10. VENDORS COLLECTION OPERATIONS
+// ==========================================
+export async function getVendors(): Promise<Vendor[]> {
+  if (!isRealFirebase) return [];
+  const colPath = 'vendors';
+  
+  const cached = getFromLocalCache<Vendor[]>(colPath);
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+
+  try {
+    const q = collection(db, colPath);
+    const snap = await getDocs(q);
+    const items: Vendor[] = [];
+    snap.forEach((d) => {
+      items.push(d.data() as Vendor);
+    });
+    
+    if (items.length > 0) {
+      setToLocalCache(colPath, items);
+    }
+    return items;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, colPath);
+  }
+}
+
+export async function writeVendor(vendor: Vendor): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `vendors/${vendor.id}`;
+  try {
+    await setDoc(doc(db, 'vendors', vendor.id), sanitizeFirestoreData(vendor));
+    clearLocalCache('vendors');
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function removeVendor(vendorId: string): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `vendors/${vendorId}`;
+  try {
+    await deleteDoc(doc(db, 'vendors', vendorId));
+    clearLocalCache('vendors');
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
 
 

@@ -79,7 +79,7 @@ export interface CartItem {
   category?: string;
 }
 
-export type OrderStatus = 'placed' | 'preparing' | 'delivery' | 'ready' | 'completed';
+export type OrderStatus = 'placed' | 'preparing' | 'prepared' | 'delivery' | 'ready' | 'completed';
 
 export interface Order {
   id: string;
@@ -87,6 +87,7 @@ export interface Order {
   items: CartItem[];
   orderType: 'pre-order' | 'instant-pickup';
   status: OrderStatus;
+  userVisibleStatus?: OrderStatus;
   subtotal: number;
   tax: number;
   deliveryFee: number;
@@ -104,6 +105,8 @@ export interface Order {
   employeeReferral?: string;
   employeeCommission?: number;
   discountCode?: string;
+  assignedEmployeeId?: string;
+  assignedEmployeeName?: string;
 }
 
 export interface SavedCelebration {
@@ -168,4 +171,13 @@ export interface Employee {
   commissionValue?: number;
   promoCode?: string;
 }
+
+export interface Vendor {
+  id: string;
+  name: string;
+  email: string;
+  campusId: string; // 'all' or specific campusId
+  dateRegistered: string;
+}
+
 

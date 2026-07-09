@@ -28,7 +28,8 @@ import {
   HelpCircle, MessageSquare, ChevronRight, CheckCircle2, Phone, ShieldCheck, 
   ArrowRight, X, AlertTriangle, CreditCard, Check, Compass, Info, Send,
   LogOut, GraduationCap, MapPin, User, Zap, Trash2, Download, Gift,
-  Bell, BellOff, BellRing, Tag, Coffee, Utensils, FileText, Lock, RotateCcw
+  Bell, BellOff, BellRing, Tag, Coffee, Utensils, FileText, Lock, RotateCcw,
+  ChevronDown, ArrowUpDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, authenticateWithGoogle, isRealFirebase } from './firebase';
@@ -37,13 +38,13 @@ import {
   getProducts, writeProduct, removeProduct, getKioskProducts, writeKioskProduct, 
   removeKioskProduct, getUserProfile, writeUserProfile, getAllUserProfiles, getUserOrders, writeOrder, 
   writeCakeImage, getAllOrders, removeOrder, subscribeToCoupons, writeCoupon, removeCoupon,
-  subscribeToUserProfile, subscribeToUserOrders, subscribeToReferredOrders, subscribeToAllOrders, clearAllFirestoreCaches,
-  subscribeToReviews, writeReview, removeReview, getEmployees, writeEmployee, removeEmployee
+  subscribeToUserProfile, subscribeToUserOrders, subscribeToReferredOrders, subscribeToAssignedOrders, subscribeToAllOrders, subscribeToCampusOrders, clearAllFirestoreCaches,
+  subscribeToReviews, writeReview, removeReview, getEmployees, writeEmployee, removeEmployee, getVendors, writeVendor, removeVendor
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
 import { safeStorage } from './lib/safeStorage';
 import brandLogo from './assets/images/brand_logo_1781589358418.jpg';
-import { Coupon, Employee } from './types';
+import { Coupon, Employee, Vendor } from './types';
 
 export default function App() {
   // --- 0. FIREBASE AUTHENTICATION FLOW STATE ---
@@ -83,6 +84,7 @@ export default function App() {
     return isRealFirebase ? [] : KIOSK_INVENTORY;
   });
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
 
   // Student Account Simulation State
   const [studentUser, setStudentUser] = useState<UserProfile>({
@@ -156,15 +158,29 @@ export default function App() {
           } catch (e) {
             setEmployees([
               { id: 'emp-1', name: 'Kabir Verma', email: 'kabir.verma@campus.edu', post: 'Delivery Executive (Boys\' Hostel)', dateJoined: '2026-03-01' },
-              { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' }
+              { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' },
+              { id: 'emp-3', name: 'Rohan Sharma', email: 'rohan.sharma@campus.edu', post: 'Campus Manager', dateJoined: '2026-03-12' }
             ]);
           }
         } else {
           setEmployees([
             { id: 'emp-1', name: 'Kabir Verma', email: 'kabir.verma@campus.edu', post: 'Delivery Executive (Boys\' Hostel)', dateJoined: '2026-03-01' },
-            { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' }
+            { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' },
+            { id: 'emp-3', name: 'Rohan Sharma', email: 'rohan.sharma@campus.edu', post: 'Campus Manager', dateJoined: '2026-03-12' }
           ]);
         }
+
+        const cachedVendors = safeStorage.getItem('_local_vendors');
+        if (cachedVendors) {
+          try {
+            setVendors(JSON.parse(cachedVendors));
+          } catch (e) {
+            setVendors([]);
+          }
+        } else {
+          setVendors([]);
+        }
+
         setLoadingCatalog(false);
         return;
       }
@@ -239,12 +255,14 @@ export default function App() {
             const filteredEmps = (dbEmployees || []).filter(
               emp => !['saransh1860@gmail.com', 'tanishapahal606@gmail.com', 'tanishapahal606@gmal.com'].includes(emp.email.toLowerCase().trim())
             );
+            
             setEmployees(filteredEmps);
             if (!hasEmp) safeStorage.setItem('_has_bootstrapped_employees', 'true');
           } else {
             const initialEmployees: Employee[] = [
               { id: 'emp-1', name: 'Kabir Verma', email: 'kabir.verma@campus.edu', post: 'Delivery Executive (Boys\' Hostel)', dateJoined: '2026-03-01' },
-              { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' }
+              { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' },
+              { id: 'emp-3', name: 'Rohan Sharma', email: 'rohan.sharma@campus.edu', post: 'Campus Manager', dateJoined: '2026-03-12' }
             ];
             for (const emp of initialEmployees) {
               await writeEmployee(emp).catch(e => console.warn("Admin rights needed to bootstrap employees", e));
@@ -256,8 +274,43 @@ export default function App() {
           console.error("Error syncing employees:", e);
           setEmployees([
             { id: 'emp-1', name: 'Kabir Verma', email: 'kabir.verma@campus.edu', post: 'Delivery Executive (Boys\' Hostel)', dateJoined: '2026-03-01' },
-            { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' }
+            { id: 'emp-2', name: 'Ishita Sen', email: 'ishita.sen@campus.edu', post: 'Packaging & Branding Executive', dateJoined: '2026-03-10' },
+            { id: 'emp-3', name: 'Rohan Sharma', email: 'rohan.sharma@campus.edu', post: 'Campus Manager', dateJoined: '2026-03-12' }
           ]);
+        }
+
+        // 5. Sync Vendors
+        try {
+          const dbVendors = await getVendors();
+          let currentVendors = dbVendors || [];
+          const hasVendorsPref = safeStorage.getItem('_has_bootstrapped_vendors');
+
+          if (!hasVendorsPref && currentVendors.length === 0) {
+            // Ensure saranshpahalvi15@gmail.com is registered as an initial vendor
+            const hasSaranshVendor = currentVendors.some(v => v.email.toLowerCase().trim() === 'saranshpahalvi15@gmail.com');
+            if (!hasSaranshVendor) {
+              const saranshVendor: Vendor = {
+                id: 'saranshpahalvi15@gmail.com',
+                name: 'Saransh Vendor',
+                email: 'saranshpahalvi15@gmail.com',
+                campusId: 'all',
+                dateRegistered: '2026-07-08'
+              };
+              await writeVendor(saranshVendor).catch(e => console.warn("Could not write saranshpahalvi15 vendor:", e));
+              currentVendors.push(saranshVendor);
+            }
+            safeStorage.setItem('_has_bootstrapped_vendors', 'true');
+          }
+
+          setVendors(currentVendors);
+        } catch (e) {
+          console.error("Error syncing vendors:", e);
+          const cachedVendors = safeStorage.getItem('_local_vendors');
+          if (cachedVendors) {
+            try {
+              setVendors(JSON.parse(cachedVendors));
+            } catch (err) {}
+          }
         }
       } catch (err) {
         console.error("Error connecting to Firestore database:", err);
@@ -288,7 +341,7 @@ export default function App() {
 
   // Load or construct user profile and order history when authenticated in real-time
   useEffect(() => {
-    if (!isRealFirebase || !firebaseUser) return;
+    if (!isRealFirebase || !firebaseUser || authChecking) return;
 
     let unsubProfile: (() => void) | undefined;
     let unsubOrders: (() => void) | undefined;
@@ -392,18 +445,27 @@ export default function App() {
     };
 
     const matchedEmployee = employees.find(emp => emp.email.toLowerCase().trim() === firebaseUser.email?.toLowerCase().trim());
+    const matchedVendor = vendors.find(v => v.email.toLowerCase().trim() === firebaseUser.email?.toLowerCase().trim());
 
-    if (isAdmin) {
+    if (isAdmin || (matchedVendor && matchedVendor.campusId === 'all')) {
       unsubOrders = subscribeToAllOrders(ordersCallback);
+    } else if (matchedVendor) {
+      unsubOrders = subscribeToCampusOrders(matchedVendor.campusId, ordersCallback);
     } else if (matchedEmployee) {
       let ownOrders: Order[] = [];
       let referredOrders: Order[] = [];
+      let assignedOrders: Order[] = [];
 
       const mergeAndSetOrders = () => {
         const combined = [...ownOrders];
         referredOrders.forEach(ro => {
           if (!combined.some(o => o.id === ro.id)) {
             combined.push(ro);
+          }
+        });
+        assignedOrders.forEach(ao => {
+          if (!combined.some(o => o.id === ao.id)) {
+            combined.push(ao);
           }
         });
         ordersCallback(combined);
@@ -419,9 +481,15 @@ export default function App() {
         mergeAndSetOrders();
       });
 
+      const unsubAssigned = subscribeToAssignedOrders(matchedEmployee.id, (orders) => {
+        assignedOrders = orders;
+        mergeAndSetOrders();
+      });
+
       unsubOrders = () => {
         unsubOwn();
         unsubReferred();
+        unsubAssigned();
       };
     } else {
       unsubOrders = subscribeToUserOrders(firebaseUser.uid, ordersCallback);
@@ -431,7 +499,7 @@ export default function App() {
       if (unsubProfile) unsubProfile();
       if (unsubOrders) unsubOrders();
     };
-  }, [firebaseUser, isRealFirebase, selectedCampus, isAdmin, campuses, employees]);
+  }, [firebaseUser, isRealFirebase, selectedCampus, isAdmin, campuses, employees, vendors, authChecking]);
 
   // Fallback Sync profile details when user authenticates using simulation mode
   useEffect(() => {
@@ -723,26 +791,31 @@ export default function App() {
             `Your Order #${currentOrder.id} is securely submitted to the campus kitchen.`
           );
         }
-      } else if (prevOrder.status !== currentOrder.status) {
-        // Status Transition detected
-        const mappedStatus = currentOrder.status === 'completed' || currentOrder.status === 'ready' ? 'delivered' : currentOrder.status;
-        
-        if (isAdmin) {
+      } else {
+        // 1. Admin internal status transition notification
+        if (isAdmin && prevOrder.status !== currentOrder.status) {
+          const mappedStatus = currentOrder.status === 'completed' || currentOrder.status === 'ready' ? 'delivered' : currentOrder.status;
           triggerPopupNotification(
             `📈 Order #${currentOrder.id} Updated`,
             `Status of order from ${currentOrder.customerName} marked as: ${mappedStatus}.`
           );
-        } else if (currentOrder.userId === firebaseUser?.uid) {
+        }
+        
+        // 2. Client-facing status transition notification (only when Admin updates userVisibleStatus from Order Central)
+        const prevUserStatus = prevOrder.userVisibleStatus || 'placed';
+        const currentUserStatus = currentOrder.userVisibleStatus || 'placed';
+        
+        if (currentOrder.userId === firebaseUser?.uid && prevUserStatus !== currentUserStatus) {
           let customTitle = "";
           let customBody = "";
           
-          if (currentOrder.status === 'preparing') {
+          if (currentUserStatus === 'preparing') {
             customTitle = "🍳 Cake Bake Active!";
             customBody = `The baker chefs are active on Order #${currentOrder.id}! Layer modeling is in progress.`;
-          } else if (currentOrder.status === 'delivery') {
+          } else if (currentUserStatus === 'delivery') {
             customTitle = "🚴 Out for Campus Delivery!";
             customBody = `Your cake for Order #${currentOrder.id} has left the oven and is heading with our runner.`;
-          } else if (currentOrder.status === 'ready' || currentOrder.status === 'completed') {
+          } else if (currentUserStatus === 'completed' || currentUserStatus === 'ready') {
             customTitle = "✅ Cake Delivered!";
             customBody = `Success! Order #${currentOrder.id} has reached your designated campus dispatch location. Enjoy!`;
           }
@@ -811,6 +884,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isEgglessOnly, setIsEgglessOnly] = useState<boolean>(false);
   const [priceRange, setPriceRange] = useState<number>(1500);
+  const [priceSort, setPriceSort] = useState<'none' | 'lowToHigh' | 'highToLow'>('none');
   const [trendingOnly, setTrendingOnly] = useState<boolean>(false);
   const [activeOccasionId, setActiveOccasionId] = useState<string | null>(null);
 
@@ -1225,14 +1299,30 @@ export default function App() {
   };
 
   // Admin order state timeline modifier
-  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus) => {
+  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus, updateClientVisible?: boolean, isUserVisibleOnly: boolean = false) => {
     setActiveOrders(prev => prev.map(o => {
       if (o.id === orderId) {
-        const updated = { ...o, status };
+        const updated = { 
+          ...o, 
+          ...(isUserVisibleOnly ? {} : { status }),
+          ...(updateClientVisible || isUserVisibleOnly ? { userVisibleStatus: status } : {})
+        };
         if (isRealFirebase) {
           writeOrder(updated).catch(err => console.error("Error updating order status in Firestore:", err));
         }
         return updated;
+      }
+      return o;
+    }));
+  };
+
+  const handleUpdateOrder = (updatedOrder: Order) => {
+    setActiveOrders(prev => prev.map(o => {
+      if (o.id === updatedOrder.id) {
+        if (isRealFirebase) {
+          writeOrder(updatedOrder).catch(err => console.error("Error updating order in Firestore:", err));
+        }
+        return updatedOrder;
       }
       return o;
     }));
@@ -1473,6 +1563,7 @@ export default function App() {
       items: [...cart],
       orderType: cart.some(c => c.isInstantKiosk) ? 'instant-pickup' : 'pre-order',
       status: 'placed',
+      userVisibleStatus: 'placed',
       subtotal,
       tax,
       deliveryFee,
@@ -1589,7 +1680,7 @@ export default function App() {
   };
 
   // Filter application calculation
-  const filteredProducts = activeProducts.filter(cake => {
+  const unfilteredProducts = activeProducts.filter(cake => {
     // 1. Text Search query
     const matchesSearch = 
       cake.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -1631,6 +1722,15 @@ export default function App() {
         : cake.isDineIn !== false;
 
     return matchesSearch && matchesCategory && matchesEggless && matchesPrice && matchesTrending && matchesOccasion && matchesCampus && matchesServiceMode;
+  });
+
+  const filteredProducts = [...unfilteredProducts].sort((a, b) => {
+    if (priceSort === 'lowToHigh') {
+      return a.price - b.price;
+    } else if (priceSort === 'highToLow') {
+      return b.price - a.price;
+    }
+    return 0;
   });
 
   // occasion recommend trigger
@@ -2448,103 +2548,43 @@ export default function App() {
               </div>
 
               {/* VERTICAL FILTER CONTROLS */}
-              <div className="bg-[#FCFAF7] dark:bg-[#0B0405] rounded-[28px] p-4 md:p-6 border border-[#D4AF37]/15 dark:border-[#3C2216]/50 shadow-md mb-6 space-y-5">
+              <div className="bg-[#FCFAF7] dark:bg-[#0B0405] rounded-[28px] p-4 md:p-6 border border-[#D4AF37]/15 dark:border-[#3C2216]/50 shadow-md mb-6">
                 
-                {serviceMode !== 'dinein' && (
-                  <div className="flex flex-col gap-2.5">
-                    <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.16em] flex items-center gap-1.5 font-display">
-                      <Sparkles className="w-3.5 h-3.5 text-[#C49A25]" /> FILTER BY CELEBRATION OCCASION:
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      <motion.button
-                        key="all-celebrations"
-                        type="button"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleSelectOccasion(null)}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
-                          activeOccasionId === null
-                            ? 'bg-gradient-to-r from-[#D01C2B] to-[#E23744] text-white border-[#E23744]'
-                            : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/25 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
-                        }`}
-                      >
-                        All Celebrations
-                      </motion.button>
-                      {AI_RECOMMENDATION_TEMPLATES.map((item) => {
-                        const active = activeOccasionId === item.occasionId;
-                        return (
-                          <motion.button
-                            key={item.occasionId}
-                            type="button"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleSelectOccasion(active ? null : item.occasionId)}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
-                              active
-                                ? 'bg-gradient-to-r from-[#AF2430] to-[#C49A25] text-white border-[#D4AF37] font-black shadow-md'
-                                : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/20 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
-                            }`}
-                          >
-                            {item.title}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {serviceMode !== 'dinein' && (
-                  <>
-                    <div className="w-full h-[1px] bg-[#D4AF37]/15 dark:bg-[#3C2216]/50"></div>
-
-                    {/* Category Filters */}
-                    <div className="flex flex-col gap-2.5">
-                      <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.16em] font-display">
-                        CATEGORIES:
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {CATEGORIES.map((category) => {
-                          const active = selectedCategory === category;
-                          return (
-                            <motion.button
-                              key={category}
-                              type="button"
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => setSelectedCategory(category)}
-                              className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold border transition-all cursor-pointer shadow-sm ${
-                                active
-                                  ? 'bg-[#E23744] text-white border-[#E23744]'
-                                  : 'bg-[#FCFAF7] dark:bg-[#120708] border-[#D4AF37]/20 dark:border-[#3C2216] hover:bg-[#FAF3D9] hover:dark:bg-[#1E1407] text-zinc-650 dark:text-zinc-300'
-                              }`}
-                            >
-                              {category}
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div className="w-full h-[1px] bg-[#D4AF37]/15 dark:bg-[#3C2216]/50"></div>
-
                 {/* Bottom Config Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* Pricing limitation slider */}
-                  <div className="flex items-center gap-2 px-3.5 py-2 bg-[#FAF6F0] dark:bg-[#120708] rounded-xl border border-[#D4AF37]/25 dark:border-[#3C2216] text-xs w-full sm:w-auto shadow-sm">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-[#C49A25]" />
-                    <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-550 uppercase tracking-wider pl-1">Max Budget:</span>
-                    <input
-                      type="range"
-                      min="150"
-                      max="1500"
-                      step="50"
-                      value={priceRange}
-                      onChange={(e) => setPriceRange(parseInt(e.target.value))}
-                      className="w-full sm:w-32 accent-[#D4AF37] cursor-pointer"
-                    />
-                    <span className="font-extrabold text-zinc-805 dark:text-[#FEFAF6] font-mono">₹{priceRange}</span>
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
+                    {/* Pricing limitation slider */}
+                    <div className="flex items-center gap-2 px-3.5 py-2 bg-[#FAF6F0] dark:bg-[#120708] rounded-xl border border-[#D4AF37]/25 dark:border-[#3C2216] text-xs w-full sm:w-auto shadow-sm">
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-[#C49A25]" />
+                      <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-550 uppercase tracking-wider pl-1">Max Budget:</span>
+                      <input
+                        type="range"
+                        min="150"
+                        max="1500"
+                        step="50"
+                        value={priceRange}
+                        onChange={(e) => setPriceRange(parseInt(e.target.value))}
+                        className="w-full sm:w-32 accent-[#D4AF37] cursor-pointer"
+                      />
+                      <span className="font-extrabold text-zinc-805 dark:text-[#FEFAF6] font-mono">₹{priceRange}</span>
+                    </div>
+
+                    {/* Sorting dropdown */}
+                    <div className="relative flex items-center gap-2 px-3 py-2 bg-[#FAF6F0] dark:bg-[#120708] rounded-xl border border-[#D4AF37]/25 dark:border-[#3C2216] text-xs w-full sm:w-auto shadow-sm">
+                      <ArrowUpDown className="w-3.5 h-3.5 text-[#C49A25] shrink-0" />
+                      <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-550 uppercase tracking-wider pl-0.5 whitespace-nowrap">Sort By:</span>
+                      <select
+                        id="price-sort-dropdown"
+                        value={priceSort}
+                        onChange={(e) => setPriceSort(e.target.value as any)}
+                        className="bg-transparent text-xs font-extrabold text-zinc-800 dark:text-[#FEFAF6] focus:outline-none cursor-pointer w-full sm:w-auto pr-6 appearance-none relative"
+                      >
+                        <option value="none" className="bg-[#FAF6F0] dark:bg-[#120708] text-zinc-805 dark:text-[#FEFAF6]">Default Menu</option>
+                        <option value="lowToHigh" className="bg-[#FAF6F0] dark:bg-[#120708] text-zinc-805 dark:text-[#FEFAF6]">Price (Low to High)</option>
+                        <option value="highToLow" className="bg-[#FAF6F0] dark:bg-[#120708] text-zinc-805 dark:text-[#FEFAF6]">Price (High to Low)</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-[#C49A25] absolute right-3 pointer-events-none" />
+                    </div>
                   </div>
 
                   {/* Pure eggless toggler */}
@@ -2597,6 +2637,7 @@ export default function App() {
                       setSearchQuery('');
                       setIsEgglessOnly(false);
                       setPriceRange(1500);
+                      setPriceSort('none');
                       setTrendingOnly(false);
                       handleSelectOccasion(null);
                     }}
@@ -2740,6 +2781,40 @@ export default function App() {
               kioskInventory={kioskInventory}
               coupons={coupons}
               employees={employees}
+              vendors={vendors}
+              onAddVendor={async (v) => {
+                try {
+                  if (isRealFirebase) {
+                    await writeVendor(v);
+                  }
+                  setVendors(prev => {
+                    const exists = prev.some(x => x.id === v.id);
+                    const next = exists ? prev.map(x => x.id === v.id ? v : x) : [...prev, v];
+                    if (!isRealFirebase) {
+                      safeStorage.setItem('_local_vendors', JSON.stringify(next));
+                    }
+                    return next;
+                  });
+                } catch (err) {
+                  console.error("Error adding/updating vendor:", err);
+                }
+              }}
+              onDeleteVendor={async (id) => {
+                try {
+                  if (isRealFirebase) {
+                    await removeVendor(id);
+                  }
+                  setVendors(prev => {
+                    const next = prev.filter(x => x.id !== id);
+                    if (!isRealFirebase) {
+                      safeStorage.setItem('_local_vendors', JSON.stringify(next));
+                    }
+                    return next;
+                  });
+                } catch (err) {
+                  console.error("Error deleting vendor:", err);
+                }
+              }}
               onSavePushSubscription={handleSavePushSubscription}
               onAddEmployee={async (emp) => {
                 try {
@@ -2791,6 +2866,7 @@ export default function App() {
               onRepeatOrder={handleRepeatPastOrder}
               onUpdateKioskStock={handleUpdateKioskStock}
               onUpdateOrderStatus={handleUpdateOrderStatus}
+              onUpdateOrder={handleUpdateOrder}
               onAddCelebration={handleAddCelebration}
               onDeleteCelebration={handleDeleteCelebration}
               onAddCustomCake={handleAddCustomCake}

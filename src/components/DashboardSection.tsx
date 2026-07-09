@@ -4,12 +4,12 @@
  */
 
 import React, { useState } from 'react';
-import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon, CustomQuestion, Employee } from '../types';
+import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon, CustomQuestion, Employee, Vendor } from '../types';
 import { 
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Download, Tag, QrCode, Edit, Bell
+  Truck, Phone, Mail, Download, Tag, QrCode, Edit, Bell, ClipboardCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
@@ -26,7 +26,8 @@ interface DashboardSectionProps {
   onDeleteCoupon?: (id: string) => void;
   onRepeatOrder: (orderId: string) => void;
   onUpdateKioskStock: (id: string, newStock: number) => void;
-  onUpdateOrderStatus: (orderId: string, status: any) => void;
+  onUpdateOrderStatus: (orderId: string, status: any, updateClientVisible?: boolean, isUserVisibleOnly?: boolean) => void;
+  onUpdateOrder?: (updatedOrder: Order) => void;
   onAddCelebration: (celebration: SavedCelebration) => void;
   onDeleteCelebration: (id: string) => void;
   onAddCustomCake: (newCake: CakeItem) => void;
@@ -45,6 +46,9 @@ interface DashboardSectionProps {
   onAddEmployee?: (emp: Employee) => void;
   onDeleteEmployee?: (id: string) => void;
   onSavePushSubscription?: (sub: any) => Promise<void>;
+  vendors?: Vendor[];
+  onAddVendor?: (v: Vendor) => void;
+  onDeleteVendor?: (id: string) => void;
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -74,6 +78,7 @@ export default function DashboardSection({
   onRepeatOrder,
   onUpdateKioskStock,
   onUpdateOrderStatus,
+  onUpdateOrder,
   onAddCelebration,
   onDeleteCelebration,
   onAddCustomCake,
@@ -92,8 +97,11 @@ export default function DashboardSection({
   onAddEmployee,
   onDeleteEmployee,
   onSavePushSubscription,
+  vendors = [],
+  onAddVendor,
+  onDeleteVendor,
 }: DashboardSectionProps) {
-  const [activeTab, setActiveTab] = useState<'student' | 'admin' | 'employee'>('student');
+  const [activeTab, setActiveTab] = useState<'student' | 'admin' | 'employee' | 'vendor'>('student');
   const [addressInput, setAddressInput] = useState(user.address);
   const [isSavedAddress, setIsSavedAddress] = useState(true);
 
@@ -225,6 +233,9 @@ export default function DashboardSection({
   const currentEmployee = employees.find(emp => emp.email.toLowerCase().trim() === user.email.toLowerCase().trim());
   const isEmployee = !!currentEmployee;
 
+  const currentVendor = vendors.find(v => v.email.toLowerCase().trim() === user.email.toLowerCase().trim());
+  const isVendor = !!currentVendor;
+
   // Dynamic Ambassador QR configurations
   const [qrBaseUrlType, setQrBaseUrlType] = useState<'production' | 'editor' | 'custom'>(() => {
     return (safeStorage.getItem('cc_qr_base_url_type') as any) || 'production';
@@ -234,14 +245,16 @@ export default function DashboardSection({
   });
 
   React.useEffect(() => {
-    if (isEmployee) {
+    if (isVendor) {
+      setActiveTab('vendor');
+    } else if (isEmployee) {
       setActiveTab('employee');
     } else if (isAdmin) {
       setActiveTab('admin');
     } else {
       setActiveTab('student');
     }
-  }, [isEmployee, isAdmin, user.email]);
+  }, [isVendor, isEmployee, isAdmin, user.email]);
 
   // New celebration state
   const [newCelebName, setNewCelebName] = useState('');
@@ -305,7 +318,8 @@ export default function DashboardSection({
   // Admin section: new campus state
   const [newCampusName, setNewCampusName] = useState('');
   const [newCampusLocation, setNewCampusLocation] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'kiosk' | 'catalog' | 'campus' | 'coupons' | 'qrcodes' | 'employees'>('analytics');
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'prepared' | 'kiosk' | 'catalog' | 'campus' | 'coupons' | 'qrcodes' | 'employees' | 'vendors'>('analytics');
+  const [preparedCampusFilter, setPreparedCampusFilter] = useState<string>('all');
   
   // Admin section: new employee state
   const [newEmpName, setNewEmpName] = useState('');
@@ -315,7 +329,17 @@ export default function DashboardSection({
 
   const [empSearch, setEmpSearch] = useState('');
   const [deletingEmpId, setDeletingEmpId] = useState<string | null>(null);
-  const [adminOrderFilter, setAdminOrderFilter] = useState<'all' | 'placed' | 'preparing' | 'delivery' | 'ready'>('all');
+
+  // Admin section: vendor states
+  const [newVendorName, setNewVendorName] = useState('');
+  const [newVendorEmail, setNewVendorEmail] = useState('');
+  const [newVendorCampusId, setNewVendorCampusId] = useState('all');
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [deletingVendorId, setDeletingVendorId] = useState<string | null>(null);
+
+  // Vendor Workspace states
+  const [activeVendorSubTab, setActiveVendorSubTab] = useState<'inventory' | 'orders'>('inventory');
+  const [adminOrderFilter, setAdminOrderFilter] = useState<'all' | 'placed' | 'preparing' | 'prepared' | 'delivery' | 'ready'>('all');
   const [adminServiceModeFilter, setAdminServiceModeFilter] = useState<'all' | 'delivery' | 'dinein'>('all');
 
   // Admin section: coupons
@@ -432,11 +456,31 @@ export default function DashboardSection({
     e.preventDefault();
     if (!newEmpName || !newEmpEmail || !newEmpPost) return;
     
-    // Validate email is not an admin email
+    const cleanEmail = newEmpEmail.toLowerCase().trim();
+
+    // 1. Check if email belongs to platform administrators
     const adminEmails = ['saransh1860@gmail.com', 'tanishapahal606@gmail.com', 'tanishapahal606@gmal.com'];
-    if (adminEmails.includes(newEmpEmail.toLowerCase().trim())) {
+    if (adminEmails.includes(cleanEmail)) {
       if (onShowToast) {
-        onShowToast("Registration Blocked", "This email is registered to a Campus Administrator and cannot be onboarded as an employee.");
+        onShowToast("Registration Blocked", "This email is registered to a Campus Administrator and cannot hold multiple posts simultaneously.");
+      }
+      return;
+    }
+
+    // 2. Check if email is already registered as an employee
+    const isAlreadyEmployee = employees.some(emp => emp.email.toLowerCase().trim() === cleanEmail);
+    if (isAlreadyEmployee) {
+      if (onShowToast) {
+        onShowToast("Registration Blocked", "This email is already registered as an Employee.");
+      }
+      return;
+    }
+
+    // 3. Check if email is registered as a vendor (no dual role allowed)
+    const isAlreadyVendor = vendors.some(v => v.email.toLowerCase().trim() === cleanEmail);
+    if (isAlreadyVendor) {
+      if (onShowToast) {
+        onShowToast("Registration Blocked", "This email is currently registered as a Vendor and cannot hold multiple posts. Please revoke/delete their Vendor status first.");
       }
       return;
     }
@@ -465,6 +509,64 @@ export default function DashboardSection({
     setNewEmpCommissionValue('5');
     if (onShowToast) {
       onShowToast("Hiring Complete", `${newEmpName} has been registered as ${newEmpPost}!`);
+    }
+  };
+
+  const handleAddVendorSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVendorName || !newVendorEmail || !newVendorCampusId) return;
+
+    const cleanEmail = newVendorEmail.toLowerCase().trim();
+
+    // 1. Check if email belongs to platform administrators
+    const adminEmails = ['saransh1860@gmail.com', 'tanishapahal606@gmail.com', 'tanishapahal606@gmal.com'];
+    if (adminEmails.includes(cleanEmail)) {
+      if (onShowToast) {
+        onShowToast("Registration Blocked", "This email is registered to a Campus Administrator and cannot hold multiple posts simultaneously.");
+      } else {
+        alert("This email is registered to a Campus Administrator and cannot hold multiple posts simultaneously.");
+      }
+      return;
+    }
+
+    // 2. Check if email is registered as an Employee (no dual role allowed)
+    const isAlreadyEmployee = employees.some(emp => emp.email.toLowerCase().trim() === cleanEmail);
+    if (isAlreadyEmployee) {
+      if (onShowToast) {
+        onShowToast("Registration Blocked", "This email is currently registered as an Employee and cannot hold multiple posts. Please revoke/delete their Employee status first.");
+      } else {
+        alert("This email is currently registered as an Employee and cannot hold multiple posts. Please revoke/delete their Employee status first.");
+      }
+      return;
+    }
+
+    // 3. Check if email is already registered as a Vendor
+    const isAlreadyVendor = vendors.some(v => v.email.toLowerCase().trim() === cleanEmail);
+    if (isAlreadyVendor) {
+      if (onShowToast) {
+        onShowToast("Registration Blocked", "This email is already registered as a Vendor.");
+      } else {
+        alert("This email is already registered as a Vendor.");
+      }
+      return;
+    }
+
+    onAddVendor?.({
+      id: newVendorEmail.trim().toLowerCase(),
+      name: newVendorName.trim(),
+      email: newVendorEmail.trim().toLowerCase(),
+      campusId: newVendorCampusId,
+      dateRegistered: new Date().toISOString().split('T')[0],
+    });
+
+    setNewVendorName('');
+    setNewVendorEmail('');
+    setNewVendorCampusId('all');
+
+    if (onShowToast) {
+      onShowToast("Vendor Registered", "New vendor onboarded successfully!");
+    } else {
+      alert("Vendor registered successfully!");
     }
   };
 
@@ -746,6 +848,16 @@ export default function DashboardSection({
               💼 Employee Desk
             </button>
           )}
+          {isVendor && (
+            <button
+              onClick={() => setActiveTab('vendor')}
+              className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 ${
+                activeTab === 'vendor' ? 'bg-white dark:bg-[#120709] text-pink-700 dark:text-pink-450 shadow-sm dark:shadow-none' : 'hover:text-gray-900 hover:dark:text-white'
+              }`}
+            >
+              🏪 Vendor Desk
+            </button>
+          )}
           {isAdmin && (
             <button
               onClick={() => setActiveTab('admin')}
@@ -936,10 +1048,14 @@ export default function DashboardSection({
                 ) : (
                   <div className="space-y-3">
                     {orders.map((order) => {
+                      // The status update for users is managed by admin from order central using userVisibleStatus (defaults to 'placed' if not set)
+                      const rawUserStatus = order.userVisibleStatus || 'placed';
+                      const clientStatus = rawUserStatus === 'ready' ? 'prepared' : rawUserStatus;
                       const currentStatusColor = 
-                        order.status === 'placed' ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 border border-indigo-200/20' :
-                        order.status === 'preparing' ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 border border-amber-200/20' :
-                        order.status === 'delivery' ? 'bg-red-50 dark:bg-red-950/45 text-[#E23744] font-bold animate-pulse border border-red-200/35' :
+                        clientStatus === 'placed' ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 border border-indigo-200/20' :
+                        clientStatus === 'preparing' ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 border border-amber-200/20' :
+                        clientStatus === 'prepared' ? 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 border border-orange-200/20' :
+                        clientStatus === 'delivery' ? 'bg-red-50 dark:bg-red-950/45 text-[#E23744] font-bold animate-pulse border border-red-200/35' :
                         'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 border border-emerald-200/20';
 
                       return (
@@ -952,7 +1068,7 @@ export default function DashboardSection({
                               <div className="flex items-center gap-2">
                                 <span className="font-exrabold text-xs text-gray-800 dark:text-[#fafafa] font-bold">Order #{order.id}</span>
                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${currentStatusColor}`}>
-                                  {order.status === 'completed' || order.status === 'ready' ? 'delivered' : order.status}
+                                  {clientStatus === 'completed' ? 'delivered' : clientStatus === 'prepared' ? 'ready for pickup' : clientStatus}
                                 </span>
                               </div>
                               <p className="text-[11px] text-gray-400 mt-0.5">{order.date} @ ABC University</p>
@@ -1054,6 +1170,14 @@ export default function DashboardSection({
                     <Calendar className="w-4 h-4" />
                     <span className="text-[11px] font-bold">Order Central</span>
                   </button>
+
+                  <button 
+                    onClick={() => setActiveAdminTab('prepared')}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${activeAdminTab === 'prepared' ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700' : 'text-gray-600 dark:text-[#d4d4d8] hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80'}`}
+                  >
+                    <ClipboardCheck className="w-4 h-4" />
+                    <span className="text-[11px] font-bold">Prepared Orders</span>
+                  </button>
                   
                   <button 
                     onClick={() => setActiveAdminTab('kiosk')}
@@ -1101,6 +1225,14 @@ export default function DashboardSection({
                   >
                     <Users className="w-4 h-4" />
                     <span className="text-[11px] font-bold">Employees & Roles</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setActiveAdminTab('vendors')}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${activeAdminTab === 'vendors' ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700' : 'text-gray-600 dark:text-[#d4d4d8] hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80'}`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span className="text-[11px] font-bold">Vendor Registration</span>
                   </button>
                 </div>
 
@@ -1253,6 +1385,7 @@ export default function DashboardSection({
                 const countAll = orders.length;
                 const countPending = orders.filter(o => o.status === 'placed').length;
                 const countPacked = orders.filter(o => o.status === 'preparing').length;
+                const countPrepared = orders.filter(o => o.status === 'prepared').length;
                 const countDelivery = orders.filter(o => o.status === 'delivery').length;
                 const countDelivered = orders.filter(o => o.status === 'ready' || o.status === 'completed').length;
 
@@ -1316,7 +1449,7 @@ export default function DashboardSection({
                             <span className="w-1 h-1 rounded-full bg-current animate-ping" />
                             Pending ({countPending})
                           </button>
-                          <button
+                           <button
                             onClick={() => setAdminOrderFilter('preparing')}
                             className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                               adminOrderFilter === 'preparing'
@@ -1325,6 +1458,16 @@ export default function DashboardSection({
                             }`}
                           >
                             Packed ({countPacked})
+                          </button>
+                          <button
+                            onClick={() => setAdminOrderFilter('prepared')}
+                            className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              adminOrderFilter === 'prepared'
+                                ? 'bg-indigo-600 text-white shadow-sm dark:shadow-none'
+                                : 'text-indigo-600 hover:text-indigo-950 hover:bg-indigo-50 hover:dark:bg-indigo-500/10/50'
+                            }`}
+                          >
+                            Prepared ({countPrepared})
                           </button>
                           <button
                             onClick={() => setAdminOrderFilter('delivery')}
@@ -1402,6 +1545,10 @@ export default function DashboardSection({
                             badgeBg = "bg-blue-50 dark:bg-blue-500/10 text-blue-700 border-blue-200";
                             leftBorder = "border-l-4 border-l-blue-500";
                             statusLabel = "Packed & Ready";
+                          } else if (or.status === 'prepared') {
+                            badgeBg = "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 border-indigo-200";
+                            leftBorder = "border-l-4 border-l-indigo-500";
+                            statusLabel = "Prepared by Vendor";
                           } else if (or.status === 'delivery') {
                             badgeBg = "bg-pink-50 dark:bg-pink-500/10 text-pink-700 border-pink-200";
                             leftBorder = "border-l-4 border-l-pink-500";
@@ -1444,20 +1591,106 @@ export default function DashboardSection({
                                   </p>
                                 </div>
 
-                                <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#1a0d0f]/80 p-1.5 rounded-2xl border border-gray-100 dark:border-[#291316]">
-                                  <span className="text-[10px] font-black text-gray-500 dark:text-[#a1a1aa] uppercase tracking-widest pl-1.5 mr-1">Update State</span>
-                                  <select
-                                    value={or.status}
-                                    onChange={(e) => onUpdateOrderStatus(or.id, e.target.value)}
-                                    className="bg-white dark:bg-[#120709] border text-[11px] font-black py-1 px-2.5 rounded-xl border-purple-200 text-purple-800 focus:outline-none cursor-pointer"
-                                  >
-                                    <option value="placed">Pending (Placed)</option>
-                                    <option value="preparing">Packed (Preparing)</option>
-                                    <option value="delivery">Out for Delivery</option>
-                                    <option value="ready">Delivered (Completed)</option>
-                                  </select>
+                                <div className="flex flex-wrap items-center gap-3">
+                                  {/* Internal Backend/Runner State */}
+                                  <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#1a0d0f]/80 p-1.5 rounded-2xl border border-gray-100 dark:border-[#291316]">
+                                    <span className="text-[10px] font-black text-gray-500 dark:text-[#a1a1aa] uppercase tracking-widest pl-1.5 mr-1 text-zinc-400">Process State</span>
+                                    <select
+                                      value={or.status}
+                                      onChange={(e) => onUpdateOrderStatus(or.id, e.target.value, false)}
+                                      className="bg-white dark:bg-[#120709] border text-[11px] font-black py-1 px-2.5 rounded-xl border-zinc-200 text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                                    >
+                                      <option value="placed">Pending (Placed)</option>
+                                      <option value="preparing">Packed (Preparing)</option>
+                                      <option value="prepared">Prepared by Vendor</option>
+                                      <option value="delivery">Out for Delivery</option>
+                                      <option value="ready">Delivered (Completed)</option>
+                                    </select>
+                                  </div>
+
+                                  {/* User-Facing Display State */}
+                                  <div className="flex items-center gap-2 bg-amber-50/50 dark:bg-amber-950/20 p-1.5 rounded-2xl border border-amber-200/50">
+                                    <span className="text-[10px] font-black text-[#C49A25] dark:text-[#D4AF37] uppercase tracking-widest pl-1.5 mr-1">👥 User-Facing Status</span>
+                                    <select
+                                      value={or.userVisibleStatus || 'placed'}
+                                      onChange={(e) => onUpdateOrderStatus(or.id, e.target.value, true, true)}
+                                      className="bg-white dark:bg-[#120709] border text-[11px] font-black py-1 px-2.5 rounded-xl border-amber-200 text-amber-800 focus:outline-none cursor-pointer"
+                                    >
+                                      <option value="placed">Pending (Placed)</option>
+                                      <option value="preparing">Cake Bake Active (Preparing)</option>
+                                      <option value="prepared">Ready for Pickup (Prepared)</option>
+                                      <option value="delivery">Out for Delivery</option>
+                                      <option value="ready">Delivered</option>
+                                    </select>
+                                  </div>
                                 </div>
                               </div>
+
+                              {/* Vendor-prepared status alert and employee dispatch */}
+                              {or.status === 'prepared' && (
+                                <div className="p-4 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-150 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                  <div className="flex items-start gap-2.5">
+                                    <span className="text-xl">👩‍🍳</span>
+                                    <div>
+                                      <h5 className="font-extrabold text-xs text-indigo-900 dark:text-indigo-300 uppercase tracking-wide">
+                                        Prepared by Vendor (Ready for Dispatch)
+                                      </h5>
+                                      <p className="text-[10.5px] text-indigo-700/90 dark:text-gray-400 mt-0.5">
+                                        The vendor has finished preparing this order. Send your employee to pick up the items from their shop.
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 bg-white dark:bg-black/30 p-2 rounded-xl border border-indigo-200">
+                                    <span className="text-[9.5px] font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">
+                                      Assign Campus Manager:
+                                    </span>
+                                    {or.assignedEmployeeId ? (
+                                      <div className="flex items-center gap-1.5 bg-indigo-50 px-2 py-0.5 rounded-lg text-indigo-900 text-[10px] font-bold">
+                                        <span>🏃 {or.assignedEmployeeName}</span>
+                                        <button 
+                                          onClick={() => {
+                                            if (onUpdateOrder) {
+                                              const updated = { ...or };
+                                              delete updated.assignedEmployeeId;
+                                              delete updated.assignedEmployeeName;
+                                              onUpdateOrder(updated);
+                                            }
+                                          }}
+                                          className="text-red-500 hover:text-red-700 font-extrabold ml-1 cursor-pointer"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <select
+                                        onChange={(e) => {
+                                          const empId = e.target.value;
+                                          if (!empId) return;
+                                          const emp = employees.find(emp => emp.id === empId);
+                                          if (emp && onUpdateOrder) {
+                                            onUpdateOrder({
+                                              ...or,
+                                              assignedEmployeeId: emp.id,
+                                              assignedEmployeeName: emp.name
+                                            });
+                                          }
+                                        }}
+                                        className="bg-transparent text-[10px] font-black text-indigo-800 dark:text-indigo-300 focus:outline-none cursor-pointer"
+                                        defaultValue=""
+                                      >
+                                        <option value="" disabled>Select campus manager...</option>
+                                        {employees.filter(emp => emp.post === 'Campus Manager').map(emp => (
+                                          <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                        ))}
+                                        {employees.filter(emp => emp.post === 'Campus Manager').length === 0 && (
+                                          <option disabled>No Campus Managers registered</option>
+                                        )}
+                                      </select>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Card Body Grid (Recipient on Left, Cake info on Right) */}
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs">
@@ -1612,7 +1845,7 @@ export default function DashboardSection({
                                   {or.status === 'placed' && (
                                     <button
                                       type="button"
-                                      onClick={() => onUpdateOrderStatus(or.id, 'preparing')}
+                                      onClick={() => onUpdateOrderStatus(or.id, 'preparing', true)}
                                       className="py-2 px-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-md dark:shadow-none shadow-blue-500/10 cursor-pointer text-center select-none"
                                     >
                                       👨‍🍳 Mark Ready & Packed
@@ -1622,7 +1855,7 @@ export default function DashboardSection({
                                   {or.status === 'preparing' && (
                                     <button
                                       type="button"
-                                      onClick={() => onUpdateOrderStatus(or.id, 'delivery')}
+                                      onClick={() => onUpdateOrderStatus(or.id, 'delivery', true)}
                                       className="py-2 px-3.5 bg-pink-600 hover:bg-pink-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-md dark:shadow-none shadow-pink-500/10 cursor-pointer text-center select-none"
                                     >
                                       🚴 Out for Delivery
@@ -1632,7 +1865,7 @@ export default function DashboardSection({
                                   {or.status === 'delivery' && (
                                     <button
                                       type="button"
-                                      onClick={() => onUpdateOrderStatus(or.id, 'ready')}
+                                      onClick={() => onUpdateOrderStatus(or.id, 'ready', true)}
                                       className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-md dark:shadow-none shadow-emerald-500/10 cursor-pointer text-center select-none"
                                     >
                                       ✅ Complete & Delivered
@@ -1651,6 +1884,196 @@ export default function DashboardSection({
                         })}
                       </div>
                     )}
+                  </div>
+                );
+              })()}
+
+              {/* Prepared Orders Tab */}
+              {activeAdminTab === 'prepared' && (() => {
+                const preparedOrdersList = orders.filter(o => o.status === 'prepared');
+                
+                const filteredPrepared = preparedOrdersList.filter(o => 
+                  preparedCampusFilter === 'all' || o.campusId === preparedCampusFilter
+                );
+
+                return (
+                  <div className="space-y-6">
+                    <div className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-100 dark:border-[#291316] pb-4 mb-4">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-1.5">
+                            <ClipboardCheck className="w-5 h-5 text-indigo-600" /> Prepared Orders Central
+                          </h4>
+                          <p className="text-[10px] text-gray-400 mt-1 font-semibold">
+                            Orders marked as prepared by vendors that are waiting for pickup, runner dispatch, and delivery.
+                          </p>
+                        </div>
+                        
+                        {/* Campus Filter */}
+                        <div className="flex items-center gap-2 bg-gray-50 dark:bg-black/20 px-3 py-1.5 rounded-xl border border-gray-200/80 dark:border-[#291316]">
+                          <span className="text-[9.5px] font-black text-gray-500 uppercase tracking-wider">Campus Hub:</span>
+                          <select
+                            value={preparedCampusFilter}
+                            onChange={(e) => setPreparedCampusFilter(e.target.value)}
+                            className="bg-transparent text-[10.5px] font-extrabold text-gray-800 dark:text-[#fafafa] focus:outline-none cursor-pointer"
+                          >
+                            <option value="all">All Campuses</option>
+                            {campuses.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {filteredPrepared.length === 0 ? (
+                        <div className="p-16 text-center">
+                          <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center mx-auto mb-3 border border-indigo-100/50">
+                            <ClipboardCheck className="w-6 h-6 text-indigo-500" />
+                          </div>
+                          <h5 className="text-xs font-black text-gray-700 dark:text-zinc-300 uppercase tracking-wider">No Prepared Orders</h5>
+                          <p className="text-[10px] text-gray-400 mt-1 max-w-md mx-auto font-medium">
+                            No orders are currently waiting in the prepared status for the selected campus.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-6">
+                          {filteredPrepared.map(or => {
+                            const orderCampusName = campuses.find(c => c.id === or.campusId)?.name || 'Specified Campus';
+                            
+                            return (
+                              <div key={or.id} className="p-5 bg-indigo-50/10 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl space-y-4 shadow-sm relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500" />
+                                
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-indigo-100/40 pb-3 pl-2">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono font-black text-xs text-[#C49A25]">#{or.id}</span>
+                                      <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700">
+                                        {or.serviceMode === 'delivery' ? 'Delivery' : 'Dine In / Pickup'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1">Campus: {orderCampusName} | Prepared: {or.date}</p>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-400 uppercase bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200/50 px-2.5 py-1 rounded-lg">
+                                      👩‍🍳 Prepared by Vendor
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-2">
+                                  {/* Items list */}
+                                  <div className="space-y-2">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Items Ordered:</span>
+                                    <div className="space-y-2">
+                                      {or.items.map((item, idx) => (
+                                        <div key={idx} className="flex items-start gap-2.5 p-2 bg-white dark:bg-black/20 rounded-xl border border-gray-100 dark:border-[#291316]">
+                                          <span className="text-pink-600 dark:text-pink-400 font-extrabold text-sm">•</span>
+                                          <div className="text-xs text-gray-800 dark:text-zinc-200 font-bold">
+                                            <span>{item.quantity || 1}x {item.name}</span>
+                                            {item.customization?.weight && <span className="text-[10px] text-gray-400 font-medium ml-1.5">({item.customization.weight} kg)</span>}
+                                            {item.customization?.flavor && <span className="text-[10px] text-gray-400 font-medium ml-1.5">[{item.customization.flavor}]</span>}
+                                            {item.customization?.messageOnCake && <p className="text-[10px] text-[#C49A25] font-black italic mt-0.5">"Message: {item.customization.messageOnCake}"</p>}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Customer details */}
+                                  <div className="space-y-3">
+                                    <div className="space-y-1.5 text-xs text-gray-650 dark:text-zinc-400 font-semibold">
+                                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Customer Details:</span>
+                                      <p><span className="text-gray-400 font-medium">Name:</span> {or.customerName || 'N/A'}</p>
+                                      <p><span className="text-gray-400 font-medium">Phone:</span> {or.customerPhone || 'N/A'}</p>
+                                      <p><span className="text-gray-400 font-medium">Location:</span> {or.deliveryAddress || 'N/A'}</p>
+                                      <p><span className="text-gray-400 font-medium">Total Price:</span> <span className="font-extrabold text-gray-900 dark:text-white">₹{or.total}</span></p>
+                                    </div>
+
+                                    {/* Runner Assignment */}
+                                    <div className="p-3 bg-white dark:bg-black/30 border border-indigo-100 dark:border-[#291316] rounded-xl space-y-2">
+                                      <span className="text-[9.5px] font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-wider block">
+                                        Campus Manager Assignment:
+                                      </span>
+                                      {or.assignedEmployeeId ? (
+                                        <div className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+                                          <div className="text-[10.5px] font-bold text-indigo-900 dark:text-indigo-300">
+                                            🏃 {or.assignedEmployeeName}
+                                          </div>
+                                          <button 
+                                            onClick={() => {
+                                              if (onUpdateOrder) {
+                                                const updated = { ...or };
+                                                delete updated.assignedEmployeeId;
+                                                delete updated.assignedEmployeeName;
+                                                onUpdateOrder(updated);
+                                              }
+                                            }}
+                                            className="text-red-500 hover:text-red-700 text-[10px] font-extrabold cursor-pointer"
+                                          >
+                                            Unassign
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <select
+                                          onChange={(e) => {
+                                            const empId = e.target.value;
+                                            if (!empId) return;
+                                            const emp = employees.find(emp => emp.id === empId);
+                                            if (emp && onUpdateOrder) {
+                                              onUpdateOrder({
+                                                ...or,
+                                                assignedEmployeeId: emp.id,
+                                                assignedEmployeeName: emp.name
+                                              });
+                                            }
+                                          }}
+                                          className="w-full bg-transparent text-[11px] font-bold text-gray-800 dark:text-zinc-300 focus:outline-none border border-gray-200 dark:border-[#291316] p-1.5 rounded-lg cursor-pointer bg-white dark:bg-[#120709]"
+                                          defaultValue=""
+                                        >
+                                          <option value="" disabled>Select campus manager...</option>
+                                          {employees.filter(emp => emp.post === 'Campus Manager').map(emp => (
+                                            <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                          ))}
+                                          {employees.filter(emp => emp.post === 'Campus Manager').length === 0 && (
+                                            <option disabled>No Campus Managers registered</option>
+                                          )}
+                                        </select>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Action Buttons Footer */}
+                                <div className="border-t border-indigo-100/40 pt-3.5 flex flex-wrap gap-2.5 justify-end pl-2">
+                                  <button
+                                    onClick={() => onUpdateOrderStatus(or.id, 'preparing')}
+                                    className="px-4 py-2 bg-white dark:bg-black/30 hover:bg-gray-50 border border-gray-200 text-gray-600 dark:text-zinc-300 font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                                  >
+                                    ↩ Send Back to Preparing
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => onUpdateOrderStatus(or.id, 'delivery')}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+                                  >
+                                    🚚 Dispatch (Out for Delivery)
+                                  </button>
+
+                                  <button
+                                    onClick={() => onUpdateOrderStatus(or.id, 'ready')}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-[10px] uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+                                  >
+                                    ✓ Complete & Deliver
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()}
@@ -1944,9 +2367,19 @@ export default function DashboardSection({
                                 >
                                   -
                                 </button>
-                                <span className="min-w-[40px] text-center font-black text-xs text-gray-900 dark:text-white">
-                                  {item.remainingStock} <span className="text-gray-400 font-normal">/ {item.totalStock}</span>
-                                </span>
+                                <div className="flex items-center gap-1">
+                                  <input 
+                                    type="number"
+                                    min="0"
+                                    value={item.remainingStock}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      onUpdateKioskStock(item.id, isNaN(val) ? 0 : Math.max(0, val));
+                                    }}
+                                    className="w-12 h-6 text-center font-mono text-xs font-black text-gray-900 dark:text-white bg-white dark:bg-black border border-gray-200 dark:border-[#3c1a1e] rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                  <span className="text-gray-400 font-normal text-xs">/ {item.totalStock}</span>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => onUpdateKioskStock(item.id, Math.min(item.totalStock + 10, item.remainingStock + 1))}
@@ -3437,6 +3870,185 @@ export default function DashboardSection({
                 </div>
               )}
 
+              {activeAdminTab === 'vendors' && (
+                <div className="space-y-6 animate-fade-in">
+                  {/* Vendor Workspace Header */}
+                  <div className="bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-[#E23744]/10 p-6 rounded-3xl border border-pink-500/20 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="font-extrabold text-sm text-pink-900 dark:text-pink-300 uppercase tracking-widest mb-1 flex items-center gap-2">
+                          <Shield className="w-5 h-5 text-pink-600" /> Vendor Onboarding Hub
+                        </h3>
+                        <p className="text-xs text-pink-700/80 dark:text-pink-300/70 font-medium max-w-2xl">
+                          Register brand-authorized bakers, franchise kitchens, and custom ingredient partners. Vendors can manage their campus stock and track real-time orders.
+                        </p>
+                      </div>
+                      <div className="bg-pink-100/50 dark:bg-pink-950/40 px-4 py-2 rounded-2xl border border-pink-200/30 text-center shrink-0">
+                        <span className="block text-[10px] text-pink-700 dark:text-pink-400 font-extrabold uppercase tracking-widest">Active Vendors</span>
+                        <span className="text-xl font-black text-pink-950 dark:text-white">{vendors.length} Partners</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* LEFT COLUMN: REGISTRATION FORM */}
+                    <div className="lg:col-span-5 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm">
+                      <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest mb-1.5 flex items-center gap-1.5 border-b border-gray-100 dark:border-[#291316] pb-2">
+                        <Plus className="w-4 h-4 text-pink-600" /> Onboard New Vendor
+                      </h4>
+                      <p className="text-[10px] text-gray-400 mb-4 font-semibold">
+                        Assign vendor privileges to any student or external email. They can log in to view orders and update item stock.
+                      </p>
+
+                      <form onSubmit={handleAddVendorSubmit} className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Vendor / Partner Name</label>
+                          <input 
+                            type="text"
+                            required
+                            value={newVendorName}
+                            onChange={(e) => setNewVendorName(e.target.value)}
+                            placeholder="e.g. Royal Bakers or Rohit Sharma"
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Email Address</label>
+                          <input 
+                            type="email"
+                            required
+                            value={newVendorEmail}
+                            onChange={(e) => setNewVendorEmail(e.target.value)}
+                            placeholder="e.g. vendor@campus-cakes.com"
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Assigned Campus Jurisdiction</label>
+                          <select 
+                            value={newVendorCampusId}
+                            onChange={(e) => setNewVendorCampusId(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400 cursor-pointer"
+                          >
+                            <option value="all" className="bg-white dark:bg-[#120709] text-gray-900 dark:text-white">All Campuses (Universal Access)</option>
+                            {campuses.map(c => (
+                              <option key={c.id} value={c.id} className="bg-white dark:bg-[#120709] text-gray-900 dark:text-white">{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <button 
+                          type="submit"
+                          className="w-full py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:brightness-110 text-white font-black text-xs rounded-xl shadow-md shadow-pink-600/10 transition-all cursor-pointer active:scale-95 uppercase tracking-wider"
+                        >
+                          Register Vendor Credentials
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* RIGHT COLUMN: ACTIVE VENDORS LIST */}
+                    <div className="lg:col-span-7 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-[#291316] pb-3 mb-4">
+                        <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-1.5">
+                          <Shield className="w-4 h-4 text-pink-600" /> Active Partners List
+                        </h4>
+                        <input 
+                          type="text"
+                          value={vendorSearch}
+                          onChange={(e) => setVendorSearch(e.target.value)}
+                          placeholder="Search partners..."
+                          className="px-3 py-1.5 bg-gray-50 dark:bg-black/40 text-[11px] rounded-lg border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400 max-w-xs"
+                        />
+                      </div>
+
+                      <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+                        {vendors
+                          .filter(v => {
+                            const query = vendorSearch.toLowerCase();
+                            return (
+                              v.name.toLowerCase().includes(query) ||
+                              v.email.toLowerCase().includes(query)
+                            );
+                          })
+                          .map((v) => {
+                            const campusName = v.campusId === 'all' 
+                              ? 'All Campuses' 
+                              : (campuses.find(c => c.id === v.campusId)?.name || 'Unknown Campus');
+
+                            return (
+                              <div key={v.id} className="p-3.5 bg-gray-50/50 dark:bg-[#1c0d0f]/20 border border-gray-100 dark:border-[#291316] rounded-2xl flex items-center justify-between gap-4 transition-all hover:bg-gray-100/50 dark:hover:bg-[#1c0d0f]/40">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <h5 className="font-black text-xs text-gray-900 dark:text-white">{v.name}</h5>
+                                    <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-pink-50 dark:bg-pink-950/30 text-pink-600 dark:text-pink-400 border border-pink-100/20">
+                                      {campusName}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-gray-500 font-mono">{v.email}</p>
+                                  <p className="text-[9px] text-gray-400">Onboarded: {v.dateRegistered}</p>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  {deletingVendorId === v.id ? (
+                                    <div className="flex items-center gap-1 bg-rose-50 dark:bg-rose-950/20 p-1.5 rounded-xl border border-rose-100/30">
+                                      <span className="text-[9px] text-rose-600 font-black uppercase tracking-wider px-1">Revoke?</span>
+                                      <button 
+                                        type="button"
+                                        onClick={() => {
+                                          onDeleteVendor?.(v.id);
+                                          setDeletingVendorId(null);
+                                          if (onShowToast) {
+                                            onShowToast("Vendor Offboarded", `Access revoked for ${v.name}.`);
+                                          }
+                                        }}
+                                        className="px-2 py-1 bg-red-600 text-white text-[9px] font-black rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
+                                      >
+                                        Yes
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        onClick={() => setDeletingVendorId(null)}
+                                        className="px-2 py-1 bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-[9px] font-black rounded-lg hover:bg-gray-300 transition-colors cursor-pointer"
+                                      >
+                                        No
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button 
+                                      type="button"
+                                      onClick={() => setDeletingVendorId(v.id)}
+                                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all cursor-pointer"
+                                      title="Revoke Vendor Access"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                        {vendors.filter(v => {
+                          const query = vendorSearch.toLowerCase();
+                          return (
+                            v.name.toLowerCase().includes(query) ||
+                            v.email.toLowerCase().includes(query)
+                          );
+                        }).length === 0 && (
+                          <div className="p-12 text-center bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-dashed border-gray-200 dark:border-[#3c1a1e]">
+                            <Shield className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] font-bold uppercase tracking-widest">No matching partners found</p>
+                            <p className="text-[10px] text-gray-400 mt-1">Refine your search parameters or register them on the left panel.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
                 </div>
               </div>
 
@@ -3744,9 +4356,470 @@ export default function DashboardSection({
                         </div>
                       </div>
                     </div>
+
+                    {/* Assigned Pickups Section for Campus Manager */}
+                    <div className="mt-8 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-6 shadow-sm space-y-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-[#291316] pb-4">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                            <Truck className="w-5 h-5 text-purple-600 animate-pulse" /> Assigned Order Pickups
+                          </h4>
+                          <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1">
+                            Your dashboard contains all customer orders currently assigned to you for campus delivery and bakery pickup.
+                          </p>
+                        </div>
+                        <span className="px-3 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-black rounded-xl border border-purple-150 shrink-0 w-fit">
+                          {orders.filter(o => o.assignedEmployeeId === currentEmployee.id).length} Active Assignments
+                        </span>
+                      </div>
+
+                      {(() => {
+                        const assignedPickups = orders.filter(o => o.assignedEmployeeId === currentEmployee.id);
+                        if (assignedPickups.length === 0) {
+                          return (
+                            <div className="p-12 text-center bg-gray-50 dark:bg-[#1a0d0f]/50 rounded-2xl border border-dashed border-gray-150">
+                              <Truck className="w-10 h-10 text-zinc-350 mx-auto mb-2" />
+                              <p className="text-[11px] text-zinc-500 font-black uppercase tracking-widest">No assigned pickups right now</p>
+                              <p className="text-[10px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                                Once the administrator assigns you to a student order, it will appear here instantly with full delivery details and live status triggers!
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {assignedPickups.map(order => {
+                              const campusName = campuses?.find(c => c.id === order.campusId)?.name || 'Unknown Campus';
+                              
+                              let statusLabel: string = order.status;
+                              let statusBadgeStyle = "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300";
+                              
+                              if (order.status === 'placed') {
+                                statusLabel = "Order Placed";
+                                statusBadgeStyle = "bg-blue-50 text-blue-600 dark:bg-blue-950/45 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30";
+                              } else if (order.status === 'preparing') {
+                                statusLabel = "Preparing at Bakery";
+                                statusBadgeStyle = "bg-yellow-50 text-yellow-600 dark:bg-yellow-950/45 dark:text-yellow-400 border border-yellow-100 dark:border-yellow-900/30";
+                              } else if (order.status === 'prepared') {
+                                statusLabel = "Ready for Pickup";
+                                statusBadgeStyle = "bg-orange-50 text-orange-600 dark:bg-orange-950/45 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30";
+                              } else if (order.status === 'ready') {
+                                statusLabel = "Picked Up";
+                                statusBadgeStyle = "bg-purple-50 text-purple-600 dark:bg-purple-950/45 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30 font-black";
+                              } else if (order.status === 'delivery') {
+                                statusLabel = "Out for Delivery";
+                                statusBadgeStyle = "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/45 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30";
+                              } else if (order.status === 'completed') {
+                                statusLabel = "Delivered & Completed";
+                                statusBadgeStyle = "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/45 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 font-black";
+                              }
+
+                              return (
+                                <div 
+                                  key={order.id}
+                                  className="bg-white dark:bg-[#150a0c]/40 border border-gray-150 dark:border-[#291316] rounded-2xl p-5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                                >
+                                  {/* Top Row: Order ID, Status, and Date */}
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div>
+                                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider block">Order ID</span>
+                                        <span className="font-mono font-black text-sm text-[#C49A25]">{order.id}</span>
+                                      </div>
+                                      <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${statusBadgeStyle}`}>
+                                        {statusLabel}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[11px] text-zinc-500 font-medium">
+                                      <Calendar className="w-3.5 h-3.5 shrink-0" />
+                                      <span>Assigned on {order.date}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Middle Area: Items and Customization details */}
+                                  <div className="bg-gray-50/50 dark:bg-black/20 p-3 rounded-xl border border-gray-100 dark:border-zinc-900 space-y-2 text-xs">
+                                    <span className="text-[9px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Order Items & Specifications</span>
+                                    <div className="divide-y divide-gray-100 dark:divide-zinc-800">
+                                      {order.items.map((item, idx) => (
+                                        <div key={idx} className="py-1.5 first:pt-0 last:pb-0 flex flex-col gap-1 text-gray-800 dark:text-zinc-200">
+                                          <div className="flex justify-between font-bold">
+                                            <span>{item.name} <span className="text-purple-600 font-extrabold font-mono">x{item.quantity}</span></span>
+                                            <span className="font-mono text-zinc-500">₹{item.price * item.quantity}</span>
+                                          </div>
+                                          {item.customization && (
+                                            <div className="pl-2 border-l border-purple-200 text-[10px] text-zinc-500 dark:text-zinc-400 space-y-0.5">
+                                              {item.customization.flavor && <p><strong>Flavor:</strong> {item.customization.flavor}</p>}
+                                              {item.customization.weight && <p><strong>Weight:</strong> {item.customization.weight} Pound</p>}
+                                              {item.customization.messageOnCake && <p><strong>Message:</strong> "{item.customization.messageOnCake}"</p>}
+                                              {item.customization.pickupTime && <p><strong>Target Pickup Time:</strong> {item.customization.pickupTime}</p>}
+                                              {item.customization.specialInstructions && <p><strong>Notes:</strong> {item.customization.specialInstructions}</p>}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Delivery & Customer Details */}
+                                  <div className="space-y-2 text-xs">
+                                    <span className="text-[9px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Customer & Delivery Info</span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-700 dark:text-zinc-300">
+                                      <div className="flex items-start gap-1.5">
+                                        <User className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
+                                        <div>
+                                          <p className="font-bold">{order.customerName || 'Anonymous Student'}</p>
+                                          {order.customerPhone && (
+                                            <a 
+                                              href={`tel:${order.customerPhone}`}
+                                              className="text-[10px] font-black text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-0.5 hover:underline"
+                                            >
+                                              <Phone className="w-3 h-3 animate-pulse" /> {order.customerPhone}
+                                            </a>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-start gap-1.5">
+                                        <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
+                                        <div>
+                                          <p className="font-bold">{campusName}</p>
+                                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mt-0.5">
+                                            {order.deliveryAddress || 'No address provided'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Status updating action row */}
+                                  <div className="border-t border-gray-100 dark:border-zinc-800/60 pt-3 flex flex-wrap items-center justify-between gap-3">
+                                    <div className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                                      Update Status:
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {(isAdmin || currentEmployee?.post === 'Campus Manager') && order.status === 'prepared' ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => onUpdateOrderStatus(order.id, 'ready')}
+                                          className="py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                                        >
+                                          📦 Mark as Picked Up
+                                        </button>
+                                      ) : order.status === 'ready' ? (
+                                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-extrabold uppercase tracking-wider flex items-center gap-1 bg-purple-50 dark:bg-purple-950/20 px-2 py-1 rounded-lg border border-purple-100/30">
+                                          <CheckCircle className="w-3.5 h-3.5" /> Picked Up
+                                        </span>
+                                      ) : order.status === 'completed' ? (
+                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-1 rounded-lg border border-emerald-100/30">
+                                          <CheckCircle className="w-3.5 h-3.5" /> Delivered & Completed
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold italic">
+                                          Requires "Ready for Pickup" status
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </>
                 );
               })()}
+            </motion.div>
+          )}
+
+          {/* 4. VENDOR WORKSPACE CONTENT */}
+          {activeTab === 'vendor' && currentVendor && (
+            <motion.div
+              key="vendor-tab"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6 animate-fade-in"
+            >
+              {/* Header Profile Badge */}
+              <div className="bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-[#E23744]/10 p-6 rounded-3xl border border-pink-500/20 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-pink-500 to-rose-500 flex items-center justify-center text-white font-extrabold text-lg shadow-md border border-white/20">
+                      {currentVendor.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-extrabold text-lg text-gray-900 dark:text-white">
+                          {currentVendor.name}
+                        </h3>
+                        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-pink-100 dark:bg-pink-950/40 text-pink-750 dark:text-pink-400 border border-pink-200/20">
+                          Authorized Vendor Account
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium mt-0.5">
+                        Jurisdiction: <span className="font-bold text-pink-600 dark:text-pink-400">{currentVendor.campusId === 'all' ? 'All Campuses (Universal Access)' : (campuses.find(c => c.id === currentVendor.campusId)?.name || 'Specified Campus')}</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-mono mt-1">Logged in: {currentVendor.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setActiveVendorSubTab('inventory')}
+                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        activeVendorSubTab === 'inventory' 
+                          ? 'bg-pink-600 text-white shadow-md shadow-pink-600/15' 
+                          : 'bg-white dark:bg-[#120709] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-[#3c1a1e] hover:bg-gray-50'
+                      }`}
+                    >
+                      Inventory & Stock
+                    </button>
+                    <button
+                      onClick={() => setActiveVendorSubTab('orders')}
+                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        activeVendorSubTab === 'orders' 
+                          ? 'bg-pink-600 text-white shadow-md shadow-pink-600/15' 
+                          : 'bg-white dark:bg-[#120709] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-[#3c1a1e] hover:bg-gray-50'
+                      }`}
+                    >
+                      Campus Orders
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* A. SUB-TAB: INVENTORY */}
+              {activeVendorSubTab === 'inventory' && (
+                <div className="space-y-6">
+                  {/* Kiosk Stock Section */}
+                  <div className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm">
+                    <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest mb-1.5 flex items-center gap-1.5 border-b border-gray-100 dark:border-[#291316] pb-2">
+                      <Package className="w-4 h-4 text-pink-600" /> Kiosk Fridge Inventory Management
+                    </h4>
+                    <p className="text-[10px] text-gray-400 mb-4 font-semibold">
+                      Edit the live stock quantities available in physical fridge kiosks on campus. Changes are updated instantly for ordering.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {kioskInventory
+                        .filter(item => currentVendor.campusId === 'all' || item.campusIds?.includes(currentVendor.campusId))
+                        .map(item => {
+                          const itemCampusNames = item.campusIds?.map(cid => campuses.find(c => c.id === cid)?.name || cid).join(', ') || 'Global';
+                          return (
+                            <div key={item.id} className="p-4 bg-gray-50/50 dark:bg-[#1c0d0f]/20 border border-gray-150 dark:border-[#291316] rounded-2xl flex flex-col justify-between gap-4">
+                              <div className="flex items-start gap-3">
+                                {item.image && (
+                                  <img 
+                                    src={item.image} 
+                                    alt={item.name} 
+                                    className="w-12 h-12 rounded-xl object-cover shrink-0 border border-gray-100" 
+                                  />
+                                )}
+                                <div>
+                                  <h5 className="font-black text-xs text-gray-900 dark:text-white leading-tight">{item.name}</h5>
+                                  <p className="text-[10px] text-gray-500 font-semibold mt-0.5">₹{item.price}</p>
+                                  <p className="text-[9px] text-gray-400 mt-0.5">Campuses: {itemCampusNames}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between border-t border-gray-100 dark:border-[#291316] pt-3">
+                                <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Stock Qty:</span>
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => onUpdateKioskStock(item.id, Math.max(0, item.remainingStock - 1))}
+                                    className="w-6 h-6 bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-lg flex items-center justify-center text-xs font-black text-gray-600 hover:bg-gray-100 active:scale-95 cursor-pointer"
+                                  >
+                                    -
+                                  </button>
+                                  <input 
+                                    type="number"
+                                    min="0"
+                                    value={item.remainingStock}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      onUpdateKioskStock(item.id, isNaN(val) ? 0 : Math.max(0, val));
+                                    }}
+                                    className="w-12 h-6 text-center font-mono text-xs font-black text-gray-900 dark:text-white bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-pink-500 py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                  <button 
+                                    onClick={() => onUpdateKioskStock(item.id, item.remainingStock + 1)}
+                                    className="w-6 h-6 bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-lg flex items-center justify-center text-xs font-black text-gray-600 hover:bg-gray-100 active:scale-95 cursor-pointer"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                      {kioskInventory.filter(item => currentVendor.campusId === 'all' || item.campusIds?.includes(currentVendor.campusId)).length === 0 && (
+                        <div className="col-span-full p-8 text-center text-gray-400 text-xs font-bold bg-gray-50 rounded-2xl">
+                          No kiosk products assigned to your campus.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Pre-Order Catalog Customization */}
+                  <div className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm">
+                    <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest mb-1.5 flex items-center gap-1.5 border-b border-gray-100 dark:border-[#291316] pb-2">
+                      <ShoppingBag className="w-4 h-4 text-pink-600" /> Catalog Availability
+                    </h4>
+                    <p className="text-[10px] text-gray-400 mb-4 font-semibold">
+                      Control which artisan pre-order cakes are active and purchasable for your campus hub.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {allCakes.map(cake => {
+                        const isCurrentlyActive = currentVendor.campusId === 'all' || cake.campusIds?.includes(currentVendor.campusId);
+                        
+                        return (
+                          <div key={cake.id} className="p-4 bg-gray-50/50 dark:bg-[#1c0d0f]/20 border border-gray-150 dark:border-[#291316] rounded-2xl flex flex-col justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              {cake.image && (
+                                <img 
+                                  src={cake.image} 
+                                  alt={cake.name} 
+                                  className="w-12 h-12 rounded-xl object-cover shrink-0 border border-gray-100" 
+                                />
+                              )}
+                              <div>
+                                <h5 className="font-black text-xs text-gray-900 dark:text-white leading-tight">{cake.name}</h5>
+                                <p className="text-[10px] text-gray-500 font-semibold mt-0.5">₹{cake.price}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between border-t border-gray-100 dark:border-[#291316] pt-3">
+                              <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Status:</span>
+                              {currentVendor.campusId === 'all' ? (
+                                <span className="text-[9px] uppercase font-black text-emerald-600 font-extrabold">Global Admin</span>
+                              ) : (
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    const currentIds = cake.campusIds || [];
+                                    const nextIds = isCurrentlyActive 
+                                      ? currentIds.filter(id => id !== currentVendor.campusId)
+                                      : [...currentIds, currentVendor.campusId];
+                                    onEditCustomCake?.({ ...cake, campusIds: nextIds });
+                                    if (onShowToast) {
+                                      onShowToast("Catalog Status Changed", `${cake.name} is now ${isCurrentlyActive ? 'inactive' : 'active'} for your campus!`);
+                                    }
+                                  }}
+                                  className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-colors cursor-pointer ${
+                                    isCurrentlyActive 
+                                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
+                                      : 'bg-gray-100 text-gray-650 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {isCurrentlyActive ? 'Active' : 'Disabled'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* B. SUB-TAB: ORDERS */}
+              {activeVendorSubTab === 'orders' && (
+                <div className="space-y-6">
+                  <div className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm">
+                    <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest mb-1.5 flex items-center gap-1.5 border-b border-gray-100 dark:border-[#291316] pb-2">
+                      <ShoppingBag className="w-4 h-4 text-pink-600" /> Active Campus Orders
+                    </h4>
+                    <p className="text-[10px] text-gray-400 mb-4 font-semibold">
+                      Track, adjust, and progress incoming orders placed for your campus hub.
+                    </p>
+
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                      {(() => {
+                        return orders
+                          .filter(order => currentVendor.campusId === 'all' || order.campusId === currentVendor.campusId)
+                          .map(order => {
+                            const isPrepared = order.status === 'prepared';
+                            const isLaterStatus = ['delivery', 'ready', 'completed'].includes(order.status);
+                            
+                            return (
+                              <div key={order.id} className="p-4 bg-gray-50/50 dark:bg-[#1c0d0f]/10 border border-gray-150 dark:border-[#291316] rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div className="space-y-3 flex-1 w-full">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center font-extrabold text-[#C49A25] font-mono text-sm border border-pink-200">
+                                      #
+                                    </div>
+                                    <div>
+                                      <h5 className="font-mono font-black text-sm text-gray-800 dark:text-[#fafafa]">
+                                        Order No: #{order.id}
+                                      </h5>
+                                      <p className="text-[10px] text-gray-400 font-semibold mt-0.5">
+                                        Status: <span className="uppercase text-pink-600 dark:text-pink-400 font-bold">{order.status}</span>
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Items Ordered List */}
+                                  <div className="pl-1 space-y-1.5 border-t border-gray-100 dark:border-zinc-800/50 pt-2.5">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Items Ordered:</span>
+                                    {order.items.map((item, idx) => (
+                                      <div key={idx} className="text-xs text-gray-800 dark:text-zinc-200 font-bold flex items-start gap-2">
+                                        <span className="text-pink-600 dark:text-pink-400">•</span>
+                                        <div>
+                                          <span>{item.quantity || 1}x {item.name}</span>
+                                          {(item.customization?.weight || item.customization?.flavor || item.customization?.messageOnCake) && (
+                                            <span className="text-[10px] text-gray-400 font-medium ml-1.5">
+                                              ({item.customization.weight ? `${item.customization.weight} kg` : ''} 
+                                              {item.customization.flavor ? ` | ${item.customization.flavor}` : ''}
+                                              {item.customization.messageOnCake ? ` | Msg: "${item.customization.messageOnCake}"` : ''})
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="w-full md:w-auto flex justify-end shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-zinc-800/50">
+                                  {isLaterStatus ? (
+                                    <span className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 text-gray-500 border border-gray-200">
+                                      Dispatched by Admin
+                                    </span>
+                                  ) : isPrepared ? (
+                                    <span className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 flex items-center gap-1">
+                                      ✓ Prepared
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => onUpdateOrderStatus(order.id, 'prepared')}
+                                      className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider bg-pink-600 hover:bg-pink-700 text-white transition-all cursor-pointer shadow-sm active:scale-95 w-full md:w-auto text-center"
+                                    >
+                                      Mark as Prepared
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          });
+                      })()}
+                    </div>
+
+                    {orders.filter(order => currentVendor.campusId === 'all' || order.campusId === currentVendor.campusId).length === 0 && (
+                      <div className="p-12 text-center bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-dashed border-gray-200 dark:border-[#3c1a1e]">
+                        <ShoppingBag className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] font-bold uppercase tracking-widest">No campus orders found</p>
+                        <p className="text-[10px] text-gray-400 mt-1">Orders placed for your campus hub will show up here instantly!</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
