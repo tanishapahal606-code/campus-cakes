@@ -791,31 +791,26 @@ export default function App() {
             `Your Order #${currentOrder.id} is securely submitted to the campus kitchen.`
           );
         }
-      } else {
-        // 1. Admin internal status transition notification
-        if (isAdmin && prevOrder.status !== currentOrder.status) {
-          const mappedStatus = currentOrder.status === 'completed' || currentOrder.status === 'ready' ? 'delivered' : currentOrder.status;
+      } else if (prevOrder.status !== currentOrder.status) {
+        // Status Transition detected
+        const mappedStatus = currentOrder.status === 'completed' || currentOrder.status === 'ready' ? 'delivered' : currentOrder.status;
+        
+        if (isAdmin) {
           triggerPopupNotification(
             `📈 Order #${currentOrder.id} Updated`,
             `Status of order from ${currentOrder.customerName} marked as: ${mappedStatus}.`
           );
-        }
-        
-        // 2. Client-facing status transition notification (only when Admin updates userVisibleStatus from Order Central)
-        const prevUserStatus = prevOrder.userVisibleStatus || 'placed';
-        const currentUserStatus = currentOrder.userVisibleStatus || 'placed';
-        
-        if (currentOrder.userId === firebaseUser?.uid && prevUserStatus !== currentUserStatus) {
+        } else if (currentOrder.userId === firebaseUser?.uid) {
           let customTitle = "";
           let customBody = "";
           
-          if (currentUserStatus === 'preparing') {
+          if (currentOrder.status === 'preparing') {
             customTitle = "🍳 Cake Bake Active!";
             customBody = `The baker chefs are active on Order #${currentOrder.id}! Layer modeling is in progress.`;
-          } else if (currentUserStatus === 'delivery') {
+          } else if (currentOrder.status === 'delivery') {
             customTitle = "🚴 Out for Campus Delivery!";
             customBody = `Your cake for Order #${currentOrder.id} has left the oven and is heading with our runner.`;
-          } else if (currentUserStatus === 'completed' || currentUserStatus === 'ready') {
+          } else if (currentOrder.status === 'completed' || currentOrder.status === 'ready') {
             customTitle = "✅ Cake Delivered!";
             customBody = `Success! Order #${currentOrder.id} has reached your designated campus dispatch location. Enjoy!`;
           }
@@ -1299,14 +1294,18 @@ export default function App() {
   };
 
   // Admin order state timeline modifier
-  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus, updateClientVisible?: boolean, isUserVisibleOnly: boolean = false) => {
+  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus, updateClientVisible?: boolean, isUserVisibleOnly?: boolean) => {
     setActiveOrders(prev => prev.map(o => {
       if (o.id === orderId) {
-        const updated = { 
-          ...o, 
-          ...(isUserVisibleOnly ? {} : { status }),
-          ...(updateClientVisible || isUserVisibleOnly ? { userVisibleStatus: status } : {})
-        };
+        const updated = { ...o };
+        if (isUserVisibleOnly) {
+          updated.userStatus = status;
+        } else if (updateClientVisible) {
+          updated.status = status;
+          updated.userStatus = status;
+        } else {
+          updated.status = status;
+        }
         if (isRealFirebase) {
           writeOrder(updated).catch(err => console.error("Error updating order status in Firestore:", err));
         }
@@ -1563,7 +1562,7 @@ export default function App() {
       items: [...cart],
       orderType: cart.some(c => c.isInstantKiosk) ? 'instant-pickup' : 'pre-order',
       status: 'placed',
-      userVisibleStatus: 'placed',
+      userStatus: 'placed',
       subtotal,
       tax,
       deliveryFee,

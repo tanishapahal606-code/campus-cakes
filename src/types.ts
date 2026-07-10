@@ -87,7 +87,7 @@ export interface Order {
   items: CartItem[];
   orderType: 'pre-order' | 'instant-pickup';
   status: OrderStatus;
-  userVisibleStatus?: OrderStatus;
+  userStatus?: OrderStatus;
   subtotal: number;
   tax: number;
   deliveryFee: number;
@@ -107,6 +107,14 @@ export interface Order {
   discountCode?: string;
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;
+  assignedManagerId?: string;
+  assignedManagerName?: string;
+  assignedDeliveryId?: string;
+  assignedDeliveryName?: string;
+  isPacked?: boolean;
+  packedByEmployeeId?: string;
+  packedByEmployeeName?: string;
+  packedAt?: string;
 }
 
 export interface SavedCelebration {

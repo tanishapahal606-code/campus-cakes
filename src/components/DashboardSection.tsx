@@ -9,7 +9,7 @@ import {
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Download, Tag, QrCode, Edit, Bell, ClipboardCheck
+  Truck, Phone, Mail, Download, Tag, QrCode, Edit, Bell, ClipboardCheck, Bike
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
@@ -1048,9 +1048,8 @@ export default function DashboardSection({
                 ) : (
                   <div className="space-y-3">
                     {orders.map((order) => {
-                      // The status update for users is managed by admin from order central using userVisibleStatus (defaults to 'placed' if not set)
-                      const rawUserStatus = order.userVisibleStatus || 'placed';
-                      const clientStatus = rawUserStatus === 'ready' ? 'prepared' : rawUserStatus;
+                      // Use userStatus managed by admin, fall back to status (mapping 'ready' to 'prepared')
+                      const clientStatus = order.userStatus ? (order.userStatus === 'ready' ? 'prepared' : order.userStatus) : (order.status === 'ready' ? 'prepared' : order.status);
                       const currentStatusColor = 
                         clientStatus === 'placed' ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 border border-indigo-200/20' :
                         clientStatus === 'preparing' ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 border border-amber-200/20' :
@@ -1592,13 +1591,13 @@ export default function DashboardSection({
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-3">
-                                  {/* Internal Backend/Runner State */}
+                                  {/* Operational State */}
                                   <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#1a0d0f]/80 p-1.5 rounded-2xl border border-gray-100 dark:border-[#291316]">
-                                    <span className="text-[10px] font-black text-gray-500 dark:text-[#a1a1aa] uppercase tracking-widest pl-1.5 mr-1 text-zinc-400">Process State</span>
+                                    <span className="text-[10px] font-black text-gray-500 dark:text-[#a1a1aa] uppercase tracking-widest pl-1.5 mr-1">Operational State</span>
                                     <select
                                       value={or.status}
-                                      onChange={(e) => onUpdateOrderStatus(or.id, e.target.value, false)}
-                                      className="bg-white dark:bg-[#120709] border text-[11px] font-black py-1 px-2.5 rounded-xl border-zinc-200 text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                                      onChange={(e) => onUpdateOrderStatus(or.id, e.target.value as any, false, false)}
+                                      className="bg-white dark:bg-[#120709] border text-[11px] font-black py-1 px-2.5 rounded-xl border-purple-200 text-purple-800 focus:outline-none cursor-pointer"
                                     >
                                       <option value="placed">Pending (Placed)</option>
                                       <option value="preparing">Packed (Preparing)</option>
@@ -1608,19 +1607,19 @@ export default function DashboardSection({
                                     </select>
                                   </div>
 
-                                  {/* User-Facing Display State */}
-                                  <div className="flex items-center gap-2 bg-amber-50/50 dark:bg-amber-950/20 p-1.5 rounded-2xl border border-amber-200/50">
-                                    <span className="text-[10px] font-black text-[#C49A25] dark:text-[#D4AF37] uppercase tracking-widest pl-1.5 mr-1">👥 User-Facing Status</span>
+                                  {/* User-Facing Status */}
+                                  <div className="flex items-center gap-2 bg-amber-50/60 dark:bg-amber-950/20 p-1.5 rounded-2xl border border-amber-200/50">
+                                    <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest pl-1.5 mr-1">User-Facing Status</span>
                                     <select
-                                      value={or.userVisibleStatus || 'placed'}
-                                      onChange={(e) => onUpdateOrderStatus(or.id, e.target.value, true, true)}
+                                      value={or.userStatus || 'placed'}
+                                      onChange={(e) => onUpdateOrderStatus(or.id, e.target.value as any, false, true)}
                                       className="bg-white dark:bg-[#120709] border text-[11px] font-black py-1 px-2.5 rounded-xl border-amber-200 text-amber-800 focus:outline-none cursor-pointer"
                                     >
                                       <option value="placed">Pending (Placed)</option>
-                                      <option value="preparing">Cake Bake Active (Preparing)</option>
-                                      <option value="prepared">Ready for Pickup (Prepared)</option>
+                                      <option value="preparing">Preparing at Bakery</option>
+                                      <option value="prepared">Ready for Pickup</option>
                                       <option value="delivery">Out for Delivery</option>
-                                      <option value="ready">Delivered</option>
+                                      <option value="completed">Delivered & Completed</option>
                                     </select>
                                   </div>
                                 </div>
@@ -1628,66 +1627,125 @@ export default function DashboardSection({
 
                               {/* Vendor-prepared status alert and employee dispatch */}
                               {or.status === 'prepared' && (
-                                <div className="p-4 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-150 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <div className="p-4 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-150 rounded-2xl flex flex-col gap-4">
                                   <div className="flex items-start gap-2.5">
                                     <span className="text-xl">👩‍🍳</span>
                                     <div>
                                       <h5 className="font-extrabold text-xs text-indigo-900 dark:text-indigo-300 uppercase tracking-wide">
-                                        Prepared by Vendor (Ready for Dispatch)
+                                        Prepared by Vendor (Ready for Dispatch Assignments)
                                       </h5>
                                       <p className="text-[10.5px] text-indigo-700/90 dark:text-gray-400 mt-0.5">
-                                        The vendor has finished preparing this order. Send your employee to pick up the items from their shop.
+                                        Select a Campus Manager to pick up the cake from the vendor's bakery, and a Delivery Executive to handle delivery from the campus stall/HQ to the student's hostel.
                                       </p>
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-2 bg-white dark:bg-black/30 p-2 rounded-xl border border-indigo-200">
-                                    <span className="text-[9.5px] font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">
-                                      Assign Campus Manager:
-                                    </span>
-                                    {or.assignedEmployeeId ? (
-                                      <div className="flex items-center gap-1.5 bg-indigo-50 px-2 py-0.5 rounded-lg text-indigo-900 text-[10px] font-bold">
-                                        <span>🏃 {or.assignedEmployeeName}</span>
-                                        <button 
-                                          onClick={() => {
-                                            if (onUpdateOrder) {
-                                              const updated = { ...or };
-                                              delete updated.assignedEmployeeId;
-                                              delete updated.assignedEmployeeName;
-                                              onUpdateOrder(updated);
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                    {/* Campus Manager Pickup Selection */}
+                                    <div className="flex flex-col gap-1 bg-white dark:bg-black/30 p-2.5 rounded-xl border border-indigo-200">
+                                      <span className="text-[9px] font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-wider block">
+                                        1. Campus Manager (Bakery Pickup):
+                                      </span>
+                                      {(or.assignedManagerId || or.assignedEmployeeId) ? (
+                                        <div className="flex items-center justify-between bg-indigo-50/55 px-2.5 py-1.5 rounded-lg text-indigo-900 dark:text-indigo-300 text-[10px] font-bold">
+                                          <span className="flex items-center gap-1">🏃 {or.assignedManagerName || or.assignedEmployeeName}</span>
+                                          <button 
+                                            onClick={() => {
+                                              if (onUpdateOrder) {
+                                                const updated = { ...or };
+                                                delete updated.assignedManagerId;
+                                                delete updated.assignedManagerName;
+                                                delete updated.assignedEmployeeId;
+                                                delete updated.assignedEmployeeName;
+                                                onUpdateOrder(updated);
+                                              }
+                                            }}
+                                            className="text-red-500 hover:text-red-700 font-extrabold cursor-pointer"
+                                            type="button"
+                                          >
+                                            ✕ Unassign
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <select
+                                          onChange={(e) => {
+                                            const empId = e.target.value;
+                                            if (!empId) return;
+                                            const emp = employees.find(emp => emp.id === empId);
+                                            if (emp && onUpdateOrder) {
+                                              onUpdateOrder({
+                                                ...or,
+                                                assignedManagerId: emp.id,
+                                                assignedManagerName: emp.name,
+                                                assignedEmployeeId: emp.id,
+                                                assignedEmployeeName: emp.name
+                                              });
                                             }
                                           }}
-                                          className="text-red-500 hover:text-red-700 font-extrabold ml-1 cursor-pointer"
+                                          className="bg-transparent text-[10px] font-bold text-indigo-800 dark:text-indigo-300 focus:outline-none cursor-pointer py-1"
+                                          defaultValue=""
                                         >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <select
-                                        onChange={(e) => {
-                                          const empId = e.target.value;
-                                          if (!empId) return;
-                                          const emp = employees.find(emp => emp.id === empId);
-                                          if (emp && onUpdateOrder) {
-                                            onUpdateOrder({
-                                              ...or,
-                                              assignedEmployeeId: emp.id,
-                                              assignedEmployeeName: emp.name
-                                            });
-                                          }
-                                        }}
-                                        className="bg-transparent text-[10px] font-black text-indigo-800 dark:text-indigo-300 focus:outline-none cursor-pointer"
-                                        defaultValue=""
-                                      >
-                                        <option value="" disabled>Select campus manager...</option>
-                                        {employees.filter(emp => emp.post === 'Campus Manager').map(emp => (
-                                          <option key={emp.id} value={emp.id}>{emp.name}</option>
-                                        ))}
-                                        {employees.filter(emp => emp.post === 'Campus Manager').length === 0 && (
-                                          <option disabled>No Campus Managers registered</option>
-                                        )}
-                                      </select>
-                                    )}
+                                          <option value="" disabled>Select campus manager...</option>
+                                          {employees.filter(emp => emp.post === 'Campus Manager').map(emp => (
+                                            <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                          ))}
+                                          {employees.filter(emp => emp.post === 'Campus Manager').length === 0 && (
+                                            <option disabled>No Campus Managers registered</option>
+                                          )}
+                                        </select>
+                                      )}
+                                    </div>
+
+                                    {/* Delivery Executive Hostel Delivery Selection */}
+                                    <div className="flex flex-col gap-1 bg-white dark:bg-black/30 p-2.5 rounded-xl border border-indigo-200">
+                                      <span className="text-[9px] font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-wider block">
+                                        2. Delivery Executive (Hostel Delivery):
+                                      </span>
+                                      {or.assignedDeliveryId ? (
+                                        <div className="flex items-center justify-between bg-indigo-50/55 px-2.5 py-1.5 rounded-lg text-indigo-900 dark:text-indigo-300 text-[10px] font-bold">
+                                          <span className="flex items-center gap-1">🚴 {or.assignedDeliveryName}</span>
+                                          <button 
+                                            onClick={() => {
+                                              if (onUpdateOrder) {
+                                                const updated = { ...or };
+                                                delete updated.assignedDeliveryId;
+                                                delete updated.assignedDeliveryName;
+                                                onUpdateOrder(updated);
+                                              }
+                                            }}
+                                            className="text-red-500 hover:text-red-700 font-extrabold cursor-pointer"
+                                            type="button"
+                                          >
+                                            ✕ Unassign
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <select
+                                          onChange={(e) => {
+                                            const empId = e.target.value;
+                                            if (!empId) return;
+                                            const emp = employees.find(emp => emp.id === empId);
+                                            if (emp && onUpdateOrder) {
+                                              onUpdateOrder({
+                                                ...or,
+                                                assignedDeliveryId: emp.id,
+                                                assignedDeliveryName: emp.name
+                                              });
+                                            }
+                                          }}
+                                          className="bg-transparent text-[10px] font-bold text-indigo-800 dark:text-indigo-300 focus:outline-none cursor-pointer py-1"
+                                          defaultValue=""
+                                        >
+                                          <option value="" disabled>Select delivery executive...</option>
+                                          {employees.filter(emp => emp.post.startsWith('Delivery Executive')).map(emp => (
+                                            <option key={emp.id} value={emp.id}>{emp.name} ({emp.post.replace('Delivery Executive ', '')})</option>
+                                          ))}
+                                          {employees.filter(emp => emp.post.startsWith('Delivery Executive')).length === 0 && (
+                                            <option disabled>No Delivery Executives registered</option>
+                                          )}
+                                        </select>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -1991,20 +2049,22 @@ export default function DashboardSection({
                                       <p><span className="text-gray-400 font-medium">Total Price:</span> <span className="font-extrabold text-gray-900 dark:text-white">₹{or.total}</span></p>
                                     </div>
 
-                                    {/* Runner Assignment */}
+                                    {/* Campus Manager Assignment */}
                                     <div className="p-3 bg-white dark:bg-black/30 border border-indigo-100 dark:border-[#291316] rounded-xl space-y-2">
                                       <span className="text-[9.5px] font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-wider block">
-                                        Campus Manager Assignment:
+                                        Campus Manager (Bakery Pickup):
                                       </span>
-                                      {or.assignedEmployeeId ? (
+                                      {(or.assignedManagerId || or.assignedEmployeeId) ? (
                                         <div className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
                                           <div className="text-[10.5px] font-bold text-indigo-900 dark:text-indigo-300">
-                                            🏃 {or.assignedEmployeeName}
+                                            🏃 {or.assignedManagerName || or.assignedEmployeeName}
                                           </div>
                                           <button 
                                             onClick={() => {
                                               if (onUpdateOrder) {
                                                 const updated = { ...or };
+                                                delete updated.assignedManagerId;
+                                                delete updated.assignedManagerName;
                                                 delete updated.assignedEmployeeId;
                                                 delete updated.assignedEmployeeName;
                                                 onUpdateOrder(updated);
@@ -2024,6 +2084,8 @@ export default function DashboardSection({
                                             if (emp && onUpdateOrder) {
                                               onUpdateOrder({
                                                 ...or,
+                                                assignedManagerId: emp.id,
+                                                assignedManagerName: emp.name,
                                                 assignedEmployeeId: emp.id,
                                                 assignedEmployeeName: emp.name
                                               });
@@ -2038,6 +2100,58 @@ export default function DashboardSection({
                                           ))}
                                           {employees.filter(emp => emp.post === 'Campus Manager').length === 0 && (
                                             <option disabled>No Campus Managers registered</option>
+                                          )}
+                                        </select>
+                                      )}
+                                    </div>
+
+                                    {/* Delivery Executive Assignment */}
+                                    <div className="p-3 bg-white dark:bg-black/30 border border-indigo-100 dark:border-[#291316] rounded-xl space-y-2">
+                                      <span className="text-[9.5px] font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-wider block">
+                                        Delivery Executive (Hostel Delivery):
+                                      </span>
+                                      {or.assignedDeliveryId ? (
+                                        <div className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+                                          <div className="text-[10.5px] font-bold text-indigo-900 dark:text-indigo-300">
+                                            🚴 {or.assignedDeliveryName}
+                                          </div>
+                                          <button 
+                                            onClick={() => {
+                                              if (onUpdateOrder) {
+                                                const updated = { ...or };
+                                                delete updated.assignedDeliveryId;
+                                                delete updated.assignedDeliveryName;
+                                                onUpdateOrder(updated);
+                                              }
+                                            }}
+                                            className="text-red-500 hover:text-red-700 text-[10px] font-extrabold cursor-pointer"
+                                          >
+                                            Unassign
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <select
+                                          onChange={(e) => {
+                                            const empId = e.target.value;
+                                            if (!empId) return;
+                                            const emp = employees.find(emp => emp.id === empId);
+                                            if (emp && onUpdateOrder) {
+                                              onUpdateOrder({
+                                                ...or,
+                                                assignedDeliveryId: emp.id,
+                                                assignedDeliveryName: emp.name
+                                              });
+                                            }
+                                          }}
+                                          className="w-full bg-transparent text-[11px] font-bold text-gray-800 dark:text-zinc-300 focus:outline-none border border-gray-200 dark:border-[#291316] p-1.5 rounded-lg cursor-pointer bg-white dark:bg-[#120709]"
+                                          defaultValue=""
+                                        >
+                                          <option value="" disabled>Select delivery executive...</option>
+                                          {employees.filter(emp => emp.post.startsWith('Delivery Executive')).map(emp => (
+                                            <option key={emp.id} value={emp.id}>{emp.name} ({emp.post.replace('Delivery Executive ', '')})</option>
+                                          ))}
+                                          {employees.filter(emp => emp.post.startsWith('Delivery Executive')).length === 0 && (
+                                            <option disabled>No Delivery Executives registered</option>
                                           )}
                                         </select>
                                       )}
@@ -4357,176 +4471,337 @@ export default function DashboardSection({
                       </div>
                     </div>
 
-                    {/* Assigned Pickups Section for Campus Manager */}
-                    <div className="mt-8 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-6 shadow-sm space-y-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-[#291316] pb-4">
-                        <div>
-                          <h4 className="font-extrabold text-sm text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                            <Truck className="w-5 h-5 text-purple-600 animate-pulse" /> Assigned Order Pickups
-                          </h4>
-                          <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1">
-                            Your dashboard contains all customer orders currently assigned to you for campus delivery and bakery pickup.
-                          </p>
-                        </div>
-                        <span className="px-3 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-black rounded-xl border border-purple-150 shrink-0 w-fit">
-                          {orders.filter(o => o.assignedEmployeeId === currentEmployee.id).length} Active Assignments
-                        </span>
-                      </div>
-
-                      {(() => {
-                        const assignedPickups = orders.filter(o => o.assignedEmployeeId === currentEmployee.id);
-                        if (assignedPickups.length === 0) {
-                          return (
-                            <div className="p-12 text-center bg-gray-50 dark:bg-[#1a0d0f]/50 rounded-2xl border border-dashed border-gray-150">
-                              <Truck className="w-10 h-10 text-zinc-350 mx-auto mb-2" />
-                              <p className="text-[11px] text-zinc-500 font-black uppercase tracking-widest">No assigned pickups right now</p>
-                              <p className="text-[10px] text-zinc-400 mt-1 max-w-sm mx-auto">
-                                Once the administrator assigns you to a student order, it will appear here instantly with full delivery details and live status triggers!
+                    {/* Role-Specific Employee Workspace */}
+                    <div className="mt-8 space-y-8">
+                      {/* 1. CAMPUS MANAGER WORKSPACE */}
+                      {currentEmployee.post === 'Campus Manager' && (
+                        <div className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-6 shadow-sm space-y-6">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-[#291316] pb-4">
+                            <div>
+                              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                                <Truck className="w-5 h-5 text-purple-600" /> Campus Manager: Bakery Pickups
+                              </h4>
+                              <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1">
+                                Pick up the prepared orders from the vendor's bakery and bring them safely to the campus stall or headquarters.
                               </p>
                             </div>
-                          );
-                        }
+                            <span className="px-3 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-black rounded-xl border border-purple-150 shrink-0 w-fit">
+                              {orders.filter(o => (o.assignedManagerId === currentEmployee.id || o.assignedEmployeeId === currentEmployee.id) && o.status === 'prepared').length} Pending Pickups
+                            </span>
+                          </div>
 
-                        return (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {assignedPickups.map(order => {
-                              const campusName = campuses?.find(c => c.id === order.campusId)?.name || 'Unknown Campus';
-                              
-                              let statusLabel: string = order.status;
-                              let statusBadgeStyle = "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300";
-                              
-                              if (order.status === 'placed') {
-                                statusLabel = "Order Placed";
-                                statusBadgeStyle = "bg-blue-50 text-blue-600 dark:bg-blue-950/45 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30";
-                              } else if (order.status === 'preparing') {
-                                statusLabel = "Preparing at Bakery";
-                                statusBadgeStyle = "bg-yellow-50 text-yellow-600 dark:bg-yellow-950/45 dark:text-yellow-400 border border-yellow-100 dark:border-yellow-900/30";
-                              } else if (order.status === 'prepared') {
-                                statusLabel = "Ready for Pickup";
-                                statusBadgeStyle = "bg-orange-50 text-orange-600 dark:bg-orange-950/45 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30";
-                              } else if (order.status === 'ready') {
-                                statusLabel = "Picked Up";
-                                statusBadgeStyle = "bg-purple-50 text-purple-600 dark:bg-purple-950/45 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30 font-black";
-                              } else if (order.status === 'delivery') {
-                                statusLabel = "Out for Delivery";
-                                statusBadgeStyle = "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/45 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30";
-                              } else if (order.status === 'completed') {
-                                statusLabel = "Delivered & Completed";
-                                statusBadgeStyle = "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/45 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 font-black";
-                              }
-
+                          {(() => {
+                            const managerPickups = orders.filter(o => o.assignedManagerId === currentEmployee.id || o.assignedEmployeeId === currentEmployee.id);
+                            if (managerPickups.length === 0) {
                               return (
-                                <div 
-                                  key={order.id}
-                                  className="bg-white dark:bg-[#150a0c]/40 border border-gray-150 dark:border-[#291316] rounded-2xl p-5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
-                                >
-                                  {/* Top Row: Order ID, Status, and Date */}
-                                  <div className="space-y-1.5">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div>
-                                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider block">Order ID</span>
-                                        <span className="font-mono font-black text-sm text-[#C49A25]">{order.id}</span>
-                                      </div>
-                                      <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${statusBadgeStyle}`}>
-                                        {statusLabel}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-[11px] text-zinc-500 font-medium">
-                                      <Calendar className="w-3.5 h-3.5 shrink-0" />
-                                      <span>Assigned on {order.date}</span>
-                                    </div>
-                                  </div>
-
-                                  {/* Middle Area: Items and Customization details */}
-                                  <div className="bg-gray-50/50 dark:bg-black/20 p-3 rounded-xl border border-gray-100 dark:border-zinc-900 space-y-2 text-xs">
-                                    <span className="text-[9px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Order Items & Specifications</span>
-                                    <div className="divide-y divide-gray-100 dark:divide-zinc-800">
-                                      {order.items.map((item, idx) => (
-                                        <div key={idx} className="py-1.5 first:pt-0 last:pb-0 flex flex-col gap-1 text-gray-800 dark:text-zinc-200">
-                                          <div className="flex justify-between font-bold">
-                                            <span>{item.name} <span className="text-purple-600 font-extrabold font-mono">x{item.quantity}</span></span>
-                                            <span className="font-mono text-zinc-500">₹{item.price * item.quantity}</span>
-                                          </div>
-                                          {item.customization && (
-                                            <div className="pl-2 border-l border-purple-200 text-[10px] text-zinc-500 dark:text-zinc-400 space-y-0.5">
-                                              {item.customization.flavor && <p><strong>Flavor:</strong> {item.customization.flavor}</p>}
-                                              {item.customization.weight && <p><strong>Weight:</strong> {item.customization.weight} Pound</p>}
-                                              {item.customization.messageOnCake && <p><strong>Message:</strong> "{item.customization.messageOnCake}"</p>}
-                                              {item.customization.pickupTime && <p><strong>Target Pickup Time:</strong> {item.customization.pickupTime}</p>}
-                                              {item.customization.specialInstructions && <p><strong>Notes:</strong> {item.customization.specialInstructions}</p>}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Delivery & Customer Details */}
-                                  <div className="space-y-2 text-xs">
-                                    <span className="text-[9px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Customer & Delivery Info</span>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-700 dark:text-zinc-300">
-                                      <div className="flex items-start gap-1.5">
-                                        <User className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
-                                        <div>
-                                          <p className="font-bold">{order.customerName || 'Anonymous Student'}</p>
-                                          {order.customerPhone && (
-                                            <a 
-                                              href={`tel:${order.customerPhone}`}
-                                              className="text-[10px] font-black text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-0.5 hover:underline"
-                                            >
-                                              <Phone className="w-3 h-3 animate-pulse" /> {order.customerPhone}
-                                            </a>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-start gap-1.5">
-                                        <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
-                                        <div>
-                                          <p className="font-bold">{campusName}</p>
-                                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mt-0.5">
-                                            {order.deliveryAddress || 'No address provided'}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Status updating action row */}
-                                  <div className="border-t border-gray-100 dark:border-zinc-800/60 pt-3 flex flex-wrap items-center justify-between gap-3">
-                                    <div className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                                      Update Status:
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                      {(isAdmin || currentEmployee?.post === 'Campus Manager') && order.status === 'prepared' ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => onUpdateOrderStatus(order.id, 'ready')}
-                                          className="py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
-                                        >
-                                          📦 Mark as Picked Up
-                                        </button>
-                                      ) : order.status === 'ready' ? (
-                                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-extrabold uppercase tracking-wider flex items-center gap-1 bg-purple-50 dark:bg-purple-950/20 px-2 py-1 rounded-lg border border-purple-100/30">
-                                          <CheckCircle className="w-3.5 h-3.5" /> Picked Up
-                                        </span>
-                                      ) : order.status === 'completed' ? (
-                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-1 rounded-lg border border-emerald-100/30">
-                                          <CheckCircle className="w-3.5 h-3.5" /> Delivered & Completed
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold italic">
-                                          Requires "Ready for Pickup" status
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
+                                <div className="p-12 text-center bg-gray-50 dark:bg-[#1a0d0f]/50 rounded-2xl border border-dashed border-gray-150">
+                                  <Truck className="w-10 h-10 text-zinc-350 mx-auto mb-2" />
+                                  <p className="text-[11px] text-zinc-500 font-black uppercase tracking-widest">No assigned pickups right now</p>
+                                  <p className="text-[10px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                                    Once the administrator assigns you to pick up an order from the vendor's bakery, it will appear here instantly!
+                                  </p>
                                 </div>
                               );
-                            })}
+                            }
+
+                            return (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {managerPickups.map(order => {
+                                  const campusName = campuses?.find(c => c.id === order.campusId)?.name || 'Unknown Campus';
+                                  
+                                  let statusLabel: string = order.status;
+                                  let statusBadgeStyle = "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300";
+                                  
+                                  if (order.status === 'prepared') {
+                                    statusLabel = "At Vendor Bakery (Needs Pickup)";
+                                    statusBadgeStyle = "bg-orange-50 text-orange-600 dark:bg-orange-950/45 dark:text-orange-400 border border-orange-100 dark:border-orange-900/30 font-black";
+                                  } else if (order.status === 'ready') {
+                                    statusLabel = "Delivered to Stall (Ready for Packing)";
+                                    statusBadgeStyle = "bg-purple-50 text-purple-600 dark:bg-purple-950/45 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30";
+                                  } else if (order.status === 'delivery') {
+                                    statusLabel = "Out for Hostel Delivery";
+                                    statusBadgeStyle = "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/45 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30";
+                                  } else if (order.status === 'completed') {
+                                    statusLabel = "Completed";
+                                    statusBadgeStyle = "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/45 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 font-black";
+                                  }
+
+                                  return (
+                                    <div 
+                                      key={order.id}
+                                      className="bg-white dark:bg-[#150a0c]/40 border border-gray-150 dark:border-[#291316] rounded-2xl p-5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                                    >
+                                      {/* ID & Status */}
+                                      <div className="space-y-1.5">
+                                        <div className="flex items-start justify-between gap-2">
+                                          <div>
+                                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider block">Order ID</span>
+                                            <span className="font-mono font-black text-sm text-[#C49A25]">#{order.id}</span>
+                                          </div>
+                                          <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full ${statusBadgeStyle}`}>
+                                            {statusLabel}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Specifications */}
+                                      <div className="bg-gray-50/50 dark:bg-black/20 p-3 rounded-xl border border-gray-100 dark:border-zinc-900 text-xs space-y-1.5">
+                                        <span className="text-[9px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Items to Pick Up:</span>
+                                        {order.items.map((item, idx) => (
+                                          <div key={idx} className="font-bold text-gray-800 dark:text-zinc-200">
+                                            • {item.name} <span className="text-purple-600 font-extrabold font-mono">x{item.quantity}</span>
+                                            {item.customization?.weight && <span className="text-[10px] text-gray-400 font-medium ml-1">({item.customization.weight} kg/lbs)</span>}
+                                            {item.customization?.flavor && <span className="text-[10px] text-gray-400 font-medium ml-1">[{item.customization.flavor}]</span>}
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      {/* Actions */}
+                                      <div className="border-t border-gray-100 dark:border-zinc-800/60 pt-3 flex items-center justify-between gap-3">
+                                        <span className="text-[10px] text-zinc-400 font-bold uppercase">Stall: {campusName}</span>
+                                        {order.status === 'prepared' ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => onUpdateOrderStatus(order.id, 'ready')}
+                                            className="py-1.5 px-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                                          >
+                                            📦 Delivered to Stall
+                                          </button>
+                                        ) : (
+                                          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-black uppercase flex items-center gap-1.5 bg-purple-50 dark:bg-purple-950/20 px-2 py-1 rounded-lg">
+                                            ✓ Picked Up
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* 2. PACKAGING AND BRANDING EXECUTIVE WORKSPACE */}
+                      {currentEmployee.post === 'Packaging & Branding Executive' && (
+                        <div className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-6 shadow-sm space-y-6">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-[#291316] pb-4">
+                            <div>
+                              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                                <Package className="w-5 h-5 text-pink-600" /> Packaging & Branding Desk
+                              </h4>
+                              <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1">
+                                Pack the picked-up orders beautifully with custom branding, boxes, cards, and ribbon decorations.
+                              </p>
+                            </div>
+                            <span className="px-3 py-1 bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 text-xs font-black rounded-xl border border-pink-150 shrink-0 w-fit">
+                              {orders.filter(o => o.status === 'ready' && !o.isPacked).length} Unpacked Orders
+                            </span>
                           </div>
-                        );
-                      })()}
+
+                          {(() => {
+                            const packableOrders = orders.filter(o => o.status === 'ready');
+                            if (packableOrders.length === 0) {
+                              return (
+                                <div className="p-12 text-center bg-gray-50 dark:bg-[#1a0d0f]/50 rounded-2xl border border-dashed border-gray-150">
+                                  <Package className="w-10 h-10 text-zinc-350 mx-auto mb-2" />
+                                  <p className="text-[11px] text-zinc-500 font-black uppercase tracking-widest">No orders waiting for packaging</p>
+                                  <p className="text-[10px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                                    Once Campus Managers deliver bakery-fresh cakes to your campus stall, they will show up here immediately to pack!
+                                  </p>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {packableOrders.map(order => {
+                                  return (
+                                    <div 
+                                      key={order.id}
+                                      className="bg-white dark:bg-[#150a0c]/40 border border-gray-150 dark:border-[#291316] rounded-2xl p-5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                                    >
+                                      {/* ID & Status */}
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-mono font-black text-sm text-[#C49A25]">#{order.id}</span>
+                                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${order.isPacked ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                                            {order.isPacked ? 'Packed & Branded' : 'Awaiting Packaging'}
+                                          </span>
+                                        </div>
+                                        {order.isPacked && (
+                                          <p className="text-[9px] text-emerald-600 font-bold">
+                                            Packed by {order.packedByEmployeeName || 'Staff'}
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      {/* Items details */}
+                                      <div className="bg-gray-50/50 dark:bg-black/20 p-3 rounded-xl border border-gray-100 dark:border-zinc-900 text-xs space-y-2">
+                                        {order.items.map((item, idx) => (
+                                          <div key={idx} className="font-bold text-gray-800 dark:text-zinc-200">
+                                            • {item.quantity}x {item.name}
+                                            {item.customization && (
+                                              <div className="pl-2 border-l border-pink-200 text-[10px] text-zinc-500 font-medium space-y-0.5 mt-0.5">
+                                                {item.customization.flavor && <p>Flavor: {item.customization.flavor}</p>}
+                                                {item.customization.messageOnCake && <p>Message: "{item.customization.messageOnCake}"</p>}
+                                                {item.customization.specialInstructions && <p>Instructions: {item.customization.specialInstructions}</p>}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      {/* Actions */}
+                                      <div className="border-t border-gray-100 dark:border-zinc-800/60 pt-3 flex items-center justify-end">
+                                        {!order.isPacked ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (onUpdateOrder) {
+                                                onUpdateOrder({
+                                                  ...order,
+                                                  isPacked: true,
+                                                  packedByEmployeeId: currentEmployee.id,
+                                                  packedByEmployeeName: currentEmployee.name,
+                                                  packedAt: new Date().toISOString()
+                                                });
+                                              }
+                                            }}
+                                            className="py-1.5 px-3 bg-pink-600 hover:bg-pink-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                                          >
+                                            🎀 Mark as Packed & Branded
+                                          </button>
+                                        ) : (
+                                          <div className="text-[10px] text-emerald-600 font-black uppercase tracking-wider flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 px-2.5 py-1 rounded-lg border border-emerald-100">
+                                            ✓ Ready for Delivery Executive
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* 3. DELIVERY EXECUTIVE WORKSPACE */}
+                      {currentEmployee.post.startsWith('Delivery Executive') && (
+                        <div className="bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-6 shadow-sm space-y-6">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-[#291316] pb-4">
+                            <div>
+                              <h4 className="font-extrabold text-sm text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                                <Bike className="w-5 h-5 text-emerald-600" /> Delivery Desk: Hostel Deliveries
+                              </h4>
+                              <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1">
+                                Deliver premium cakes directly to the students' hostels. Deliveries only appear here once packed by our Packaging Team.
+                              </p>
+                            </div>
+                            <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-black rounded-xl border border-emerald-150 shrink-0 w-fit">
+                              {orders.filter(o => o.assignedDeliveryId === currentEmployee.id && o.isPacked && o.status !== 'completed').length} Active Deliveries
+                            </span>
+                          </div>
+
+                          {(() => {
+                            // Only show assigned order pickups when packed by packaging and branding executive
+                            const deliveryOrders = orders.filter(o => o.assignedDeliveryId === currentEmployee.id && o.isPacked);
+                            if (deliveryOrders.length === 0) {
+                              return (
+                                <div className="p-12 text-center bg-gray-50 dark:bg-[#1a0d0f]/50 rounded-2xl border border-dashed border-gray-150">
+                                  <Bike className="w-10 h-10 text-zinc-350 mx-auto mb-2" />
+                                  <p className="text-[11px] text-zinc-500 font-black uppercase tracking-widest">No packed deliveries assigned</p>
+                                  <p className="text-[10px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                                    Your assigned deliveries will populate here once they have been securely packed & branded by our packing desk!
+                                  </p>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {deliveryOrders.map(order => {
+                                  const campusName = campuses?.find(c => c.id === order.campusId)?.name || 'Unknown Campus';
+                                  
+                                  let statusLabel: string = order.status;
+                                  let statusBadgeStyle = "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300";
+                                  
+                                  if (order.status === 'ready') {
+                                    statusLabel = "At Stall (Ready for Delivery)";
+                                    statusBadgeStyle = "bg-purple-50 text-purple-600 dark:bg-purple-950/45 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30 font-extrabold";
+                                  } else if (order.status === 'delivery') {
+                                    statusLabel = "Out for Hostel Delivery";
+                                    statusBadgeStyle = "bg-amber-50 text-amber-600 dark:bg-amber-950/45 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30 animate-pulse";
+                                  } else if (order.status === 'completed') {
+                                    statusLabel = "Completed & Delivered";
+                                    statusBadgeStyle = "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/45 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 font-black";
+                                  }
+
+                                  return (
+                                    <div 
+                                      key={order.id}
+                                      className="bg-white dark:bg-[#150a0c]/40 border border-gray-150 dark:border-[#291316] rounded-2xl p-5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                                    >
+                                      {/* Top Row */}
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-mono font-black text-sm text-[#C49A25]">#{order.id}</span>
+                                          <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full ${statusBadgeStyle}`}>
+                                            {statusLabel}
+                                          </span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 font-medium">Recipient: {order.customerName}</p>
+                                      </div>
+
+                                      {/* Delivery address & Phone */}
+                                      <div className="space-y-1 bg-gray-50/50 dark:bg-black/20 p-3 rounded-xl border border-gray-100 text-xs">
+                                        <p><strong>Campus:</strong> {campusName}</p>
+                                        <p><strong>Hostel Address:</strong> {order.deliveryAddress || 'No address specified'}</p>
+                                        {order.customerPhone && (
+                                          <a 
+                                            href={`tel:${order.customerPhone}`}
+                                            className="text-[10px] font-black text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-1 hover:underline"
+                                          >
+                                            <Phone className="w-3 h-3" /> {order.customerPhone}
+                                          </a>
+                                        )}
+                                      </div>
+
+                                      {/* Action buttons */}
+                                      <div className="border-t border-gray-100 dark:border-zinc-800/60 pt-3 flex items-center justify-end gap-2">
+                                        {order.status === 'ready' && (
+                                          <button
+                                            type="button"
+                                            onClick={() => onUpdateOrderStatus(order.id, 'delivery')}
+                                            className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                          >
+                                            🚴 Start Delivery
+                                          </button>
+                                        )}
+                                        {order.status === 'delivery' && (
+                                          <button
+                                            type="button"
+                                            onClick={() => onUpdateOrderStatus(order.id, 'completed')}
+                                            className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                          >
+                                            ✓ Mark as Delivered
+                                          </button>
+                                        )}
+                                        {order.status === 'completed' && (
+                                          <span className="text-[10px] text-emerald-600 font-black uppercase tracking-wider flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 px-2.5 py-1 rounded-lg">
+                                            ✓ Completed
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </>
                 );

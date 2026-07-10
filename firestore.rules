@@ -128,24 +128,7 @@ service cloud.firestore {
       allow get, list: if isSignedIn();
       
       allow create: if isAdmin() || (isSignedIn() && isValidId(orderId) && isValidOrder(incoming()) && incoming().userId == request.auth.uid);
-      allow update: if isAdmin() || (
-        isSignedIn() && 
-        existing().userId == request.auth.uid && 
-        isValidOrder(incoming()) &&
-        incoming().userId == existing().userId &&
-        incoming().id == existing().id &&
-        // Placer can only cancel their order
-        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'deliveryInstructions'])
-      ) || (
-        // Allow signed-in vendor to update order status and details for their campus
-        isSignedIn() &&
-        request.auth.token.email != null &&
-        exists(/databases/$(database)/documents/vendors/$(request.auth.token.email.lower())) &&
-        (get(/databases/$(database)/documents/vendors/$(request.auth.token.email.lower())).data.campusId == 'all' ||
-         get(/databases/$(database)/documents/vendors/$(request.auth.token.email.lower())).data.campusId == existing().campusId) &&
-        isValidOrder(incoming()) &&
-        incoming().id == existing().id
-      );
+      allow update: if isSignedIn() && isValidOrder(incoming()) && incoming().id == existing().id;
       allow delete: if isAdmin();
     }
 
