@@ -107,6 +107,24 @@ service cloud.firestore {
         (!data.keys().contains('dateRegistered') || (data.dateRegistered is string && data.dateRegistered.size() <= 100));
     }
 
+    function isValidGift(data) {
+      return data.keys().hasAll(['id', 'name', 'price', 'image']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() <= 200 &&
+        data.price is number && data.price >= 0;
+    }
+
+    function isValidCertificate(data) {
+      return data.keys().hasAll(['certificateId', 'employeeName', 'designation', 'employeeId', 'joiningDate', 'relievingDate', 'issueDate']) &&
+        data.certificateId is string && data.certificateId.size() <= 128 &&
+        data.employeeName is string && data.employeeName.size() <= 200 &&
+        data.designation is string && data.designation.size() <= 200 &&
+        data.employeeId is string && data.employeeId.size() <= 128 &&
+        data.joiningDate is string && data.joiningDate.size() <= 100 &&
+        data.relievingDate is string && data.relievingDate.size() <= 100 &&
+        data.issueDate is string && data.issueDate.size() <= 100;
+    }
+
 
     // --- MATCH BLOCKS ---
 
@@ -216,6 +234,20 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isAdmin() && isValidId(vendorId) && isValidVendor(incoming());
       allow delete: if isAdmin() && isValidId(vendorId);
+    }
+
+    // 11. Gifts collection
+    match /gifts/{giftId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidId(giftId) && isValidGift(incoming());
+      allow delete: if isAdmin() && isValidId(giftId);
+    }
+
+    // 12. Certificates collection
+    match /certificates/{certificateId} {
+      allow read: if true; // Public verification for /verify/{certificateId}
+      allow create, update: if (isAdmin() || isSignedIn()) && isValidId(certificateId) && isValidCertificate(incoming());
+      allow delete: if isAdmin() && isValidId(certificateId);
     }
   }
 }

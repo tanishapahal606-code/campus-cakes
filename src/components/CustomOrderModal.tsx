@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { CakeItem, OrderItemCustomization, CartItem } from '../types';
-import { X, Calendar, MessageSquare, Plus, AlertCircle, ShoppingCart, Sparkles, Image as ImageIcon, Check, AlertTriangle, Utensils } from 'lucide-react';
+import { CakeItem, OrderItemCustomization, CartItem, GiftItem } from '../types';
+import { GIFT_PRODUCTS } from '../data';
+import { X, Calendar, MessageSquare, Plus, AlertCircle, ShoppingCart, Sparkles, Image as ImageIcon, Check, AlertTriangle, Utensils, Gift } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface CustomOrderModalProps {
@@ -15,9 +16,10 @@ interface CustomOrderModalProps {
   onShowToast?: (title: string, body: string) => void;
   serviceMode?: 'delivery' | 'dinein';
   tableNumber?: string | null;
+  gifts?: GiftItem[];
 }
 
-export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToast, serviceMode, tableNumber }: CustomOrderModalProps) {
+export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToast, serviceMode, tableNumber, gifts = GIFT_PRODUCTS }: CustomOrderModalProps) {
   // Setup default state based on cake properties
   const [selectedFlavor, setSelectedFlavor] = useState(cake.flavors[0]);
   const [selectedWeight, setSelectedWeight] = useState(cake.weights[0]);
@@ -40,6 +42,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [customAnswers, setCustomAnswers] = useState<Record<string, any>>({});
+  const [selectedGifts, setSelectedGifts] = useState<GiftItem[]>([]);
   
   // Schedulers live state
   const [isExpress, setIsExpress] = useState(false);
@@ -158,6 +161,31 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
     };
 
     onAddToCart(cartItem);
+
+    // Add selected companion gifts to cart
+    selectedGifts.forEach(gift => {
+      const giftCartItemId = `gift-${gift.id}-${Date.now()}`;
+      const giftCartItem: CartItem = {
+        id: giftCartItemId,
+        cakeId: gift.id,
+        name: gift.name,
+        basePrice: gift.price,
+        price: gift.price,
+        image: gift.image,
+        quantity: 1,
+        category: gift.category,
+        customization: {
+          flavor: gift.partnerGallery,
+          weight: 0,
+          messageOnCake: '',
+          addCandles: false,
+          addKnife: false,
+          pickupTime: serviceMode === 'dinein' ? 'Immediate (Dine-In)' : `${deliveryDate} @ ${deliveryTime}`
+        }
+      };
+      onAddToCart(giftCartItem);
+    });
+
     onClose();
   };
 
@@ -439,6 +467,64 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
             </div>
           )}
 
+          {/* Add a Gift Option (Campus Cakes Gifts) */}
+          <div className="border-t border-dashed dark:border-[#3c1a1e] border-gray-200 dark:border-[#3c1a1e] pt-5 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black text-gray-800 dark:text-amber-100/80 uppercase tracking-widest flex items-center gap-1.5">
+                <Gift className="w-4 h-4 text-pink-500" /> Add a Gift
+              </label>
+              <span className="text-[9px] bg-pink-100 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Delivered with Cake</span>
+            </div>
+            
+            <p className="text-[10.5px] text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
+              Surprise your loved ones! Easily add premium hand-curated gifts delivered in sync with your cake order.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {gifts.map((gift) => {
+                const isSelected = selectedGifts.some(g => g.id === gift.id);
+                const toggleGift = () => {
+                  if (isSelected) {
+                    setSelectedGifts(prev => prev.filter(g => g.id !== gift.id));
+                  } else {
+                    setSelectedGifts(prev => [...prev, gift]);
+                  }
+                };
+
+                return (
+                  <motion.button
+                    key={gift.id}
+                    type="button"
+                    onClick={toggleGift}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`p-2.5 rounded-2xl border flex items-center gap-3 transition-all text-left ${
+                      isSelected
+                        ? 'bg-pink-50/70 dark:bg-pink-950/20 border-pink-400 text-pink-900 dark:text-pink-300'
+                        : 'bg-gray-50 dark:bg-[#1a0d0f]/80 border-gray-100 dark:border-[#291316] text-gray-700 dark:text-[#e4e4e7] hover:bg-gray-100 hover:dark:bg-[#1a0d0f]'
+                    }`}
+                  >
+                    <img 
+                      src={gift.image} 
+                      alt={gift.name} 
+                      className="w-11 h-11 object-cover rounded-xl border border-gray-100 dark:border-zinc-800 flex-shrink-0"
+                      referrerPolicy="no-referrer"
+                    />
+                    
+                    <div className="flex-1 min-w-0 pr-1">
+                      <p className="font-extrabold text-[11px] truncate leading-tight">{gift.name}</p>
+                      <p className="text-[10px] font-black text-pink-600 dark:text-pink-400 mt-1">₹{gift.price}</p>
+                    </div>
+
+                    <div className={`w-5 h-5 rounded-lg border flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white dark:bg-[#120709] border-gray-300 dark:border-slate-600'}`}>
+                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+
           {cake.customQuestions && cake.customQuestions.length > 0 && (
             <div className="border-t border-dashed dark:border-[#3c1a1e] border-gray-200 dark:border-[#3c1a1e] pt-5 space-y-4">
               <label className="block text-xs font-black text-gray-800 dark:text-amber-100/80 uppercase tracking-widest mb-2">
@@ -582,7 +668,7 @@ export default function CustomOrderModal({ cake, onClose, onAddToCart, onShowToa
         <div className="bg-gray-50 dark:bg-[#14080a]/90 border-t border-gray-100 dark:border-[#291316] p-4 md:p-5 flex items-center justify-between flex-shrink-0">
           <div>
             <p className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase leading-none">Net Total Value</p>
-            <p className="text-xl font-black text-gray-900 dark:text-amber-100 mt-1 font-display">₹{Math.round(calculatedPrice * quantity)}</p>
+            <p className="text-xl font-black text-gray-900 dark:text-amber-100 mt-1 font-display">₹{Math.round(calculatedPrice * quantity + selectedGifts.reduce((acc, g) => acc + g.price, 0))}</p>
           </div>
 
           <div className="flex gap-2">

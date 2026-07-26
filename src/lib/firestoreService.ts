@@ -8,7 +8,7 @@ import {
   deleteDoc, collection, query, where, onSnapshot 
 } from 'firebase/firestore';
 import { db, auth, isRealFirebase } from '../firebase';
-import { Campus, CakeItem, KioskCake, Order, UserProfile, FeedbackReview, Coupon, Employee, Vendor } from '../types';
+import { Campus, CakeItem, KioskCake, Order, UserProfile, FeedbackReview, Coupon, Employee, Vendor, GiftItem } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -317,7 +317,7 @@ export function subscribeToUserProfile(userId: string, onUpdate: (profile: UserP
       onUpdate(null);
     }
   }, (err) => {
-    console.error("Error listening to user profile:", err);
+    handleFirestoreError(err, OperationType.GET, `users/${userId}`);
   });
 }
 
@@ -372,7 +372,7 @@ export function subscribeToUserOrders(userId: string, onUpdate: (orders: Order[]
     snap.forEach((d) => orders.push({ id: d.id, ...(d.data() as any) } as Order));
     onUpdate(orders);
   }, (err) => {
-    console.error("Error listening to user orders:", err);
+    handleFirestoreError(err, OperationType.GET, `orders?userId=${userId}`);
   });
 }
 
@@ -384,7 +384,7 @@ export function subscribeToReferredOrders(employeeId: string, onUpdate: (orders:
     snap.forEach((d) => orders.push({ id: d.id, ...(d.data() as any) } as Order));
     onUpdate(orders);
   }, (err) => {
-    console.error("Error listening to referred orders:", err);
+    handleFirestoreError(err, OperationType.GET, `orders?employeeReferral=${employeeId}`);
   });
 }
 
@@ -396,7 +396,7 @@ export function subscribeToAssignedOrders(employeeId: string, onUpdate: (orders:
     snap.forEach((d) => orders.push({ id: d.id, ...(d.data() as any) } as Order));
     onUpdate(orders);
   }, (err) => {
-    console.error("Error listening to assigned orders:", err);
+    handleFirestoreError(err, OperationType.GET, `orders?assignedEmployeeId=${employeeId}`);
   });
 }
 
@@ -408,7 +408,7 @@ export function subscribeToAllOrders(onUpdate: (orders: Order[]) => void) {
     snap.forEach((d) => orders.push({ id: d.id, ...(d.data() as any) } as Order));
     onUpdate(orders);
   }, (err) => {
-    console.error("Error listening to all orders:", err);
+    handleFirestoreError(err, OperationType.GET, 'orders');
   });
 }
 
@@ -420,7 +420,7 @@ export function subscribeToCampusOrders(campusId: string, onUpdate: (orders: Ord
     snap.forEach((d) => orders.push({ id: d.id, ...(d.data() as any) } as Order));
     onUpdate(orders);
   }, (err) => {
-    console.error("Error listening to campus orders:", err);
+    handleFirestoreError(err, OperationType.GET, `orders?campusId=${campusId}`);
   });
 }
 
@@ -528,7 +528,7 @@ export async function removeOrder(orderId: string): Promise<void> {
 }
 
 export function clearAllFirestoreCaches(): void {
-  const keys = ['campuses', 'products', 'kiosk_products', 'cake_images'];
+  const keys = ['campuses', 'products', 'kiosk_products', 'cake_images', 'gifts'];
   keys.forEach(k => clearLocalCache(k));
 }
 
@@ -719,6 +719,66 @@ export async function removeVendor(vendorId: string): Promise<void> {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
+
+// ==========================================
+// 11. GIFTS COLLECTION OPERATIONS
+// ==========================================
+export function subscribeToGifts(onUpdate: (gifts: GiftItem[]) => void) {
+  if (!isRealFirebase) return () => {};
+  const q = collection(db, 'gifts');
+  return onSnapshot(q, (snap) => {
+    const gifts: GiftItem[] = [];
+    snap.forEach((d) => gifts.push({ ...d.data() as GiftItem, id: d.id }));
+    onUpdate(gifts);
+  }, (err) => {
+    handleFirestoreError(err, OperationType.GET, 'gifts');
+  });
+}
+
+export async function getGifts(): Promise<GiftItem[]> {
+  if (!isRealFirebase) return [];
+  const colPath = 'gifts';
+  const cached = getFromLocalCache<GiftItem[]>(colPath);
+  if (cached) return cached;
+
+  try {
+    const snap = await getDocs(collection(db, colPath));
+    const items: GiftItem[] = [];
+    snap.forEach((d) => items.push({ ...d.data() as GiftItem, id: d.id }));
+    if (items.length > 0) {
+      setToLocalCache(colPath, items);
+    }
+    return items;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, colPath);
+    return [];
+  }
+}
+
+export async function writeGift(gift: GiftItem): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `gifts/${gift.id}`;
+  try {
+    await setDoc(doc(db, 'gifts', gift.id), sanitizeFirestoreData(gift));
+    clearLocalCache('gifts');
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function removeGift(giftId: string): Promise<void> {
+  if (!isRealFirebase) return;
+  const path = `gifts/${giftId}`;
+  try {
+    await deleteDoc(doc(db, 'gifts', giftId));
+    clearLocalCache('gifts');
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+
+
 
 
 

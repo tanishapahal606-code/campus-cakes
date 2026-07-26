@@ -1,8 +1,11 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import dotenv from "dotenv";
+import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -10,7 +13,8 @@ async function startServer() {
   const app = express();
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // API Route: Customer Support AI Chat
   app.post("/api/support/chat", async (req, res) => {
@@ -186,6 +190,261 @@ COMMUNICATION STYLE:
     } catch (err: any) {
       console.error("Error in AI support chat:", err);
       res.status(500).json({ error: err.message || "An error occurred in server-side AI generation." });
+    }
+  });
+
+  // API Route: Order Confirmation Email Dispatcher
+  app.post("/api/orders/confirm", async (req, res) => {
+    try {
+      const { order } = req.body;
+      if (!order) {
+        return res.status(400).json({ error: "No order object provided." });
+      }
+
+      const { id, customerName, userEmail, items, total } = order;
+      const recipientEmail = userEmail || order.customerEmail || "unverified@campus-cakes.com";
+      const orderId = id || "ORD-UNKNOWN";
+
+      const itemsHtml = (items || [])
+        .map(
+          (item: any) =>
+            `<tr>
+               <td style="padding: 12px 0; border-bottom: 1px solid rgba(212, 175, 55, 0.15);">
+                 <div style="font-weight: bold; color: #ffffff; font-size: 14px; font-family: 'Inter', Arial, sans-serif;">${item.name}</div>
+                 ${item.selectedWeight ? `<div style="font-size: 11px; color: #D4AF37; margin-top: 4px; font-family: 'Inter', Arial, sans-serif;">⚖️ Weight: ${item.selectedWeight}kg</div>` : ""}
+                 ${item.selectedFlavor ? `<div style="font-size: 11px; color: #FBCFE8; margin-top: 2px; font-family: 'Inter', Arial, sans-serif;">🍰 Flavor: ${item.selectedFlavor}</div>` : ""}
+               </td>
+               <td style="padding: 12px 0; text-align: center; border-bottom: 1px solid rgba(212, 175, 55, 0.15); color: #d1d5db; font-size: 13px; font-family: 'Inter', Arial, sans-serif;">${item.quantity || item.qty || 1}</td>
+               <td style="padding: 12px 0; text-align: right; border-bottom: 1px solid rgba(212, 175, 55, 0.15); color: #D4AF37; font-weight: bold; font-size: 14px; font-family: 'Inter', Arial, sans-serif;">₹${item.price}</td>
+             </tr>`
+        )
+        .join("");
+
+      const protocol = req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+      const host = req.headers.host || "localhost:3000";
+      const appUrl = process.env.APP_URL || `${protocol}://${host}`;
+      const logoUrl = "cid:brand_logo";
+
+      const brandName = "Campus Cakes";
+      const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Your Campus Cakes Order is Confirmed!</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Inter:wght@400;500;600;700;800&display=swap');
+            
+            body {
+              margin: 0;
+              padding: 0;
+              background-color: #070102;
+              color: #FEFAF6;
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              -webkit-font-smoothing: antialiased;
+            }
+          </style>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #070102; color: #FEFAF6; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+          <div style="background-color: #070102; padding: 40px 20px;">
+            <div style="max-width: 560px; margin: 0 auto; background-color: #140407; border: 1px solid #D4AF37; border-radius: 24px; padding: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 40px rgba(212, 175, 55, 0.15);">
+              
+              <div style="text-align: center; margin-bottom: 32px;">
+                <img src="${logoUrl}" alt="${brandName}" style="display: inline-block; width: 140px; height: 140px; border-radius: 50%; border: 1.5px solid #D4AF37; box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 25px rgba(212, 175, 55, 0.25); margin-bottom: 12px;" />
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid rgba(212, 175, 55, 0.2); margin: 24px 0;" />
+              
+              <h2 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 22px; font-style: italic; color: #FEFAF6; margin: 0 0 12px 0;">Your Sweet Celebration is Booked! ✨</h2>
+              <p style="font-size: 14px; color: #D1D5DB; line-height: 1.6; margin: 0 0 16px 0;">
+                Hi <strong>${customerName || "there"}</strong>,
+              </p>
+              <p style="font-size: 14px; color: #D1D5DB; line-height: 1.6; margin: 0 0 16px 0;">
+                We have received your order and sent the recipe details to our expert campus baking kitchen team. They are already hand-selecting the finest local ingredients to bake your order to absolute perfection.
+              </p>
+              
+              <div style="text-align: center; margin: 24px 0;">
+                <div style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.25); padding: 10px 20px; border-radius: 50px; display: inline-block;">
+                  <span style="font-size: 13px; font-weight: 700; color: #D4AF37; letter-spacing: 0.5px; font-family: 'Inter', Arial, sans-serif;">Order Reference: #${orderId}</span>
+                </div>
+              </div>
+
+              <!-- Interactive Timeline Steps -->
+              <div style="background: rgba(250, 247, 242, 0.03); border: 1px solid rgba(212, 175, 55, 0.1); border-radius: 16px; padding: 20px; margin-bottom: 32px;">
+                <h3 style="font-size: 11px; font-weight: 800; color: #D4AF37; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 16px 0; font-family: 'Inter', Arial, sans-serif;">Preparation Tracker</h3>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="width: 24px; vertical-align: middle;">
+                      <span style="width: 14px; height: 14px; border-radius: 50%; background-color: #D4AF37; display: inline-block;"></span>
+                    </td>
+                    <td style="padding-left: 12px; vertical-align: middle;">
+                      <div style="font-size: 13px; font-weight: 700; color: #D4AF37; font-family: 'Inter', Arial, sans-serif;">1. Order Booked & Confirmed</div>
+                      <div style="font-size: 11px; color: #8E7C80; font-family: 'Inter', Arial, sans-serif;">Verified securely and sent to kitchen</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="width: 24px; vertical-align: middle; padding: 4px 0;">
+                      <div style="height: 16px; border-left: 1.5px dashed rgba(212, 175, 55, 0.4); margin-left: 6px;"></div>
+                    </td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td style="width: 24px; vertical-align: middle;">
+                      <span style="width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(212, 175, 55, 0.3); background-color: transparent; display: inline-block;"></span>
+                    </td>
+                    <td style="padding-left: 12px; vertical-align: middle;">
+                      <div style="font-size: 13px; font-weight: 700; color: #FEFAF6; font-family: 'Inter', Arial, sans-serif;">2. Baking & Custom Artistry</div>
+                      <div style="font-size: 11px; color: #8E7C80; font-family: 'Inter', Arial, sans-serif;">Hand-crafted decoration, frosting & details</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="width: 24px; vertical-align: middle; padding: 4px 0;">
+                      <div style="height: 16px; border-left: 1.5px dashed rgba(212, 175, 55, 0.4); margin-left: 6px;"></div>
+                    </td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td style="width: 24px; vertical-align: middle;">
+                      <span style="width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(212, 175, 55, 0.3); background-color: transparent; display: inline-block;"></span>
+                    </td>
+                    <td style="padding-left: 12px; vertical-align: middle;">
+                      <div style="font-size: 13px; font-weight: 700; color: #FEFAF6; font-family: 'Inter', Arial, sans-serif;">3. Handover & Delivery</div>
+                      <div style="font-size: 11px; color: #8E7C80; font-family: 'Inter', Arial, sans-serif;">Packed in insulated box and out to your campus address</div>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Order Summary Table -->
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                <thead>
+                  <tr>
+                    <th style="text-align: left; padding-bottom: 12px; color: #D4AF37; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 2px solid #D4AF37; font-family: 'Inter', Arial, sans-serif;">Item</th>
+                    <th style="text-align: center; width: 60px; padding-bottom: 12px; color: #D4AF37; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 2px solid #D4AF37; font-family: 'Inter', Arial, sans-serif;">Qty</th>
+                    <th style="text-align: right; width: 100px; padding-bottom: 12px; color: #D4AF37; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 2px solid #D4AF37; font-family: 'Inter', Arial, sans-serif;">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+              </table>
+              
+              <div style="text-align: right; margin-bottom: 32px;">
+                <span style="font-size: 13px; color: #8E7C80; font-family: 'Inter', Arial, sans-serif;">Grand Total Paid</span>
+                <div style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 28px; font-weight: 800; color: #FEFAF6; margin-top: 4px;">₹${total}</div>
+              </div>
+              
+              <a href="${appUrl}" style="display: block; text-align: center; background: linear-gradient(135deg, #D4AF37, #C59B27); color: #070102 !important; text-decoration: none; font-weight: 800; font-size: 14px; padding: 16px 32px; border-radius: 50px; box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25); margin-bottom: 32px; letter-spacing: 0.5px; font-family: 'Inter', Arial, sans-serif;">
+                TRACK YOUR ORDER LIVE ➔
+              </a>
+              
+              <hr style="border: none; border-top: 1px solid rgba(212, 175, 55, 0.2); margin: 24px 0;" />
+              
+              <p style="font-size: 12px; color: #8E7C80; line-height: 1.6; text-align: center; margin: 0; font-family: 'Inter', Arial, sans-serif;">
+                Need to make any modifications? Reach our campus student helpline directly at <strong>+91 99887 76655</strong> or reply to this receipt.
+              </p>
+              
+              <div style="font-family: 'Cormorant Garamond', 'Georgia', serif; font-style: italic; font-size: 18px; color: #D4AF37; text-align: center; margin-top: 24px;">
+                With sweet regards,<br>
+                The Campus Cakes Team
+              </div>
+              
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      let deliveryMethod = "simulated";
+      let emailSent = false;
+      let errorDetails: string | null = null;
+
+      if (process.env.RESEND_API_KEY) {
+        deliveryMethod = "resend";
+        try {
+          const resendClient = new Resend(process.env.RESEND_API_KEY);
+          const logoPath = path.join(process.cwd(), "public", "brand_logo.jpg");
+          const attachments: any[] = [];
+          if (fs.existsSync(logoPath)) {
+            attachments.push({
+              filename: "brand_logo.jpg",
+              content: fs.readFileSync(logoPath),
+              id: "brand_logo",
+              cid: "brand_logo",
+            });
+          }
+          await resendClient.emails.send({
+            from: `${brandName} <${fromEmail}>`,
+            to: recipientEmail,
+            subject: `Your ${brandName} order is confirmed! 🎂`,
+            html,
+            attachments,
+          });
+          emailSent = true;
+          console.log(`[Resend] Confirmation email sent successfully for Order #${orderId} to ${recipientEmail}`);
+        } catch (err: any) {
+          console.error(`[Resend] Failed to send confirmation email:`, err);
+          errorDetails = err.message || String(err);
+        }
+      } else if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+        deliveryMethod = "gmail";
+        try {
+          const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+              user: process.env.GMAIL_USER,
+              pass: process.env.GMAIL_APP_PASSWORD,
+            },
+          });
+          const logoPath = path.join(process.cwd(), "public", "brand_logo.jpg");
+          const attachments: any[] = [];
+          if (fs.existsSync(logoPath)) {
+            attachments.push({
+              filename: "brand_logo.jpg",
+              path: logoPath,
+              cid: "brand_logo",
+            });
+          }
+          await transporter.sendMail({
+            from: `"${brandName}" <${process.env.GMAIL_USER}>`,
+            to: recipientEmail,
+            subject: `Your ${brandName} order is confirmed! 🎂`,
+            html,
+            attachments,
+          });
+          emailSent = true;
+          console.log(`[Gmail] Confirmation email sent successfully for Order #${orderId} to ${recipientEmail}`);
+        } catch (err: any) {
+          console.error(`[Gmail] Failed to send confirmation email:`, err);
+          errorDetails = err.message || String(err);
+        }
+      } else {
+        console.log(`\n======================================================`);
+        console.log(`📧 [CAMPUS CAKES] SIMULATED EMAIL CONFIRMATION DISPATCH`);
+        console.log(`======================================================`);
+        console.log(`Order Number : #${orderId}`);
+        console.log(`Customer     : ${customerName}`);
+        console.log(`Email to     : ${recipientEmail}`);
+        console.log(`Total Price  : ₹${total}`);
+        console.log(`Items count  : ${(items || []).length}`);
+        console.log(`======================================================\n`);
+        emailSent = true;
+      }
+
+      return res.json({
+        success: true,
+        emailSent,
+        deliveryMethod,
+        recipientEmail,
+        errorDetails,
+      });
+    } catch (error: any) {
+      console.error("Error inside order confirmation email endpoint:", error);
+      return res.status(500).json({ error: error.message || "Internal server error" });
     }
   });
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Campus, CakeItem, KioskCake, FeedbackReview } from './types';
+import { Campus, CakeItem, KioskCake, FeedbackReview, GiftItem } from './types';
 import hazelnutImage from './assets/images/hero_hazelnut_cake_1779292345407.png';
 import bentoImage from './assets/images/minimalist_bento_cake_1779292365214.png';
 import redVelvetImage from './assets/images/red_velvet_cupcake_1779292382726.png';
@@ -299,5 +299,58 @@ export const FAQS = [
   {
     q: 'Can I get a refund if my hostel event or professor seminar is cancelled?',
     a: 'Absolutely! Cancel at least 12 hours before your selected delivery or pickup slot, and we will issue a full refund back to your payment mode. Kiosk reservations are held for 1.5 hours, after which they are automatically cancelled with zero penalty.'
+  }
+];
+
+export const GIFT_PRODUCTS: GiftItem[] = [
+  {
+    id: 'gift-roses',
+    name: 'Gilded Rose Bouquet',
+    description: 'A premium bunch of 6 fresh crimson red roses, elegantly hand-tied with a golden satin ribbon.',
+    price: 399,
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?w=500&auto=format&fit=crop&q=80',
+    category: 'Flowers',
+    partnerGallery: 'Flora Partners'
+  },
+  {
+    id: 'gift-card',
+    name: 'Handwritten Premium Greeting Card',
+    description: 'An elegant heavyweight card with gold foil accents. Our campus team will handwrite your custom warm message!',
+    price: 99,
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=500&auto=format&fit=crop&q=80',
+    category: 'Cards',
+    partnerGallery: 'Scribble Studio'
+  },
+  {
+    id: 'gift-truffles',
+    name: 'Belgian Truffles Gift Box',
+    description: 'Assorted box of 8 premium milk and dark Belgian chocolate truffles in an exquisite golden gift box.',
+    price: 299,
+    rating: 4.7,
+    image: 'https://images.unsplash.com/photo-1548907040-4d42b52145ea?w=500&auto=format&fit=crop&q=80',
+    category: 'Chocolates',
+    partnerGallery: 'Sweet Treat Gallery'
+  },
+  {
+    id: 'gift-teddy',
+    name: 'Plush Teddy Bear Companion',
+    description: 'A super soft, huggable 8-inch beige plush teddy bear wearing a cute miniature red ribbon.',
+    price: 249,
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1559251606-c623743a6d76?w=500&auto=format&fit=crop&q=80',
+    category: 'Toys',
+    partnerGallery: 'Dorm Toy Loft'
+  },
+  {
+    id: 'gift-neon',
+    name: 'Happy Birthday Neon Topper',
+    description: 'A mini battery-operated warm-glow LED neon sign that can be placed next to the cake for the ultimate dorm party look.',
+    price: 499,
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=500&auto=format&fit=crop&q=80',
+    category: 'Decorations',
+    partnerGallery: 'Dorm Sparkles'
   }
 ];

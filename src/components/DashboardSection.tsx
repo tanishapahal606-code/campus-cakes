@@ -4,12 +4,12 @@
  */
 
 import React, { useState } from 'react';
-import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon, CustomQuestion, Employee, Vendor } from '../types';
+import { UserProfile, Order, CakeItem, KioskCake, SavedCelebration, Coupon, CustomQuestion, Employee, Vendor, GiftItem } from '../types';
 import { 
   User, Award, Calendar, Gift, RefreshCw, Eye, Sparkles, MapPin, 
   ArrowRight, Coins, Share2, Plus, Trash2, Shield, Settings,
   TrendingUp, Clock, ShoppingBag, BarChart2, IndianRupee, Users, CheckCircle, Package,
-  Truck, Phone, Mail, Download, Tag, QrCode, Edit, Bell, ClipboardCheck, Bike
+  Truck, Phone, Mail, Download, Tag, QrCode, Edit, Bell, ClipboardCheck, Bike, Star, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { downloadReceiptFile } from '../lib/receipt';
@@ -49,6 +49,9 @@ interface DashboardSectionProps {
   vendors?: Vendor[];
   onAddVendor?: (v: Vendor) => void;
   onDeleteVendor?: (id: string) => void;
+  gifts?: GiftItem[];
+  onAddGift?: (gift: GiftItem) => void;
+  onDeleteGift?: (id: string) => void;
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -100,6 +103,9 @@ export default function DashboardSection({
   vendors = [],
   onAddVendor,
   onDeleteVendor,
+  gifts = [],
+  onAddGift,
+  onDeleteGift,
 }: DashboardSectionProps) {
   const [activeTab, setActiveTab] = useState<'student' | 'admin' | 'employee' | 'vendor'>('student');
   const [addressInput, setAddressInput] = useState(user.address);
@@ -318,8 +324,19 @@ export default function DashboardSection({
   // Admin section: new campus state
   const [newCampusName, setNewCampusName] = useState('');
   const [newCampusLocation, setNewCampusLocation] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'prepared' | 'kiosk' | 'catalog' | 'campus' | 'coupons' | 'qrcodes' | 'employees' | 'vendors'>('analytics');
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'orders' | 'prepared' | 'kiosk' | 'catalog' | 'campus' | 'coupons' | 'qrcodes' | 'employees' | 'vendors' | 'gifts'>('analytics');
   const [preparedCampusFilter, setPreparedCampusFilter] = useState<string>('all');
+  
+  // Admin section: gift items states
+  const [editingGiftItem, setEditingGiftItem] = useState<GiftItem | null>(null);
+  const [giftName, setGiftName] = useState('');
+  const [giftPrice, setGiftPrice] = useState('');
+  const [giftCategory, setGiftCategory] = useState('Flowers');
+  const [giftRating, setGiftRating] = useState('4.8');
+  const [giftImage, setGiftImage] = useState('');
+  const [giftDescription, setGiftDescription] = useState('');
+  const [giftSearch, setGiftSearch] = useState('');
+  const [deletingGiftId, setDeletingGiftId] = useState<string | null>(null);
   
   // Admin section: new employee state
   const [newEmpName, setNewEmpName] = useState('');
@@ -717,7 +734,7 @@ export default function DashboardSection({
       setNewKioskImage('');
       setNewKioskCampusIds([]);
       if (onShowToast) {
-        onShowToast("Kiosk Catalog Updated", `Instant Kiosk product "${newKioskName}" added successfully!`);
+        onShowToast("Now Catalog Updated", `Campus Cakes Now product "${newKioskName}" added successfully!`);
       } else {
         alert('Kiosk product added successfully!');
       }
@@ -1233,6 +1250,14 @@ export default function DashboardSection({
                     <Shield className="w-4 h-4" />
                     <span className="text-[11px] font-bold">Vendor Registration</span>
                   </button>
+
+                  <button 
+                    onClick={() => setActiveAdminTab('gifts')}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${activeAdminTab === 'gifts' ? 'bg-pink-50 dark:bg-pink-500/10 text-pink-700 dark:text-pink-400 font-black' : 'text-gray-600 dark:text-[#d4d4d8] hover:bg-gray-50 hover:dark:bg-[#1a0d0f]/80'}`}
+                  >
+                    <Gift className="w-4 h-4 text-pink-500" />
+                    <span className="text-[11px] font-bold">Gifts Manager</span>
+                  </button>
                 </div>
 
                 {/* Main Admin Content */}
@@ -1573,7 +1598,7 @@ export default function DashboardSection({
                                       {statusLabel}
                                     </span>
                                     <span className="text-[9px] font-bold bg-gray-100 dark:bg-[#1a0d0f] text-gray-600 dark:text-[#d4d4d8] px-2 py-0.5 rounded-full border border-gray-200 dark:border-[#3c1a1e] capitalize">
-                                      {or.orderType === 'instant-pickup' ? '⚡ Instant Kiosk' : '📅 Pre-Order'}
+                                      {or.orderType === 'instant-pickup' ? '⚡ Campus Cakes Now' : '📅 Pre-Order'}
                                     </span>
                                     {or.serviceMode === 'dinein' ? (
                                       <span className="text-[9px] font-extrabold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-250 dark:border-emerald-800/40 flex items-center gap-1">
@@ -4155,6 +4180,285 @@ export default function DashboardSection({
                             <Shield className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                             <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] font-bold uppercase tracking-widest">No matching partners found</p>
                             <p className="text-[10px] text-gray-400 mt-1">Refine your search parameters or register them on the left panel.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeAdminTab === 'gifts' && (
+                <div className="space-y-6 animate-fade-in">
+                  {/* Gifts Manager Header */}
+                  <div className="bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-amber-500/10 p-6 rounded-3xl border border-pink-500/20 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="font-extrabold text-sm text-pink-900 dark:text-pink-300 uppercase tracking-widest mb-1 flex items-center gap-2">
+                          <Gift className="w-5 h-5 text-pink-600" /> Gifts Gallery Manager
+                        </h3>
+                        <p className="text-xs text-pink-700/80 dark:text-pink-300/70 font-medium max-w-2xl">
+                          Add, edit, or remove companion gift items displayed in the student gifts gallery and pre-order add-on selections.
+                        </p>
+                      </div>
+                      <div className="bg-pink-100/50 dark:bg-pink-950/40 px-4 py-2 rounded-2xl border border-pink-200/30 text-center shrink-0">
+                        <span className="block text-[10px] text-pink-700 dark:text-pink-400 font-extrabold uppercase tracking-widest">Active Gifts</span>
+                        <span className="text-xl font-black text-pink-950 dark:text-white">{gifts.length} Items</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* LEFT COLUMN: ADD/EDIT FORM */}
+                    <div className="lg:col-span-5 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#291316] pb-2">
+                        <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-1.5">
+                          {editingGiftItem ? <Edit className="w-4 h-4 text-pink-600" /> : <Plus className="w-4 h-4 text-pink-600" />} 
+                          {editingGiftItem ? 'Edit Gift Item' : 'Add New Gift Item'}
+                        </h4>
+                        {editingGiftItem && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingGiftItem(null);
+                              setGiftName('');
+                              setGiftPrice('');
+                              setGiftCategory('Flowers');
+                              setGiftRating('4.8');
+                              setGiftImage('');
+                              setGiftDescription('');
+                            }}
+                            className="text-[10px] text-gray-400 hover:text-gray-700 dark:hover:text-white font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" /> Cancel Edit
+                          </button>
+                        )}
+                      </div>
+
+                      <form 
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!giftName || !giftPrice || !giftImage) return;
+
+                          const giftObj: GiftItem = {
+                            id: editingGiftItem ? editingGiftItem.id : `gift-${Date.now()}`,
+                            name: giftName,
+                            price: Number(giftPrice) || 199,
+                            category: giftCategory,
+                            rating: Number(giftRating) || 4.8,
+                            image: giftImage,
+                            description: giftDescription || 'Special companion gift item.',
+                          };
+
+                          onAddGift?.(giftObj);
+                          if (onShowToast) {
+                            onShowToast(
+                              editingGiftItem ? "Gift Updated" : "Gift Added", 
+                              `"${giftName}" is now active in the gifts catalog.`
+                            );
+                          }
+
+                          // Reset
+                          setEditingGiftItem(null);
+                          setGiftName('');
+                          setGiftPrice('');
+                          setGiftCategory('Flowers');
+                          setGiftRating('4.8');
+                          setGiftImage('');
+                          setGiftDescription('');
+                        }} 
+                        className="space-y-3.5"
+                      >
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Gift Title / Name</label>
+                          <input 
+                            type="text"
+                            required
+                            value={giftName}
+                            onChange={(e) => setGiftName(e.target.value)}
+                            placeholder="e.g. Royal Red Rose Bouquet"
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Price (₹)</label>
+                            <input 
+                              type="number"
+                              required
+                              min="0"
+                              value={giftPrice}
+                              onChange={(e) => setGiftPrice(e.target.value)}
+                              placeholder="e.g. 299"
+                              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Rating (1-5)</label>
+                            <input 
+                              type="number"
+                              step="0.1"
+                              min="1"
+                              max="5"
+                              value={giftRating}
+                              onChange={(e) => setGiftRating(e.target.value)}
+                              placeholder="4.8"
+                              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Category</label>
+                          <select
+                            value={giftCategory}
+                            onChange={(e) => setGiftCategory(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          >
+                            <option value="Flowers">Flowers</option>
+                            <option value="Chocolates">Chocolates</option>
+                            <option value="Cards">Cards</option>
+                            <option value="Toys">Toys</option>
+                            <option value="Decorations">Decorations</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Image URL</label>
+                          <input 
+                            type="url"
+                            required
+                            value={giftImage}
+                            onChange={(e) => setGiftImage(e.target.value)}
+                            placeholder="https://images.unsplash.com/..."
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="pl-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Short Description</label>
+                          <textarea
+                            rows={2}
+                            value={giftDescription}
+                            onChange={(e) => setGiftDescription(e.target.value)}
+                            placeholder="Brief description of the gift..."
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:bg-white focus:outline-none focus:ring-1 focus:ring-pink-400"
+                          />
+                        </div>
+
+                        <button 
+                          type="submit"
+                          className="w-full py-3 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-md transition-all hover:scale-[1.01] active:scale-98 cursor-pointer mt-2"
+                        >
+                          {editingGiftItem ? 'Save Gift Changes' : 'Publish Gift Item'}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* RIGHT COLUMN: ACTIVE GIFTS LIST */}
+                    <div className="lg:col-span-7 bg-white dark:bg-[#120709] rounded-3xl border border-gray-200 dark:border-[#3c1a1e] p-5 shadow-sm space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-[#291316] pb-3">
+                        <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-1.5">
+                          <Gift className="w-4 h-4 text-pink-600" /> Current Gifts Gallery ({gifts.length})
+                        </h4>
+                        
+                        <input 
+                          type="text"
+                          value={giftSearch}
+                          onChange={(e) => setGiftSearch(e.target.value)}
+                          placeholder="Search gifts..."
+                          className="px-3 py-1.5 bg-gray-50 dark:bg-black/40 text-xs rounded-xl border border-gray-200 dark:border-[#3c1a1e] text-gray-800 dark:text-white font-bold focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-1">
+                        {gifts
+                          .filter(g => g.name.toLowerCase().includes(giftSearch.toLowerCase()) || g.category.toLowerCase().includes(giftSearch.toLowerCase()))
+                          .map((g) => (
+                            <div 
+                              key={g.id}
+                              className="bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl p-3 border border-gray-200 dark:border-[#3c1a1e] flex flex-col justify-between space-y-2 group hover:border-pink-300 transition-colors"
+                            >
+                              <div className="flex gap-3">
+                                <img 
+                                  src={g.image} 
+                                  alt={g.name}
+                                  className="w-16 h-16 rounded-xl object-cover shrink-0 border border-gray-200 dark:border-zinc-800"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <span className="text-[9px] font-black uppercase text-pink-600 dark:text-pink-400 bg-pink-100 dark:bg-pink-950/40 px-1.5 py-0.5 rounded-full inline-block mb-1">
+                                    {g.category}
+                                  </span>
+                                  <h5 className="font-extrabold text-xs text-gray-900 dark:text-white truncate">{g.name}</h5>
+                                  <p className="text-xs font-black text-pink-600 dark:text-pink-400 mt-0.5">₹{g.price}</p>
+                                  <div className="flex items-center gap-1 text-[10px] text-amber-500 font-bold mt-0.5">
+                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {g.rating}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-gray-200/60 dark:border-zinc-800/60">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingGiftItem(g);
+                                    setGiftName(g.name);
+                                    setGiftPrice(g.price.toString());
+                                    setGiftCategory(g.category);
+                                    setGiftRating((g.rating || 4.8).toString());
+                                    setGiftImage(g.image);
+                                    setGiftDescription(g.description || '');
+                                  }}
+                                  className="px-2.5 py-1 bg-gray-200 dark:bg-zinc-800 hover:bg-pink-100 dark:hover:bg-pink-950/40 text-gray-700 dark:text-gray-300 hover:text-pink-600 text-[10px] font-extrabold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Edit className="w-3 h-3" /> Edit
+                                </button>
+
+                                {deletingGiftId === g.id ? (
+                                  <div className="flex items-center gap-1 bg-rose-50 dark:bg-rose-950/20 p-1 rounded-lg border border-rose-100/30">
+                                    <span className="text-[9px] text-rose-600 font-black uppercase px-1">Delete?</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onDeleteGift?.(g.id);
+                                        setDeletingGiftId(null);
+                                        if (onShowToast) {
+                                          onShowToast("Gift Deleted", `"${g.name}" removed from gallery.`);
+                                        }
+                                      }}
+                                      className="px-2 py-0.5 bg-red-600 text-white text-[9px] font-black rounded hover:bg-red-700 transition-colors cursor-pointer"
+                                    >
+                                      Yes
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingGiftId(null)}
+                                      className="px-2 py-0.5 bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 text-[9px] font-black rounded hover:bg-gray-300 transition-colors cursor-pointer"
+                                    >
+                                      No
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeletingGiftId(g.id)}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors cursor-pointer"
+                                    title="Delete Gift Item"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+
+                        {gifts.filter(g => g.name.toLowerCase().includes(giftSearch.toLowerCase()) || g.category.toLowerCase().includes(giftSearch.toLowerCase())).length === 0 && (
+                          <div className="col-span-2 p-8 text-center bg-gray-50 dark:bg-[#1a0d0f]/80 rounded-2xl border border-dashed border-gray-200 dark:border-[#3c1a1e]">
+                            <Gift className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-[11px] text-gray-500 dark:text-[#a1a1aa] font-bold uppercase tracking-widest">No gifts found</p>
+                            <p className="text-[10px] text-gray-400 mt-1">Add a new gift using the form on the left.</p>
                           </div>
                         )}
                       </div>

@@ -302,9 +302,120 @@
         "email",
         "campusId"
       ]
+    },
+    "GiftItem": {
+      "title": "Gift Item",
+      "description": "Companion gifts or standalone gift gallery items.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "rating": {
+          "type": "number"
+        },
+        "image": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "partnerGallery": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "image"
+      ]
+    },
+    "Certificate": {
+      "title": "Employee Certificate",
+      "description": "Official employee experience certificate issued by Campus Cakes.",
+      "type": "object",
+      "properties": {
+        "certificateId": {
+          "type": "string",
+          "description": "Unique certificate ID (e.g. CC-CERT-2026-000001)."
+        },
+        "employeeName": {
+          "type": "string",
+          "description": "Name of the certified employee."
+        },
+        "designation": {
+          "type": "string",
+          "description": "Role/Designation served."
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Employee ID (e.g. CC-EMP-0001)."
+        },
+        "joiningDate": {
+          "type": "string",
+          "description": "Start date of employment."
+        },
+        "relievingDate": {
+          "type": "string",
+          "description": "End date of employment."
+        },
+        "issueDate": {
+          "type": "string",
+          "description": "Date of issue."
+        },
+        "founderName": {
+          "type": "string",
+          "description": "Founder name."
+        },
+        "coFounderName": {
+          "type": "string",
+          "description": "Co-founder name."
+        },
+        "certificateUrl": {
+          "type": "string",
+          "description": "Generated certificate image or PDF URL."
+        },
+        "qrCodeUrl": {
+          "type": "string",
+          "description": "Generated verification QR code URL."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Admin UID or email who created the certificate."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of creation."
+        }
+      },
+      "required": [
+        "certificateId",
+        "employeeName",
+        "designation",
+        "employeeId",
+        "joiningDate",
+        "relievingDate",
+        "issueDate"
+      ]
     }
   },
   "firestore": {
+    "certificates/{certificateId}": {
+      "schema": {
+        "$ref": "#/entities/Certificate"
+      },
+      "description": "Issued employee experience certificates."
+    },
     "vendors/{vendorId}": {
       "schema": {
         "$ref": "#/entities/Vendor"
@@ -346,6 +457,12 @@
         "$ref": "#/entities/CakeImage"
       },
       "description": "Data record of the pictures / artworks of active products or uploaded custom orders."
+    },
+    "gifts/{giftId}": {
+      "schema": {
+        "$ref": "#/entities/GiftItem"
+      },
+      "description": "Companion gifts gallery database."
     }
   }
 }

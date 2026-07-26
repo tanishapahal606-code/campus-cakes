@@ -505,7 +505,7 @@ export async function downloadReceiptFile(order: Order, studentName?: string) {
         
         <div class="slot-detail">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-          Slot: <strong style="color: #1C1917;">${order.orderType === 'instant-pickup' ? 'Instant Kiosk' : 'Pre-Order'}</strong>
+          Slot: <strong style="color: #1C1917;">${order.orderType === 'instant-pickup' ? 'Campus Cakes Now' : 'Pre-Order'}</strong>
         </div>
       </div>
 

@@ -5,10 +5,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  CAMPUSES, CATEGORIES, CAKE_PRODUCTS, KIOSK_INVENTORY, FAQS, AI_RECOMMENDATION_TEMPLATES 
+  CAMPUSES, CATEGORIES, CAKE_PRODUCTS, KIOSK_INVENTORY, FAQS, AI_RECOMMENDATION_TEMPLATES, GIFT_PRODUCTS
 } from './data';
 import { 
-  Campus, CakeItem, KioskCake, CartItem, Order, UserProfile, SavedCelebration, FeedbackReview, OrderStatus 
+  Campus, CakeItem, KioskCake, CartItem, Order, UserProfile, SavedCelebration, FeedbackReview, OrderStatus, GiftItem 
 } from './types';
 
 // Importing custom modular components
@@ -21,6 +21,7 @@ import AboutSection from './components/AboutSection';
 import OffersInstagramCarousel from './components/OffersInstagramCarousel';
 import { DarkModeToggle } from './components/DarkModeToggle';
 import CelebrationConfetti from './components/CelebrationConfetti';
+import GiftsSection from './components/GiftsSection';
 
 // Lucide React Icons
 import { 
@@ -39,7 +40,8 @@ import {
   removeKioskProduct, getUserProfile, writeUserProfile, getAllUserProfiles, getUserOrders, writeOrder, 
   writeCakeImage, getAllOrders, removeOrder, subscribeToCoupons, writeCoupon, removeCoupon,
   subscribeToUserProfile, subscribeToUserOrders, subscribeToReferredOrders, subscribeToAssignedOrders, subscribeToAllOrders, subscribeToCampusOrders, clearAllFirestoreCaches,
-  subscribeToReviews, writeReview, removeReview, getEmployees, writeEmployee, removeEmployee, getVendors, writeVendor, removeVendor
+  subscribeToReviews, writeReview, removeReview, getEmployees, writeEmployee, removeEmployee, getVendors, writeVendor, removeVendor,
+  getGifts, writeGift, removeGift
 } from './lib/firestoreService';
 import { downloadReceiptFile } from './lib/receipt';
 import { safeStorage } from './lib/safeStorage';
@@ -54,12 +56,12 @@ export default function App() {
   const [campusSelected, setCampusSelected] = useState<boolean>(() => {
     return safeStorage.getItem('campus_cakes_selected_campus') !== null;
   });
-  const [activeZomatoTab, setActiveZomatoTab] = useState<'delivery' | 'kiosk' | 'portal' | 'support' | 'about'>('delivery');
+  const [activeZomatoTab, setActiveZomatoTab] = useState<'delivery' | 'kiosk' | 'gifts' | 'portal' | 'support' | 'about'>('delivery');
   const [tempSelectedCampus, setTempSelectedCampus] = useState<Campus | null>(null);
   const [tempAddressDetails, setTempAddressDetails] = useState<{hostelBlock: string, roomNo: string, instructions: string} | null>(null);
   const [tempDob, setTempDob] = useState<string>('');
   const [activeDocModal, setActiveDocModal] = useState<'terms' | 'privacy' | 'refund' | null>(null);
-
+  
   // --- 1. STATE CONFIGURATIONS ---
   const [selectedCampus, setSelectedCampus] = useState<Campus>(() => {
     const cached = safeStorage.getItem('campus_cakes_selected_campus');
@@ -82,6 +84,15 @@ export default function App() {
   });
   const [kioskInventory, setKioskInventory] = useState<KioskCake[]>(() => {
     return isRealFirebase ? [] : KIOSK_INVENTORY;
+  });
+  const [allGifts, setAllGifts] = useState<GiftItem[]>(() => {
+    const cachedGifts = safeStorage.getItem('_local_gifts');
+    if (cachedGifts) {
+      try {
+        return JSON.parse(cachedGifts);
+      } catch (e) {}
+    }
+    return GIFT_PRODUCTS;
   });
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -130,9 +141,14 @@ export default function App() {
           safeStorage.setItem('campus_cakes_user', JSON.stringify(customUser));
         } else {
           // Keep cache if simulated, otherwise clear it on explicit signout
-          const cached = safeStorage.getItem('campus_cakes_user');
-          if (!cached) {
+          if (!isRealFirebase) {
+            const cached = safeStorage.getItem('campus_cakes_user');
+            if (!cached) {
+              setFirebaseUser(null);
+            }
+          } else {
             setFirebaseUser(null);
+            safeStorage.removeItem('campus_cakes_user');
           }
         }
         setAuthChecking(false);
@@ -311,6 +327,26 @@ export default function App() {
               setVendors(JSON.parse(cachedVendors));
             } catch (err) {}
           }
+        }
+
+        // 6. Sync Gifts
+        try {
+          const dbGifts = await getGifts();
+          const hasGifts = safeStorage.getItem('_has_bootstrapped_gifts');
+          if ((dbGifts && dbGifts.length > 0) || hasGifts) {
+            setAllGifts(dbGifts);
+            if (!hasGifts) safeStorage.setItem('_has_bootstrapped_gifts', 'true');
+          } else {
+            // Bootstrap Firestore with initial default gifts
+            for (const g of GIFT_PRODUCTS) {
+              await writeGift(g).catch(e => console.warn("Admin rights needed to bootstrap gifts", e));
+            }
+            safeStorage.setItem('_has_bootstrapped_gifts', 'true');
+            setAllGifts(GIFT_PRODUCTS);
+          }
+        } catch (e) {
+          console.error("Error syncing gifts:", e);
+          setAllGifts(GIFT_PRODUCTS);
         }
       } catch (err) {
         console.error("Error connecting to Firestore database:", err);
@@ -1003,6 +1039,13 @@ export default function App() {
   // Simulated live feedback sound/animations
   const [orderCompletePopup, setOrderCompletePopup] = useState<boolean>(false);
   const [newOrderId, setNewOrderId] = useState<string>('');
+  const [emailStatus, setEmailStatus] = useState<{
+    sending: boolean;
+    sent: boolean;
+    recipient?: string;
+    method?: string;
+    error?: string;
+  }>({ sending: false, sent: false });
 
   const [showBdayPopup, setShowBdayPopup] = useState<boolean>(false);
   const [bdayDiscountCode, setBdayDiscountCode] = useState<string>('');
@@ -1238,6 +1281,40 @@ export default function App() {
       return [...prev, item];
     });
     setIsCartOpen(true);
+  };
+
+  // Add Gift Item to cart
+  const handleAddGiftToCart = (gift: GiftItem, quantity = 1) => {
+    const cartItemId = `gift-${gift.id}-${Date.now()}`;
+    const cartItem: CartItem = {
+      id: cartItemId,
+      cakeId: gift.id,
+      name: gift.name,
+      basePrice: gift.price,
+      price: gift.price,
+      image: gift.image,
+      quantity: quantity,
+      category: gift.category,
+      customization: {
+        flavor: gift.partnerGallery,
+        weight: 0,
+        messageOnCake: '',
+        addCandles: false,
+        addKnife: false,
+        pickupTime: 'Delivered with Cake'
+      }
+    };
+    
+    setCart(prev => {
+      const existing = prev.find(p => p.cakeId === gift.id);
+      if (existing) {
+        return prev.map(p => p.cakeId === gift.id ? { ...p, quantity: p.quantity + quantity } : p);
+      }
+      return [...prev, cartItem];
+    });
+    
+    setIsCartOpen(true);
+    addInAppToast("Gift Added", `${gift.name} added to your campus cart!`);
   };
 
   // Add celebration event
@@ -1493,6 +1570,44 @@ export default function App() {
     });
   };
 
+  const sendEmailConfirmation = (order: Order) => {
+    setEmailStatus({ sending: true, sent: false });
+    fetch('/api/orders/confirm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ order }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Order confirmation email API response:', data);
+      if (data.success) {
+        setEmailStatus({
+          sending: false,
+          sent: true,
+          recipient: data.recipientEmail,
+          method: data.deliveryMethod,
+          error: data.errorDetails || undefined
+        });
+      } else {
+        setEmailStatus({
+          sending: false,
+          sent: false,
+          error: data.errorDetails || 'Failed to dispatch email'
+        });
+      }
+    })
+    .catch(err => {
+      console.error('Failed to send order confirmation email:', err);
+      setEmailStatus({
+        sending: false,
+        sent: false,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    });
+  };
+
   // Checkout submission action
   const handleCompletePayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1618,6 +1733,9 @@ export default function App() {
     if (isRealFirebase && firebaseUser) {
       writeUserProfile({ ...updatedUser, uid: firebaseUser.uid }).catch(e => console.error("Error updating profile after order:", e));
     }
+
+    // Trigger automatic order confirmation email dispatch via server API
+    sendEmailConfirmation(userOrderRecord);
 
     // Reset workflow
     setNewOrderId(genOrderNo);
@@ -2199,7 +2317,9 @@ export default function App() {
         </motion.div>
       </div>
     );
-  }  return (
+  }
+
+  return (
     <div className="min-h-screen bg-[#FAF7F2] dark:bg-[#070102] text-zinc-850 dark:text-[#FEFAF6] font-sans selection:bg-[#F3E5AB] selection:text-[#805000] relative overflow-x-hidden">
       
       {/* PREMIUM CHIC AMBIENT ARTISTIC GLOWS */}
@@ -2374,10 +2494,10 @@ export default function App() {
             </div>
             <div className="text-left font-display">
               <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">
-                {serviceMode === 'dinein' ? 'Dine-In Menu' : 'Delivery Pantry'}
+                {serviceMode === 'dinein' ? 'Dine-In Menu' : 'Campus Cakes Reserve'}
               </p>
               <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">
-                {serviceMode === 'dinein' ? 'Explore Canteen offerings' : 'Guaranteed dispatch'}
+                {serviceMode === 'dinein' ? 'Explore Canteen offerings' : 'Guaranteed dispatch reserve'}
               </p>
             </div>
             {activeZomatoTab === 'delivery' && (
@@ -2403,10 +2523,37 @@ export default function App() {
                 <Zap className="w-4 h-4 text-[#D4AF37] animate-pulse" />
               </div>
               <div className="text-left font-display">
-                <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Instant Kiosk</p>
+                <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Campus Cakes Now</p>
                 <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">Pick up in 10 mins today</p>
               </div>
               {activeZomatoTab === 'kiosk' && (
+                <motion.div 
+                  layoutId="activeZomatoUnderline" 
+                  className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] rounded-t-full shadow-[0_-2px_10px_rgba(212,175,55,0.4)]"
+                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                />
+              )}
+            </button>
+          )}
+
+          {/* Tab 2.5: Campus Cakes Gifts */}
+          {serviceMode !== 'dinein' && (
+            <button
+              onClick={() => setActiveZomatoTab('gifts')}
+              className={`pb-4 pt-4 text-sm md:text-base font-bold flex items-center gap-3 transition-all cursor-pointer relative select-none shrink-0 group ${
+                activeZomatoTab === 'gifts'
+                  ? 'text-[#E23744] dark:text-[#F3E5AB] font-black'
+                  : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-[#FEFAF6]'
+              }`}
+            >
+              <div className={`p-2.5 rounded-2xl transition-all duration-300 ${activeZomatoTab === 'gifts' ? 'bg-gradient-to-br from-[#FCF3FA] to-[#FAD9F1] dark:from-[#250B22] dark:to-[#0C0405] text-pink-600 dark:text-pink-400 shadow-sm scale-105 border border-pink-400/30' : 'bg-[#FAF6F0] dark:bg-[#120708]/85 text-zinc-400 border border-transparent'}`}>
+                <Gift className="w-4 h-4 text-pink-500" />
+              </div>
+              <div className="text-left font-display">
+                <p className="font-extrabold text-xs md:text-sm tracking-tight leading-tight">Campus Cakes Gifts</p>
+                <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold hidden sm:block uppercase tracking-wider mt-0.5">Partner gift galleries</p>
+              </div>
+              {activeZomatoTab === 'gifts' && (
                 <motion.div 
                   layoutId="activeZomatoUnderline" 
                   className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-r from-[#D4AF37] via-amber-400 to-[#D4AF37] rounded-t-full shadow-[0_-2px_10px_rgba(212,175,55,0.4)]"
@@ -2767,6 +2914,11 @@ export default function App() {
           </div>
         )}
 
+        {/* --- STATE 2.5: CAMPUS CAKES GIFTS GALLERY TAB --- */}
+        {activeZomatoTab === 'gifts' && (
+          <GiftsSection gifts={allGifts} onAddGiftToCart={handleAddGiftToCart} />
+        )}
+
         {/* --- STATE 3: STUDENT PORTAL JOURNAL AND REVIEW LOGS TAB --- */}
         {activeZomatoTab === 'portal' && (
           <div className="space-y-12">
@@ -2781,6 +2933,36 @@ export default function App() {
               coupons={coupons}
               employees={employees}
               vendors={vendors}
+              gifts={allGifts}
+              onAddGift={async (gift) => {
+                try {
+                  if (isRealFirebase) {
+                    await writeGift(gift);
+                  }
+                  setAllGifts(prev => {
+                    const exists = prev.some(g => g.id === gift.id);
+                    const next = exists ? prev.map(g => g.id === gift.id ? gift : g) : [...prev, gift];
+                    safeStorage.setItem('_local_gifts', JSON.stringify(next));
+                    return next;
+                  });
+                } catch (err) {
+                  console.error("Error saving gift:", err);
+                }
+              }}
+              onDeleteGift={async (id) => {
+                try {
+                  if (isRealFirebase) {
+                    await removeGift(id);
+                  }
+                  setAllGifts(prev => {
+                    const next = prev.filter(g => g.id !== id);
+                    safeStorage.setItem('_local_gifts', JSON.stringify(next));
+                    return next;
+                  });
+                } catch (err) {
+                  console.error("Error deleting gift:", err);
+                }
+              }}
               onAddVendor={async (v) => {
                 try {
                   if (isRealFirebase) {
@@ -3293,20 +3475,37 @@ export default function App() {
                         
                         <div className="flex-1 min-w-0 pr-6">
                           <span className={`text-[8px] font-black uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md inline-block mb-1 shadow-xs ${
-                            item.isInstantKiosk ? 'bg-[#FAF3D9] text-amber-800 border border-[#D4AF37]/20' : 'bg-red-50 text-[#E23744] border border-red-150/30'
+                            item.id.startsWith('gift-') 
+                              ? 'bg-pink-100 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 border border-pink-400/20' 
+                              : item.isInstantKiosk 
+                                ? 'bg-[#FAF3D9] text-amber-800 border border-[#D4AF37]/20' 
+                                : 'bg-red-50 text-[#E23744] border border-red-150/30'
                           }`}>
-                            {item.isInstantKiosk ? '⚡ Kiosk emergency' : '🗓️ Scheduled pre-order'}
+                            {item.id.startsWith('gift-') 
+                              ? '🎁 Partner Gift Gallery' 
+                              : item.isInstantKiosk 
+                                ? '⚡ Kiosk emergency' 
+                                : '🗓️ Scheduled pre-order'}
                           </span>
 
                           <h4 className="font-extrabold text-xs text-gray-900 dark:text-[#FEFAF6] truncate font-serif">{item.name}</h4>
                           
                           {item.customization && (
                             <div className="mt-1 space-y-0.5 text-[9px] text-zinc-500 dark:text-zinc-400">
-                              {item.category !== 'Cupcakes' && item.customization.messageOnCake && (
-                                <p>✓ Msg: <strong className="text-[#E23744] dark:text-[#D4AF37] font-black">"{item.customization.messageOnCake}"</strong></p>
+                              {item.id.startsWith('gift-') ? (
+                                <>
+                                  <p>✓ Gallery: <span className="font-extrabold text-pink-600 dark:text-pink-400">{item.customization.flavor}</span></p>
+                                  <p>✓ Delivery: Sourced & delivered in sync</p>
+                                </>
+                              ) : (
+                                <>
+                                  {item.category !== 'Cupcakes' && item.customization.messageOnCake && (
+                                    <p>✓ Msg: <strong className="text-[#E23744] dark:text-[#D4AF37] font-black">"{item.customization.messageOnCake}"</strong></p>
+                                  )}
+                                  <p>✓ {item.category === 'Cupcakes' ? 'Size: ' + (item.customization.weight === 0.5 ? '6 Pcs' : Math.round(item.customization.weight * 12) + ' Pcs') : 'Weight: ' + item.customization.weight + ' kg'} • {item.customization.flavor}</p>
+                                  <p>✓ Slot: {item.customization.pickupTime}</p>
+                                </>
                               )}
-                              <p>✓ {item.category === 'Cupcakes' ? 'Size: ' + (item.customization.weight === 0.5 ? '6 Pcs' : Math.round(item.customization.weight * 12) + ' Pcs') : 'Weight: ' + item.customization.weight + ' kg'} • {item.customization.flavor}</p>
-                              <p>✓ Slot: {item.customization.pickupTime}</p>
                               {item.customization.customAnswers && Object.entries(item.customization.customAnswers).map(([qId, answer]) => {
                                 // Find question text if possible
                                 const cakeForQ = activeProducts.find(c => c.id === item.cakeId);
@@ -3355,6 +3554,49 @@ export default function App() {
                         </div>
                       </div>
                     )}
+
+                    {/* Frequently Sourced Gifts Quick-Add */}
+                    <div className="pt-4 border-t border-dashed border-zinc-200 dark:border-[#291316] space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-pink-600 dark:text-pink-400 flex items-center gap-1.5">
+                        <Gift className="w-3.5 h-3.5 text-pink-500 animate-pulse" /> Add a Gift (Partner Galleries)
+                      </p>
+                      <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none">
+                        {allGifts.map((gift) => {
+                          const inCart = cart.some(c => c.cakeId === gift.id);
+                          return (
+                            <div 
+                              key={gift.id} 
+                              className="flex-shrink-0 w-[145px] bg-white dark:bg-[#150a12]/60 p-2.5 rounded-2xl border border-zinc-150 dark:border-pink-500/10 flex flex-col justify-between"
+                            >
+                              <div className="flex gap-2 items-start">
+                                <img 
+                                  src={gift.image} 
+                                  alt={gift.name} 
+                                  className="w-8 h-8 object-cover rounded-lg flex-shrink-0"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="min-w-0">
+                                  <h4 className="text-[9.5px] font-bold text-gray-900 dark:text-white leading-tight truncate">{gift.name}</h4>
+                                </div>
+                              </div>
+                              <div className="mt-2.5 flex items-center justify-between">
+                                <span className="text-[9.5px] font-black text-pink-500 dark:text-pink-400 font-mono">₹{gift.price}</span>
+                                {inCart ? (
+                                  <span className="text-[8px] bg-pink-100 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 font-bold px-1.5 py-0.5 rounded-md">Added</span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleAddGiftToCart(gift)}
+                                    className="px-2 py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[8px] font-black rounded-lg shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                                  >
+                                    + Add
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -3734,6 +3976,37 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Email dispatch feedback */}
+              <div className="p-3 bg-pink-500/5 dark:bg-pink-950/20 rounded-2xl text-[10px] font-bold text-left border border-pink-500/15 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">📧</span>
+                  <div>
+                    <p className="text-gray-900 dark:text-white font-extrabold">Auto-Email Receipt</p>
+                    <p className="text-[9px] text-gray-400 font-medium">
+                      {emailStatus.sending && "Generating secure email invoice..."}
+                      {emailStatus.sent && `Receipt sent to ${emailStatus.recipient || "customer"}`}
+                      {emailStatus.error && `Issue: ${emailStatus.error}`}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  {emailStatus.sending && (
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+                    </span>
+                  )}
+                  {emailStatus.sent && (
+                    <span className="text-green-600 dark:text-green-400 text-xs font-black">
+                      {emailStatus.method === 'simulated' ? 'SIMULATED' : 'SENT'}
+                    </span>
+                  )}
+                  {emailStatus.error && (
+                    <span className="text-red-500 text-xs font-black">ERROR</span>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <button
                   type="button"
@@ -3773,6 +4046,7 @@ export default function App() {
             onShowToast={addInAppToast}
             serviceMode={serviceMode}
             tableNumber={tableNumber}
+            gifts={allGifts}
           />
         )}
       </AnimatePresence>

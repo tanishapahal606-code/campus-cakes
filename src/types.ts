@@ -188,4 +188,14 @@ export interface Vendor {
   dateRegistered: string;
 }
 
+export interface GiftItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  rating: number;
+  image: string;
+  category: string;
+  partnerGallery?: string;
+}
 
